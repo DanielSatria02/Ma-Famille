@@ -1,10 +1,15 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { useRoute } from 'vue-router'
 import { useAppStore } from '../stores/app.js'
 import '../styles/header.css'
 
 const store = useAppStore()
+const route = useRoute()
 const isSidebarOpen = ref(false)
+
+// No role store yet: pages under /manager belong to the manager area.
+const homePath = computed(() => (route.path.startsWith('/manager') ? '/manager' : '/'))
 
 const dotClass = computed(() => {
   if (store.backendStatus === 'ok') return 'bg-green-600'
@@ -37,7 +42,7 @@ function handleKeydown(event) {
 <template>
   <header class="app-header">
     <div class="app-header-bar flex items-center justify-between border-b px-4 py-3">
-      <RouterLink to="/" class="app-header-brand font-bold no-underline">Ma-Famille</RouterLink>
+      <RouterLink :to="homePath" class="app-header-brand font-bold no-underline">Ma-Famille</RouterLink>
       <div class="flex items-center gap-4">
         <span :class="['h-2.5 w-2.5 rounded-full', dotClass]" :title="`backend: ${store.backendStatus}`" />
         <button
@@ -84,7 +89,7 @@ function handleKeydown(event) {
       </div>
 
       <nav class="flex flex-col gap-2">
-        <RouterLink to="/" class="app-sidebar-link rounded-lg px-3 py-2 no-underline" @click="closeSidebar">Home</RouterLink>
+        <RouterLink :to="homePath" class="app-sidebar-link rounded-lg px-3 py-2 no-underline" @click="closeSidebar">Home</RouterLink>
         <RouterLink to="/health" class="app-sidebar-link rounded-lg px-3 py-2 no-underline" @click="closeSidebar">Health</RouterLink>
         <button type="button" class="app-sidebar-link rounded-lg px-3 py-2 text-left">Log out</button>
       </nav>
