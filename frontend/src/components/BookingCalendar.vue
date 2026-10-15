@@ -2,12 +2,18 @@
 import { computed, ref } from 'vue'
 import '../styles/calendar.css'
 
+const props = defineProps({
+  allowPastMonths: { type: Boolean, default: false },
+})
+
 const today = new Date()
 const selectedDate = ref(createDate(today))
 const displayedMonth = ref(new Date(today.getFullYear(), today.getMonth(), 1))
 const currentMonth = new Date(today.getFullYear(), today.getMonth(), 1)
 
-const isPreviousMonthDisabled = computed(() => displayedMonth.value <= currentMonth)
+const isPreviousMonthDisabled = computed(
+  () => !props.allowPastMonths && displayedMonth.value <= currentMonth,
+)
 
 const monthLabel = computed(() => displayedMonth.value.toLocaleDateString('en-US', {
   month: 'long',
@@ -68,7 +74,7 @@ function selectDate(day) {
         <button
           type="button"
           class="calendar-nav-button"
-          aria-label="Previous month unavailable"
+          :aria-label="isPreviousMonthDisabled ? 'Previous month unavailable' : 'Previous month'"
           :disabled="isPreviousMonthDisabled"
           @click="changeMonth(-1)"
         >
