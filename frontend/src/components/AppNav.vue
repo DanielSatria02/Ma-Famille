@@ -8,8 +8,9 @@ const store = useAppStore()
 const route = useRoute()
 const isSidebarOpen = ref(false)
 
-// No role store yet: pages under /manager belong to the manager area.
-const homePath = computed(() => (route.path.startsWith('/manager') ? '/manager' : '/'))
+const isManagerArea = computed(() => route.path.startsWith('/manager'))
+const homePath = computed(() => (isManagerArea.value ? '/manager' : '/'))
+const brandName = computed(() => (isManagerArea.value ? 'Ma-Famille Premiere' : 'Ma-Famille'))
 
 const dotClass = computed(() => {
   if (store.backendStatus === 'ok') return 'bg-green-600'
@@ -42,7 +43,7 @@ function handleKeydown(event) {
 <template>
   <header class="app-header">
     <div class="app-header-bar flex items-center justify-between border-b px-4 py-3">
-      <RouterLink :to="homePath" class="app-header-brand font-bold no-underline">Ma-Famille</RouterLink>
+      <RouterLink :to="homePath" class="app-header-brand font-bold no-underline">{{ brandName }}</RouterLink>
       <div class="flex items-center gap-4">
         <span :class="['h-2.5 w-2.5 rounded-full', dotClass]" :title="`backend: ${store.backendStatus}`" />
         <button
