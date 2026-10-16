@@ -123,6 +123,12 @@
   color: #ffffff;
   font-weight: 600;
   cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.opening-save:hover:not(:disabled),
+.opening-save:focus-visible:not(:disabled) {
+  background: #e6cd52;
 }
 
 .opening-save:disabled {
