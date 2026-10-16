@@ -23,22 +23,49 @@
 }
 
 .visitor-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
   border: 1px solid #e5e7eb;
   border-radius: 12px;
   background: #fafafa;
   padding: 0.875rem 1rem;
 }
 
+.visitor-info {
+  min-width: 0;
+}
+
+.visitor-cancel {
+  flex-shrink: 0;
+  border: 1px solid #dc6f26;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 0.5rem 0.875rem;
+  color: #dc6926;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s, color 0.15s;
+}
+
+.visitor-cancel:hover,
+.visitor-cancel:focus-visible {
+  background: #dc9c26;
+  color: #ffffff;
+}
+
 .visitor-schedule {
   margin: 0 0 0.25rem;
-  color: #80796b;
+  color: #433f37;
   font-size: 0.875rem;
   overflow-wrap: anywhere;
 }
 
 .visitor-name {
   margin: 0;
-  color: #111827;
+  color: #4c4e52;
   font-weight: 600;
 }
 
