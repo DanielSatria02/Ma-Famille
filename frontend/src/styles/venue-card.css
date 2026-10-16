@@ -87,11 +87,6 @@
   padding: 0.25rem 0.65rem;
 }
 
-.venue-card-divider {
-  height: 1px;
-  background: var(--card-border);
-}
-
 .venue-card-action {
   display: flex;
   justify-content: center;

@@ -9,6 +9,8 @@ defineProps({
   closeTime: { type: String, default: '' },
   tags: { type: Array, default: () => [] },
 })
+
+defineEmits(['check-availability'])
 </script>
 
 <template>
@@ -40,10 +42,10 @@ defineProps({
         <span v-for="tag in tags" :key="tag" class="venue-card-tag">{{ tag }}</span>
       </div>
 
-      <div class="venue-card-divider" aria-hidden="true" />
-
       <div class="venue-card-action">
-        <button type="button" class="venue-card-button">Check availability</button>
+        <button type="button" class="venue-card-button" @click="$emit('check-availability')">
+          Check availability
+        </button>
       </div>
     </div>
   </article>

@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
+import { DEFAULT_FRANCHISE } from '../config/franchise.js'
 import { useAppStore } from '../stores/app.js'
 import '../styles/header.css'
 
@@ -10,7 +11,7 @@ const isSidebarOpen = ref(false)
 
 const isManagerArea = computed(() => route.path.startsWith('/manager'))
 const homePath = computed(() => (isManagerArea.value ? '/manager' : '/'))
-const brandName = computed(() => (isManagerArea.value ? 'Ma-Famille Premiere' : 'Ma-Famille'))
+const brandName = computed(() => route.meta.franchise ?? DEFAULT_FRANCHISE)
 
 const dotClass = computed(() => {
   if (store.backendStatus === 'ok') return 'bg-green-600'
