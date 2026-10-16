@@ -2,13 +2,14 @@
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import AppNav from './components/AppNav.vue'
+import './styles/page.css'
 
 const route = useRoute()
 const showNavigation = computed(() => route.name !== 'login')
 </script>
 
 <template>
-  <div class="flex min-h-screen flex-col bg-white text-gray-900">
+  <div :class="['flex min-h-screen flex-col text-gray-900', route.meta.gradient ? 'page-gradient' : 'bg-white']">
     <AppNav v-if="showNavigation" />
     <main class="mx-auto w-full max-w-4xl flex-1 px-4 py-6">
       <RouterView />

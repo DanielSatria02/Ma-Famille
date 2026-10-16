@@ -1,0 +1,4 @@
+/* Page background fading from white to the brand gold. */
+.page-gradient {
+  background: linear-gradient(to bottom, #ffffff 0%, #ffffff 50%, #e3a126 100%);
+}

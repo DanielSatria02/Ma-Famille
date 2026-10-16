@@ -1,14 +1,28 @@
 <script setup>
 import { computed, ref } from 'vue'
+import { parseIsoDate, toIsoDate } from '../utils/date.js'
 import '../styles/calendar.css'
 
 const props = defineProps({
   allowPastMonths: { type: Boolean, default: false },
+  // ISO dates ("YYYY-MM-DD") that have at least one booking.
+  bookedDates: { type: Array, default: () => [] },
+  // When true, shows a "Book now?" button and lets a double-click on a date open booking.
+  bookable: { type: Boolean, default: false },
+  // ISO date; dates before it cannot be selected.
+  minDate: { type: String, default: '' },
+  // ISO date to start on. Omit for today; pass an empty string for no selection.
+  initialDate: { type: String, default: undefined },
 })
 
+const emit = defineEmits(['book', 'select'])
+
+const bookedDateSet = computed(() => new Set(props.bookedDates))
+
 const today = new Date()
-const selectedDate = ref(createDate(today))
-const displayedMonth = ref(new Date(today.getFullYear(), today.getMonth(), 1))
+const startDate = props.initialDate ? parseIsoDate(props.initialDate) : null
+const selectedDate = ref(props.initialDate === undefined ? createDate(today) : startDate)
+const displayedMonth = ref(new Date((startDate ?? today).getFullYear(), (startDate ?? today).getMonth(), 1))
 const currentMonth = new Date(today.getFullYear(), today.getMonth(), 1)
 
 const isPreviousMonthDisabled = computed(
@@ -35,7 +49,9 @@ const calendarDays = computed(() => {
       date,
       dayNumber,
       isToday: isSameDate(date, today),
-      isSelected: isSameDate(date, selectedDate.value),
+      isSelected: selectedDate.value !== null && isSameDate(date, selectedDate.value),
+      isBooked: bookedDateSet.value.has(toIsoDate(date)),
+      isDisabled: Boolean(props.minDate) && toIsoDate(date) < props.minDate,
     }
   })
 })
@@ -59,7 +75,15 @@ function changeMonth(monthOffset) {
 }
 
 function selectDate(day) {
-  if (day) selectedDate.value = day.date
+  if (!day || day.isDisabled) return
+  selectedDate.value = day.date
+  emit('select', toIsoDate(day.date))
+}
+
+function bookDate(day) {
+  if (!props.bookable || !day || day.isDisabled) return
+  selectedDate.value = day.date
+  emit('book', toIsoDate(day.date))
 }
 </script>
 
@@ -99,18 +123,30 @@ function selectDate(day) {
         :key="day ? day.date.toISOString() : `empty-${index}`"
         type="button"
         class="calendar-day"
-        :class="{ 'is-today': day?.isToday, 'is-selected': day?.isSelected }"
-        :disabled="!day"
-        :aria-label="day ? day.date.toLocaleDateString('en-US', { dateStyle: 'full' }) : undefined"
+        :class="{
+          'is-today': day?.isToday,
+          'is-selected': day?.isSelected,
+          'is-booked': day?.isBooked,
+          'is-disabled': day?.isDisabled,
+        }"
+        :disabled="!day || day.isDisabled"
+        :aria-label="day ? `${day.date.toLocaleDateString('en-US', { dateStyle: 'full' })}${day.isBooked ? ', has bookings' : ''}` : undefined"
         :aria-pressed="day?.isSelected"
         @click="selectDate(day)"
+        @dblclick="bookDate(day)"
       >
         <span class="calendar-day-number">{{ day?.dayNumber }}</span>
       </button>
     </div>
 
-    <p class="calendar-selection" aria-live="polite">
+    <p v-if="selectedDate" class="calendar-selection" aria-live="polite">
       Selected: {{ selectedDate.toLocaleDateString('en-US', { dateStyle: 'long' }) }}
     </p>
+
+    <div v-if="bookable && selectedDate" class="calendar-actions">
+      <button type="button" class="calendar-book-button" @click="emit('book', toIsoDate(selectedDate))">
+        Book now?
+      </button>
+    </div>
   </section>
 </template>

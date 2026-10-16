@@ -1,0 +1,265 @@
+.booking-form {
+  border: 1px solid #d1d5db;
+  border-radius: 15px;
+  background: #ffffff;
+  padding: 1rem;
+}
+
+.booking-form-bar {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.picker-field {
+  min-width: 0;
+}
+
+.picker-trigger {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.125rem;
+  border: 1px solid #d1d5db;
+  border-radius: 12px;
+  background: #fafafa;
+  padding: 0.625rem 0.875rem;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s, background-color 0.15s;
+}
+
+.picker-trigger:hover,
+.picker-trigger.is-open {
+  border-color: #e3a126;
+  background: #fffeef;
+}
+
+.picker-trigger:focus-visible {
+  outline: 2px solid #e3a126;
+  outline-offset: 2px;
+}
+
+.picker-trigger-label {
+  color: #111827;
+  font-size: 0.9375rem;
+  font-weight: 700;
+}
+
+.picker-trigger-value {
+  max-width: 100%;
+  overflow: hidden;
+  color: #80796b;
+  font-size: 0.8125rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.picker-panel {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  right: 0;
+  left: 0;
+  z-index: 20;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #ffffff;
+  padding: 0.875rem;
+  box-shadow: 0 12px 32px rgb(15 23 42 / 16%);
+}
+
+.picker-panel .calendar {
+  border: 0;
+  padding: 0;
+  box-shadow: none;
+}
+
+.picker-hint {
+  margin: 0.75rem 0 0;
+  color: #80796b;
+  font-size: 0.8125rem;
+  text-align: center;
+}
+
+.facility-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.facility-option {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  padding: 0.625rem 0.75rem;
+  color: #111827;
+  font-size: 0.9375rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.facility-option:hover:not(:disabled),
+.facility-option:focus-visible,
+.facility-option.is-selected {
+  background: #fffeef;
+}
+
+.facility-option.is-selected {
+  font-weight: 700;
+}
+
+.facility-option:disabled {
+  color: #9ca3af;
+  cursor: not-allowed;
+}
+
+.facility-option-note {
+  color: #dc2626;
+  font-size: 0.8125rem;
+}
+
+.time-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+}
+
+.time-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+.time-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.time-label {
+  color: #4b5563;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.time-select {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 0.5rem 0.625rem;
+  color: #111827;
+  font-size: 0.9375rem;
+}
+
+.time-select:focus-visible {
+  outline: 2px solid #e3a126;
+  outline-offset: 1px;
+}
+
+.picker-apply,
+.booking-confirm {
+  border: 0;
+  border-radius: 12px;
+  background: #e3a126;
+  padding: 0.625rem 1rem;
+  color: #ffffff;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.picker-apply:hover:not(:disabled),
+.picker-apply:focus-visible:not(:disabled),
+.booking-confirm:hover:not(:disabled),
+.booking-confirm:focus-visible:not(:disabled) {
+  background: #c98a14;
+}
+
+.picker-apply:disabled,
+.booking-confirm:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.booking-error {
+  margin: 0.75rem 0 0;
+  color: #dc2626;
+  font-size: 0.875rem;
+}
+
+.time-form .booking-error {
+  margin: 0;
+}
+
+.booking-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin: 1rem 0 0;
+  border-top: 1px solid #e5e7eb;
+  padding-top: 0.875rem;
+}
+
+.booking-summary dt {
+  color: #80796b;
+  font-size: 0.8125rem;
+}
+
+.booking-summary dd {
+  margin: 0.125rem 0 0;
+  color: #111827;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.booking-summary-total {
+  color: #c98a14;
+}
+
+@media (min-width: 768px) {
+  .booking-form {
+    padding: 1.25rem;
+  }
+
+  .booking-form-bar {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .picker-field {
+    position: relative;
+  }
+
+  .picker-panel {
+    right: auto;
+    left: 0;
+    width: 22rem;
+  }
+
+  .picker-panel.is-time {
+    width: 18rem;
+  }
+
+  .picker-panel.is-calendar {
+    width: 24rem;
+  }
+
+  /* The last pickers would overflow the container's right edge, so open them leftwards. */
+  .picker-field:nth-child(3) .picker-panel {
+    right: 0;
+    left: auto;
+  }
+}

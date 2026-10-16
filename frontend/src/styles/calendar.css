@@ -158,6 +158,57 @@
   font-weight: 700;
 }
 
+.calendar-day.is-disabled {
+  color: var(--calendar-muted);
+  opacity: 0.4;
+}
+
+.calendar-day:disabled:hover {
+  background: transparent;
+  outline: 0;
+}
+
+.calendar-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 1rem;
+}
+
+.calendar-book-button {
+  border: 0;
+  border-radius: 0.5rem;
+  background: var(--calendar-accent);
+  padding: 0.5rem 1rem;
+  color: #ffffff;
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.calendar-book-button:hover,
+.calendar-book-button:focus-visible {
+  background: #c98a14;
+}
+
+.calendar-day.is-booked::after {
+  position: absolute;
+  bottom: 0.2rem;
+  left: 50%;
+  z-index: 1;
+  width: 0.35rem;
+  height: 0.35rem;
+  border-radius: 50%;
+  background: var(--calendar-accent);
+  content: '';
+  transform: translateX(-50%);
+}
+
+.calendar-day.is-booked.is-selected::after {
+  background: #ffffff;
+}
+
 @media (min-width: 768px) {
   .calendar {
     width: 100%;
