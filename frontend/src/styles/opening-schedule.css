@@ -1,0 +1,141 @@
+.opening {
+  border: 1px solid #d1d5db;
+  border-radius: 15px;
+  background: #ffffff;
+  padding: 1.25rem;
+}
+
+.opening-title {
+  margin: 0 0 1rem;
+  color: #111827;
+  font-size: 1.125rem;
+  font-weight: 700;
+  text-align: left;
+}
+
+.opening-layout {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+}
+
+.opening-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.opening-card,
+.opening-editor {
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #fafafa;
+  padding: 0.875rem 1rem;
+}
+
+.opening-day {
+  margin: 0 0 0.25rem;
+  color: #111827;
+  font-weight: 600;
+}
+
+.opening-time {
+  margin: 0;
+  color: #80796b;
+  font-size: 0.875rem;
+}
+
+.opening-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  align-self: start;
+}
+
+.opening-editor-title {
+  margin: 0;
+  color: #111827;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.opening-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  margin: 0;
+  border: 0;
+  padding: 0;
+  min-width: 0;
+}
+
+.opening-label {
+  padding: 0;
+  color: #4b5563;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.opening-time-picker {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.opening-select {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 0.5rem 0.625rem;
+  color: #111827;
+  font-size: 0.9375rem;
+}
+
+.opening-select:focus-visible {
+  outline: 2px solid #e3a126;
+  outline-offset: 1px;
+}
+
+.opening-error,
+.opening-success {
+  margin: 0;
+  font-size: 0.875rem;
+}
+
+.opening-error {
+  color: #dc2626;
+}
+
+.opening-success {
+  color: #16a34a;
+}
+
+.opening-save {
+  border: 0;
+  border-radius: 8px;
+  background: #e3a126;
+  padding: 0.625rem 1rem;
+  color: #ffffff;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.opening-save:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+@media (min-width: 640px) {
+  .opening {
+    padding: 1.5rem;
+  }
+
+  .opening-layout {
+    grid-template-columns: 1fr 1fr;
+  }
+}
