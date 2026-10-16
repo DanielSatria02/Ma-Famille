@@ -1,0 +1,163 @@
+.pricing {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  border: 1px solid #d1d5db;
+  border-radius: 15px;
+  background: #ffffff;
+  padding: 1.25rem;
+}
+
+.pricing-title {
+  margin: 0;
+  color: #111827;
+  font-size: 1.125rem;
+  font-weight: 700;
+  text-align: left;
+}
+
+.pricing-panel {
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #fafafa;
+  padding: 0.875rem 1rem;
+}
+
+.pricing-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.pricing-divider {
+  height: 0;
+  margin: 0.875rem 0;
+  border-top: 1px solid #d1d5db;
+}
+
+.pricing-name {
+  margin: 0 0 0.25rem;
+  color: #111827;
+  font-weight: 600;
+}
+
+.pricing-value {
+  margin: 0;
+  color: #80796b;
+  font-size: 0.875rem;
+  overflow-wrap: anywhere;
+}
+
+.pricing-value.is-unset {
+  color: #dc2626;
+}
+
+.pricing-actions,
+.pricing-editor-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.pricing-button {
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 0.5rem 0.875rem;
+  color: #111827;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s, color 0.15s;
+}
+
+.pricing-button:hover:not(:disabled),
+.pricing-button:focus-visible:not(:disabled) {
+  background: #f3f4f6;
+}
+
+.pricing-button.is-danger {
+  border-color: #dc2626;
+  color: #dc2626;
+}
+
+.pricing-button.is-danger:hover,
+.pricing-button.is-danger:focus-visible {
+  background: #dc2626;
+  color: #ffffff;
+}
+
+.pricing-button.is-primary {
+  border-color: #e3a126;
+  background: #e3a126;
+  color: #ffffff;
+}
+
+.pricing-button.is-primary:hover:not(:disabled),
+.pricing-button.is-primary:focus-visible:not(:disabled) {
+  background: #c98a14;
+}
+
+.pricing-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pricing-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.pricing-editor-title {
+  margin: 0;
+  color: #111827;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.pricing-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.pricing-label {
+  color: #4b5563;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.pricing-input {
+  width: 100%;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 0.5rem 0.625rem;
+  color: #111827;
+  font-size: 0.9375rem;
+}
+
+.pricing-input:focus-visible {
+  outline: 2px solid #e3a126;
+  outline-offset: 1px;
+}
+
+@media (min-width: 640px) {
+  .pricing {
+    padding: 1.5rem;
+  }
+
+  .pricing-row {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .pricing-actions {
+    flex-shrink: 0;
+  }
+
+  .pricing-input {
+    max-width: 20rem;
+  }
+}
