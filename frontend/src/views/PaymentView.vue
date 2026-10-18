@@ -5,6 +5,7 @@ import { useCheckoutStore } from '../stores/checkout.js'
 import { errorDetail, fetchBooking, fetchClientConfig } from '../services/api.js'
 import { watchBooking } from '../services/live.js'
 import { formatHour, formatLongDate } from '../utils/date.js'
+import '../styles/payment.css'
 
 // The hold countdown is the one timer left in the app, and it is not polling:
 // it counts down a number the server already gave us, between two pushed
@@ -31,26 +32,57 @@ const settled = computed(() => {
   return status === 'confirmed' || status === 'cancelled'
 })
 
-const statusLine = computed(() => {
-  if (!booking.value) return ''
-  const status = booking.value.status
-  const payment = booking.value.payment_status
-  if (payment === 'paid') return 'Paid. The booking is confirmed, see you there.'
-  if (payment === 'failed') {
-    return 'The payment did not go through. The venue still has your hours: it can confirm the visit or release them.'
+// One card, one state. The three buttons this page used to have were styled
+// identically — "open the payment page" next to "back to booking", a tap apart,
+// both plain outlined rectangles. On the one screen where someone's money is
+// about to move, the way out and the way on have to look different.
+const state = computed(() => {
+  const payment = booking.value?.payment_status
+  const status = booking.value?.status
+  if (payment === 'paid') {
+    return { tone: 'paid', title: 'Paid', text: 'The booking is confirmed. See you there.' }
   }
-  if (payment === 'refunded') return 'The money for this visit was sent back.'
-  if (status === 'confirmed') return 'Confirmed by the venue. The payment is handled offline.'
-  if (status === 'cancelled') return 'This booking was cancelled and the hours are free again.'
-  return ''
+  if (payment === 'failed') {
+    return {
+      tone: 'failed',
+      title: 'Payment failed',
+      text: 'No money moved. The venue still has your hours and can confirm the visit or release them — try again from My bookings.',
+    }
+  }
+  if (payment === 'refunded') {
+    return { tone: 'neutral', title: 'Refunded', text: 'The money for this visit was sent back.' }
+  }
+  if (status === 'confirmed') {
+    return {
+      tone: 'neutral',
+      title: 'Confirmed',
+      text: 'The venue confirmed this visit. The payment is handled offline.',
+    }
+  }
+  if (status === 'cancelled') {
+    return {
+      tone: 'failed',
+      title: 'Cancelled',
+      text: 'This booking was cancelled and the hours are free again.',
+    }
+  }
+  if (booking.value) {
+    // statusLine has nothing to say here: every branch above is a settled
+    // state, so this is the one case it would return an empty string for and
+    // leave the card reading as a heading with nothing under it.
+    return {
+      tone: 'pending',
+      title: 'Waiting for payment',
+      text: 'The hours are held for you until the timer runs out. Nothing is charged until you pay.',
+    }
+  }
+  return null
 })
 
 const countdown = computed(() => {
   if (secondsLeft.value === null) return ''
   const total = Math.max(secondsLeft.value, 0)
-  const minutes = Math.floor(total / 60)
-  const seconds = String(total % 60).padStart(2, '0')
-  return `Held for ${minutes}:${seconds} more`
+  return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`
 })
 
 const notice = computed(() => {
@@ -151,88 +183,125 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <section class="mx-auto max-w-md space-y-4 text-center">
-    <h1 class="text-3xl font-bold tracking-tight text-gray-900">Payment</h1>
+  <section class="payment">
+    <h1 class="payment-title">Payment</h1>
 
-    <div v-if="order" class="space-y-1 rounded-2xl border border-gray-300 bg-white p-5 text-left">
-      <p class="font-semibold">{{ order.facility }}</p>
-      <p class="text-sm text-gray-600">{{ formatLongDate(order.date) }}</p>
-      <p class="text-sm text-gray-600">{{ formatHour(order.startHour) }} - {{ formatHour(order.endHour) }}</p>
-      <p class="pt-2 text-sm text-gray-600">{{ order.hourlyRate }} /hour x {{ order.hours }}</p>
-      <p class="font-bold">Total: {{ order.total }}</p>
-      <p v-if="gateway?.invoice_number" class="text-xs text-gray-500">
+    <div v-if="order" class="payment-card">
+      <span class="payment-card-name">{{ order.facility }}</span>
+      <span class="payment-card-line">{{ formatLongDate(order.date) }}</span>
+      <span class="payment-card-line"
+        >{{ formatHour(order.startHour) }} - {{ formatHour(order.endHour) }}</span
+      >
+      <span class="payment-card-line">{{ order.hourlyRate }} /hour x {{ order.hours }}</span>
+      <span class="payment-card-total">Total: {{ order.total }}</span>
+      <span v-if="gateway?.invoice_number" class="payment-card-ref">
         Invoice {{ gateway.invoice_number }}
-      </p>
-      <p v-if="order.bookingId" class="text-xs text-gray-500">Booking {{ order.bookingId }}</p>
+      </span>
+      <span v-if="order.bookingId" class="payment-card-ref">
+        Booking {{ order.bookingId }}
+      </span>
     </div>
-    <p v-else class="text-gray-600">There is nothing to pay for yet.</p>
+    <p v-else class="payment-empty">There is nothing to pay for yet.</p>
 
-    <div v-if="statusLine" class="rounded-2xl border border-gray-300 bg-white p-4 text-left">
-      <p class="text-sm font-semibold text-gray-900">
-        {{ booking.payment_status === 'paid' ? 'Paid' : booking.status === 'confirmed' ? 'Confirmed' : 'Cancelled' }}
-      </p>
-      <p class="text-sm text-gray-600">{{ statusLine }}</p>
-      <p v-if="booking.payment_invoice_number" class="text-xs text-gray-500">
-        Invoice {{ booking.payment_invoice_number }}
-      </p>
+    <!--
+      Paid, failed, cancelled, still waiting: one card, one colour. Someone
+      checking whether the money went through should not have to read the
+      sentence to know, and should not have to notice the difference between two
+      grey boxes.
+    -->
+    <div v-if="state" class="payment-state" :class="`is-${state.tone}`" role="status">
+      <svg
+        v-if="state.tone === 'paid'"
+        class="payment-state-icon"
+        viewBox="0 0 20 20"
+        fill="currentColor"
+        aria-hidden="true"
+      >
+        <path
+          fill-rule="evenodd"
+          d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.86-9.36a.75.75 0 10-1.06-1.06L9.75 11.44 7.22 8.9a.75.75 0 00-1.06 1.06l3 3a.75.75 0 001.06 0l3.64-3.64z"
+          clip-rule="evenodd"
+        />
+      </svg>
+      <svg
+        v-else-if="state.tone === 'failed'"
+        class="payment-state-icon"
+        viewBox="0 0 20 20"
+        fill="currentColor"
+        aria-hidden="true"
+      >
+        <path
+          fill-rule="evenodd"
+          d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.94 6.94a.75.75 0 00-1.06 1.06L10.94 10l-3.06 3.06a.75.75 0 101.06 1.06L12 11.06l3.06 3.06a.75.75 0 001.06-1.06L13.06 10l3.06-3.06a.75.75 0 00-1.06-1.06L12 8.94 8.94 6.94z"
+          clip-rule="evenodd"
+        />
+      </svg>
+      <svg
+        v-else
+        class="payment-state-icon"
+        viewBox="0 0 20 20"
+        fill="currentColor"
+        aria-hidden="true"
+      >
+        <path
+          fill-rule="evenodd"
+          d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v3.5a1 1 0 002 0V7zm-1 7a1 1 0 100-2 1 1 0 000 2z"
+          clip-rule="evenodd"
+        />
+      </svg>
+      <div class="payment-state-body">
+        <span class="payment-state-title">{{ state.title }}</span>
+        <span v-if="state.text" class="payment-state-text">{{ state.text }}</span>
+        <span v-if="booking?.payment_invoice_number" class="payment-card-ref">
+          Invoice {{ booking.payment_invoice_number }}
+        </span>
+      </div>
     </div>
+
+    <!-- The hold, on its own row with the number in a fixed width so it does
+         not shuffle sideways once a second. -->
+    <p v-if="!settled && countdown" class="payment-hold">
+      <span>Held for</span>
+      <span class="payment-hold-time">{{ countdown }}</span>
+    </p>
 
     <!--
       Only while the status can still change. A settled booking has nothing
       left to hear about, so saying "live" there would be a claim, not a fact.
     -->
-    <p
-      v-if="!settled && order?.bookingId"
-      class="flex items-center justify-center gap-2 text-xs text-gray-500"
-      role="status"
-    >
-      <span
-        class="h-2 w-2 rounded-full transition-colors duration-300"
-        :class="{
-          'bg-emerald-500': connection === 'live',
-          'animate-pulse bg-amber-400': connection === 'connecting',
-          'bg-red-400': connection === 'offline',
-        }"
-      />
+    <p v-if="!settled && order?.bookingId" class="payment-connection" role="status">
+      <span class="payment-connection-dot" :class="`is-${connection}`" />
       <span v-if="connection === 'live'">Updating live</span>
-      <span v-else-if="connection === 'connecting'">Connecting…</span>
-      <span v-else>Reconnecting…</span>
+      <span v-else-if="connection === 'connecting'">Connecting...</span>
+      <span v-else>Reconnecting...</span>
     </p>
 
-    <p v-if="!settled && countdown" class="text-sm font-semibold text-gray-700">{{ countdown }}</p>
-    <p v-if="!settled" class="text-xs text-gray-500">
-      This page updates itself the moment the payment changes — nothing to refresh.
-    </p>
-    <p v-if="lookUpError" class="text-sm text-red-600" role="alert">{{ lookUpError }}</p>
-
-    <p v-if="notice" class="text-sm text-gray-600">{{ notice }}</p>
-    <p v-if="clientConfig && !clientConfig.payment_configured" class="text-xs text-gray-500">
+    <p v-if="lookUpError" class="payment-note" role="alert">{{ lookUpError }}</p>
+    <p v-if="notice" class="payment-note">{{ notice }}</p>
+    <p v-if="clientConfig && !clientConfig.payment_configured" class="payment-note">
       Online payment is switched off on this server.
     </p>
 
+    <!--
+      Pay first. It is the only filled button on the page, and it is gone the
+      moment the booking settles — there is nothing left to pay for.
+    -->
     <button
       v-if="gateway?.status === 'ready' && !settled"
       type="button"
-      class="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold"
+      class="payment-primary"
       @click="openCheckout"
     >
-      Open the payment page
+      Pay {{ order?.total }}
     </button>
 
-    <button
-      type="button"
-      class="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold"
-      @click="router.push({ name: 'my-bookings' })"
-    >
-      My bookings
-    </button>
-
-    <button
-      type="button"
-      class="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold"
-      @click="router.push({ name: 'booking' })"
-    >
-      Back to booking
-    </button>
+    <div class="payment-secondary">
+      <button type="button" class="payment-secondary-action" @click="router.push({ name: 'my-bookings' })">
+        My bookings
+      </button>
+      <button type="button" class="payment-secondary-action" @click="router.push({ name: 'booking' })">
+        Book another
+      </button>
+    </div>
   </section>
 </template>

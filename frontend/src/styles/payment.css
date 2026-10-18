@@ -1,0 +1,276 @@
+/* The payment page is the last screen before someone's money moves, so it says
+ * what happened in a way that survives a glance: the state is carried by colour
+ * and an icon as well as by words, and there is exactly one primary action.
+ */
+
+.payment {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  max-width: 30rem;
+  margin: 0 auto;
+}
+
+.payment-title {
+  margin: 0;
+  color: #111827;
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  text-align: center;
+}
+
+/* --- The booking itself --------------------------------------------------- */
+
+.payment-card {
+  border: 1px solid #e5e7eb;
+  border-radius: 0.75rem;
+  background: #ffffff;
+  padding: 1rem;
+}
+
+.payment-card-name {
+  display: block;
+  color: #111827;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.payment-card-line {
+  display: block;
+  margin-top: 0.15rem;
+  color: #4b5563;
+  font-size: 0.875rem;
+}
+
+.payment-card-total {
+  display: block;
+  margin-top: 0.6rem;
+  color: #111827;
+  font-size: 1.125rem;
+  font-weight: 700;
+}
+
+.payment-card-ref {
+  display: block;
+  margin-top: 0.6rem;
+  color: #6b7280;
+  font-size: 0.75rem;
+}
+
+/* --- Where it got to -----------------------------------------------------
+ *
+ * One card, one state, coloured. The words are the point; the colour is what
+ * makes them readable from arm's length while a payment page is open somewhere
+ * else.
+ */
+
+.payment-state {
+  display: flex;
+  gap: 0.75rem;
+  border: 1px solid;
+  border-radius: 0.75rem;
+  background: #ffffff;
+  padding: 1rem;
+  text-align: left;
+}
+
+.payment-state-icon {
+  flex: 0 0 auto;
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+.payment-state-body {
+  min-width: 0;
+}
+
+.payment-state-title {
+  display: block;
+  color: #111827;
+  font-size: 0.9375rem;
+  font-weight: 700;
+}
+
+.payment-state-text {
+  display: block;
+  margin-top: 0.2rem;
+  color: #4b5563;
+  font-size: 0.875rem;
+}
+
+.payment-state.is-paid {
+  border-color: #a7f3d0;
+  background: #ecfdf5;
+}
+
+.payment-state.is-paid .payment-state-icon {
+  color: #047857;
+}
+
+.payment-state.is-failed {
+  border-color: #fecaca;
+  background: #fef2f2;
+}
+
+.payment-state.is-failed .payment-state-icon {
+  color: #b91c1c;
+}
+
+.payment-state.is-pending {
+  border-color: #fde68a;
+  background: #fffbeb;
+}
+
+.payment-state.is-pending .payment-state-icon {
+  color: #b45309;
+}
+
+.payment-state.is-neutral {
+  border-color: #e5e7eb;
+  background: #f9fafb;
+}
+
+.payment-state.is-neutral .payment-state-icon {
+  color: #6b7280;
+}
+
+/* --- One primary action --------------------------------------------------- */
+
+.payment-primary {
+  min-height: 3rem;
+  width: 100%;
+  border: 0;
+  border-radius: 0.625rem;
+  background: #b45309;
+  color: #ffffff;
+  font: inherit;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 140ms ease;
+}
+
+.payment-primary:hover {
+  background: #92400e;
+}
+
+.payment-primary:focus-visible {
+  outline: 2px solid #b45309;
+  outline-offset: 2px;
+}
+
+/* The hold. Worth noticing: it is the reason to hurry, so it is the one thing
+   on the page set in the same colour as the warning state above. */
+.payment-hold {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  border-radius: 0.5rem;
+  background: #fffbeb;
+  padding: 0.6rem 0.875rem;
+  color: #92400e;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.payment-hold-time {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+.payment-secondary {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.payment-secondary-action {
+  min-height: 2.75rem;
+  flex: 1 1 0;
+  border: 1px solid #d1d5db;
+  border-radius: 0.5rem;
+  background: #ffffff;
+  color: #111827;
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 140ms ease;
+}
+
+.payment-secondary-action:hover {
+  border-color: #9ca3af;
+}
+
+.payment-secondary-action:focus-visible {
+  outline: 2px solid #b45309;
+  outline-offset: 2px;
+}
+
+/* The live dot. Only shown while the status can still change; once the booking
+   is settled there is nothing left to hear about and saying "live" would be a
+   claim rather than a fact. */
+.payment-connection {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  color: #6b7280;
+  font-size: 0.75rem;
+}
+
+.payment-connection-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 999px;
+}
+
+.payment-connection-dot.is-live {
+  background: #10b981;
+}
+
+.payment-connection-dot.is-connecting {
+  background: #f59e0b;
+  animation: payment-pulse 1.6s ease-in-out infinite;
+}
+
+.payment-connection-dot.is-offline {
+  background: #f87171;
+}
+
+@keyframes payment-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.35;
+  }
+}
+
+.payment-note {
+  margin: 0;
+  color: #6b7280;
+  font-size: 0.8125rem;
+  text-align: center;
+}
+
+.payment-empty {
+  margin: 0;
+  color: #4b5563;
+  font-size: 0.9375rem;
+  text-align: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .payment-connection-dot.is-connecting {
+    animation: none;
+  }
+
+  .payment-primary,
+  .payment-secondary-action {
+    transition: none;
+  }
+}
