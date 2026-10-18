@@ -75,6 +75,42 @@
   background: #ffffff;
 }
 
+.location-list {
+  margin: 0.75rem 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.location-item {
+  border: 1px solid var(--location-border);
+  border-radius: 0.5rem;
+  padding: 0.625rem 0.75rem;
+}
+
+.location-name {
+  margin: 0;
+  color: var(--location-heading);
+  font-size: 0.9375rem;
+  font-weight: 700;
+}
+
+.location-address {
+  margin: 0.125rem 0 0;
+  color: #6b7280;
+  font-size: 0.8125rem;
+}
+
+.location-link {
+  display: inline-block;
+  margin-top: 0.375rem;
+  color: #c98a14;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
 @media (max-width: 640px) {
   .location-layout {
     grid-template-columns: 1fr;

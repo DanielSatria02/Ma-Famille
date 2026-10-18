@@ -9,9 +9,10 @@ import '../styles/booking-form.css'
 
 const props = defineProps({
   initialDate: { type: String, default: '' },
+  initialFacility: { type: String, default: '' },
 })
 
-const form = useBookingForm(props.initialDate)
+const form = useBookingForm(props.initialDate, props.initialFacility)
 const venuesStore = useVenuesStore()
 const activePicker = ref(null)
 

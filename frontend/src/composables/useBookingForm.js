@@ -19,7 +19,7 @@ const pad = (hour) => String(hour).padStart(2, '0')
 // State and rules for the booking form: facility, date (H-1 or later), whole-hour
 // range. Availability, the price and the booking itself all come from the API;
 // the checks here only keep the UI from offering something the server rejects.
-export function useBookingForm(initialDate = '') {
+export function useBookingForm(initialDate = '', initialFacilityKey = '') {
   const router = useRouter()
   const venuesStore = useVenuesStore()
 
@@ -134,6 +134,18 @@ export function useBookingForm(initialDate = '') {
 
   watch([facilityKey, date], loadDay, { immediate: true })
   watch([facilityKey, date, startHour, endHour], loadQuote)
+
+  // Deep link from the home page: preselect that facility once the list is in.
+  watch(
+    () => [venuesStore.facilities.length, initialFacilityKey],
+    () => {
+      if (!initialFacilityKey || facilityKey.value) return
+      if (venuesStore.facilities.some((entry) => entry.public_id === initialFacilityKey)) {
+        facilityKey.value = initialFacilityKey
+      }
+    },
+    { immediate: true },
+  )
 
   // A previously chosen time that became taken (different facility/date, or a new
   // booking) must be re-entered.
