@@ -17,20 +17,22 @@ const bare = computed(() => route.name === 'login')
     <AppNav v-if="!bare" />
     <main :class="['mx-auto w-full flex-1', bare ? 'max-w-none' : 'max-w-4xl px-4 py-6']">
       <!--
-        Keyed on the path so each view is its own transition. Without the key
-        Vue reuses one element between routes and the animation would only
-        ever play on the first page.
+        Keyed on the path, so each view gets a fresh element and its own entrance
+        instead of being patched into whatever was on screen before. Without the
+        key Vue would reuse one element and the animation would only ever play
+        on the first page.
 
-        The duration is given explicitly. Left to itself Vue ends the
-        transition on the browser's `transitionend`, and if that event never
-        arrives — a throttled background tab, a busy main thread — the classes
-        stay on the element, which leaves it at zero opacity. That is a blank
-        page with no way back. A duration makes Vue finish on a timer it owns.
+        There is deliberately no `<Transition>` around this. `out-in` waits for
+        the leaving view to finish before mounting the arriving one, so anything
+        that stops the leave transition from completing leaves the old page on
+        screen while the URL has already changed — the address bar reads
+        /booking and the login form is still sitting there. A transition with no
+        ordering to it cannot get stuck.
       -->
       <RouterView v-slot="{ Component, route: view }">
-        <Transition name="fade" mode="out-in" :duration="250">
+        <div class="view-enter-active">
           <component :is="Component" :key="view.path" />
-        </Transition>
+        </div>
       </RouterView>
     </main>
     <footer v-if="!bare" class="border-t border-gray-200 py-4 text-center text-sm text-gray-500">

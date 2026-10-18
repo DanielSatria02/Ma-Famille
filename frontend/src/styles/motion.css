@@ -156,21 +156,6 @@
 
 /* --- Fades for anything conditionally shown ------------------------------- */
 
-.fade-enter-active,
-.fade-leave-active {
-  transition: transform var(--motion-base) var(--motion-ease);
-}
-
-.fade-enter-from,
-.fade-leave-to {
-  /* Transform only, never opacity. A transition that stalls mid-flight leaves
-   * `fade-enter-from` on the element, and an opacity of 0 there is a blank
-   * page the visitor cannot recover from. Eight pixels of travel reads as the
-   * same kind of motion and degrades to "nothing happened" instead of
-   * "nothing is there". */
-  transform: translate3d(0, 8px, 0);
-}
-
 /* --- Reduced motion, for real --------------------------------------------- *
  *
  * The variables above already shrink the durations. This also stops the loops,
