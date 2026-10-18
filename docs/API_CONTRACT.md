@@ -62,6 +62,7 @@ GET    /courts?venue_public_id=...            POST /courts (manager)
 PATCH  /courts/{public_id} (manager)          DELETE /courts/{public_id} (manager, deactivates)
 GET    /slots?court_public_id=&day=           POST /slots (manager, bulk)
 POST   /slots/generate (manager, from venue hours, idempotent)
+GET    /availability/hours?court_public_id=&day=  GET /availability/dates?court_public_id=&from_day=&to_day=
 PATCH  /slots/{public_id} (manager, open/close)
 POST   /bookings  (409 on conflict)           GET /bookings?customer_contact= (history)
 POST   /bookings/{public_id}/confirm (manager)  POST /bookings/{public_id}/cancel
