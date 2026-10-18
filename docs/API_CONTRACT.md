@@ -175,6 +175,26 @@ moved (`local` = no DOKU keys, bookkeeping only).
 
 ```text
 GET    /config (booking TTL, min lead days, login + payment availability)
+       -> { booking_ttl_minutes, booking_min_lead_days, manager_login_enabled,
+            payment_configured, payment_problem }
+
+### Days are venue days, not UTC days
+
+`BOOKING_MIN_LEAD_DAYS` counts calendar days **at the venue**, so the earliest
+bookable day is today-plus-N in `VENUE_TIMEZONE` (default `Asia/Jakarta`),
+not in UTC. Slots hold wall-clock time with no offset, and "Tuesday" on a slot
+means Tuesday in Jakarta. Comparing that against a UTC date lets a same-day
+booking through for part of the evening and refuses it for the rest, which is a
+rule that changes without anyone deploying anything.
+
+`GET /config` does not expose the timezone: a client picking a date only needs
+its own clock, and a client that disagreed with the server here would only be
+disagreeing about which of two wrong days to send.
+       payment_configured is true only when a checkout can actually be opened:
+       both keys present AND the secret is a non-SNAP Secret Key. A SNAP
+       API key is present but signs nothing this endpoint accepts, so it
+       does not count. payment_problem is the operator-facing reason and is
+       empty when payment_configured is true. Added 2026-10-19.
 GET    /venues /venues/{public_id}            POST /venues (manager)
 PATCH  /venues/{public_id} (manager)          DELETE /venues/{public_id} (manager)
 GET    /venues/{public_id}/hours (7 days)     PUT /venues/{public_id}/hours/{day} (manager, 0=Mon)

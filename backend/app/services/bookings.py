@@ -200,7 +200,12 @@ def _check_lead_time(starts_at: datetime) -> None:
     lead_days = settings.booking_min_lead_days
     if lead_days <= 0:
         return
-    earliest = datetime.now(UTC).date() + timedelta(days=lead_days)
+    # Today at the venue, not today in UTC. A slot holds wall-clock time with no
+    # offset, so "tomorrow" for the person standing in the building is tomorrow
+    # in Jakarta. Reading UTC made the rule change at 7am: the same booking was
+    # accepted all evening and refused the next morning, with nothing deployed
+    # in between.
+    earliest = settings.venue_today + timedelta(days=lead_days)
     if starts_at.date() < earliest:
         raise LeadTimeViolation(
             f"bookings must be made at least {lead_days} day(s) in advance"

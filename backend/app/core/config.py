@@ -1,4 +1,5 @@
 from pathlib import Path
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -36,6 +37,13 @@ class Settings(BaseSettings):
     booking_ttl_minutes: int = 30
     # Minimum days ahead a client may book (0 = today allowed, prod sets 1).
     booking_min_lead_days: int = 0
+    # The calendar the venue keeps. Slots are stored as wall-clock time with no
+    # offset, so "today" for the purpose of the lead-time rule is today where
+    # the courts are, not today in UTC. Jakarta is seven hours ahead, which is
+    # most of the evening: comparing a Jakarta slot against a UTC date lets
+    # today's booking through until seven in the morning and refuses it for the
+    # rest of the day.
+    venue_timezone: str = "Asia/Jakarta"
     # Opening window used for days a venue has no stored hours for.
     default_opens_at: str = "08:00"
     default_closes_at: str = "22:00"
@@ -63,6 +71,58 @@ class Settings(BaseSettings):
     @property
     def doku_configured(self) -> bool:
         return bool(self.doku_client_id and self.doku_secret_key)
+
+    @property
+    def doku_key_looks_like_a_snap_key(self) -> bool:
+        """Whether the configured secret is a SNAP API key rather than a
+        non-SNAP Secret Key.
+
+        DOKU hands out two different kinds of credential and they are not
+        interchangeable. The checkout API in this app signs with HMAC-SHA256
+        using the non-SNAP Secret Key from Back Office. The `doku_key_...` value
+        is the SNAP key, which is used together with the account's public key
+        to produce an RSA signature instead — a key that looks configured and
+        signs nothing this endpoint accepts.
+
+        Only used to explain a refusal, never to refuse: an unfamiliar format is
+        reported, not treated as a failure, since the key format is not part of
+        any published contract and can change.
+        """
+        return self.doku_secret_key.startswith("doku_key_")
+
+    @property
+    def doku_config_problem(self) -> str:
+        """Why payment will not work, if it will not. Empty when it will."""
+        if not self.doku_configured:
+            return ""
+        if self.doku_key_looks_like_a_snap_key:
+            return (
+                "DOKU_SECRET_KEY looks like a SNAP API key. The checkout API "
+                "needs the non-SNAP Secret Key from DOKU Back Office; a SNAP "
+                "key signs with the account's public key, not with HMAC."
+            )
+        return ""
+
+    @property
+    def venue_tz(self) -> ZoneInfo:
+        """The venue's calendar, falling back to UTC for an unusable name.
+
+        An unknown zone name in a deploy must not stop the process from
+        starting: a booking being an hour out is a much smaller problem than the
+        API refusing to boot. UTC is the old behaviour, so the failure mode of a
+        typo is exactly the bug this setting was added to remove, and no worse.
+        """
+        try:
+            return ZoneInfo(self.venue_timezone)
+        except (ZoneInfoNotFoundError, ValueError):
+            return ZoneInfo("UTC")
+
+    @property
+    def venue_today(self):
+        """Today, where the venue is."""
+        from datetime import datetime
+
+        return datetime.now(self.venue_tz).date()
 
     @property
     def smtp_configured(self) -> bool:

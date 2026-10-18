@@ -1,5 +1,6 @@
-from datetime import date
+from datetime import datetime
 
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -180,7 +181,10 @@ def test_range_booking_respects_lead_time(monkeypatch):
     client = _client()
     try:
         monkeypatch.setattr(settings, "booking_min_lead_days", 1)
-        today = date.today().isoformat()
+        # The venue's day, not the machine's. A slot holds wall-clock time with
+        # no offset, so the only day that means anything to it is the one the
+        # venue is on — which is not the same as UTC for most of the evening.
+        today = settings.venue_today.isoformat()
         venue = client.post("/v1/venues", json={"name": "GOR", "address": "Jkt"}).json()
         court = client.post(
             "/v1/courts",
@@ -208,3 +212,59 @@ def test_range_booking_respects_lead_time(monkeypatch):
         assert early.json()["detail"] == "bookings must be made at least 1 day(s) in advance"
     finally:
         app.dependency_overrides.pop(get_db, None)
+
+
+def test_lead_time_counts_venue_days_not_utc_days(monkeypatch):
+    """The lead-time rule must not change partway through the evening.
+
+    Jakarta is seven hours ahead of UTC, so for the hours after midnight local
+    it is still yesterday in UTC. Reading UTC for "today" let a same-day booking
+    through until seven in the morning and refused the identical request for the
+    rest of the day, with nothing deployed in between. A venue on the far side
+    of the date line from its server would have the same problem every day.
+    """
+    from datetime import date, timedelta  # noqa: F811
+
+    from app.services import bookings as booking_service
+
+    venue_day = date(2026, 10, 20)
+    monkeypatch.setattr(settings, "booking_min_lead_days", 1)
+    monkeypatch.setattr(settings, "venue_timezone", "Asia/Jakarta")
+
+    # Pretend it is ten past midnight in Jakarta: still the 19th in UTC.
+    class _FrozenDatetime:
+        @staticmethod
+        def now(tz=None):
+            from datetime import datetime as _dt
+
+            if tz is None:
+                return _dt(2026, 10, 19, 17, 10)  # 00:10 WIB
+            return _dt(2026, 10, 19, 17, 10, tzinfo=tz)
+
+    monkeypatch.setattr(booking_service, "datetime", _FrozenDatetime)
+    monkeypatch.setattr(
+        type(settings), "venue_today", property(lambda self: venue_day)
+    )
+
+    with pytest.raises(booking_service.LeadTimeViolation):
+        booking_service._check_lead_time(datetime(2026, 10, 20, 9, 0))
+
+    # Tomorrow at the venue is fine.
+    booking_service._check_lead_time(
+        datetime(2026, 10, 21, 9, 0) + timedelta(0)
+    )
+
+
+def test_an_unknown_venue_timezone_does_not_stop_the_api_booting(monkeypatch):
+    """A typo in a deploy is a small problem. Not starting is a bigger one."""
+    monkeypatch.setattr(settings, "venue_timezone", "Not/AZone")
+    from app.core.config import Settings
+
+    fresh = Settings(
+        _env_file=None,
+        venue_timezone="Not/AZone",
+        database_url=settings.database_url,
+    )
+    # Falls back to the old behaviour rather than raising out of a property.
+    assert fresh.venue_tz is not None
+    assert fresh.venue_today is not None
