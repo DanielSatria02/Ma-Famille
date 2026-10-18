@@ -18,13 +18,29 @@ def _to_response(venue) -> VenueResponse:
         public_id=venue.public_id,
         name=venue.name,
         address=venue.address,
+        tags=venue.tags or [],
+        lat=venue.lat,
+        lng=venue.lng,
         created_at=venue.created_at,
     )
 
 
-@router.get("", summary="List venues", response_model=list[VenueResponse])
-def list_venues(db: Session = Depends(get_db)) -> list[VenueResponse]:
-    return [_to_response(v) for v in venue_service.list_venues(db)]
+@router.get("", summary="List venues (filter by search or tag)", response_model=list[VenueResponse])
+def list_venues(
+    q: str | None = None,
+    tag: str | None = None,
+    db: Session = Depends(get_db),
+) -> list[VenueResponse]:
+    return [_to_response(v) for v in venue_service.list_venues(db, q, tag)]
+
+
+@router.get(
+    "/tags",
+    summary="Tag vocabulary used by venues",
+    response_model=list[str],
+)
+def list_tags(db: Session = Depends(get_db)) -> list[str]:
+    return venue_service.all_tags(db)
 
 
 @router.post(

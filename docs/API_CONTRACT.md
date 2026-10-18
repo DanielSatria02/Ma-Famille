@@ -28,8 +28,11 @@ Base: `/v1`. All domain routes are wired to the store; the only
 
 ### Venue
 ```json
-{ "public_id": "uuidv7", "name": "GOR Senayan", "address": "..." }
+{ "public_id": "uuidv7", "name": "GOR Senayan", "address": "...", "tags": ["indoors", "event"], "lat": -6.2185, "lng": 106.8022 }
 ```
+`tags` are lower-cased and de-duplicated on write and power the client filters
+(`GET /venues?tag=outdoors&q=depok`); `GET /venues/tags` lists the vocabulary in
+use, so the filter panel needs no hardcoded options.
 
 ### Court
 ```json
