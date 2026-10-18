@@ -204,6 +204,14 @@ export async function markPaymentPaid(paymentPublicId) {
   return res.data
 }
 
+// Returns { payment, provider: 'doku'|'local', detail } — `local` means the books
+// were corrected but no money moved (no DOKU keys), so never show it as refunded
+// by the provider.
+export async function refundPayment(paymentPublicId) {
+  const res = await api.post(`/v1/payments/${paymentPublicId}/refund`)
+  return res.data
+}
+
 // --- Payments -----------------------------------------------------------
 
 export async function createPayment(bookingPublicId, { amount, kind = 'full' }) {

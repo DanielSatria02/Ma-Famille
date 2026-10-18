@@ -57,6 +57,7 @@ function statusLabel(status) {
 
 function paymentLabel(status) {
   if (status === 'paid') return 'Paid'
+  if (status === 'failed') return 'Payment failed'
   if (status === 'refunded') return 'Refunded'
   return 'Unpaid'
 }
@@ -159,6 +160,10 @@ onMounted(() => {
         </p>
         <p class="text-sm text-gray-600">Total: {{ visit.total }}</p>
         <p v-if="visit.invoice" class="text-xs text-gray-500">Invoice {{ visit.invoice }}</p>
+        <p v-if="visit.paymentStatus === 'failed'" class="text-xs text-amber-700">
+          The payment did not go through. Ask the venue what happens next — your hours are
+          kept until the venue cancels or confirms this visit.
+        </p>
         <button
           v-if="visit.cancellable"
           type="button"

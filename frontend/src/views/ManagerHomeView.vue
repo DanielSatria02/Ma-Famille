@@ -72,6 +72,10 @@ function markVisitPaid(booking) {
   bookingsStore.markVisitPaid(booking.id)
 }
 
+function refundVisit(booking) {
+  bookingsStore.refundVisit(booking.id)
+}
+
 async function updateSchedule({ day, start, end }) {
   const entry = openingSchedule.value.find((item) => item.day === day)
   if (!entry || !activeVenueId.value) return
@@ -128,6 +132,9 @@ async function generateMonth() {
     />
     <p v-if="venuesError" class="text-sm text-red-600" role="alert">{{ venuesError }}</p>
     <p v-if="bookingsStore.error" class="text-sm text-red-600" role="alert">{{ bookingsStore.error }}</p>
+    <p v-if="bookingsStore.notice" class="text-sm text-gray-600" role="status">
+      {{ bookingsStore.notice }}
+    </p>
     <UnavailableNotice :venues="venues" />
     <BookingCalendar allow-past-months :booked-dates="bookedDates" />
     <OccupancyChart />
@@ -135,12 +142,14 @@ async function generateMonth() {
       :bookings="todaysBookings"
       @confirm="confirmVisit"
       @mark-paid="markVisitPaid"
+      @refund="refundVisit"
     />
     <UpcomingBookings
       :bookings="upcomingBookings"
       @cancel="cancelBooking"
       @confirm="confirmVisit"
       @mark-paid="markVisitPaid"
+      @refund="refundVisit"
     />
     <p v-if="notice" class="text-sm text-gray-600" role="status">{{ notice }}</p>
     <button

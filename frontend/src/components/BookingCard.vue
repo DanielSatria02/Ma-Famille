@@ -2,7 +2,8 @@
 import '../styles/todays-visitors.css'
 
 // booking: { id, date, startTime, endTime, visitorName, venueName, status,
-//            paymentStatus: 'unpaid'|'paid'|'partial', invoice, hours }
+//            paymentStatus: 'unpaid'|'paid'|'partial'|'failed'|'refunded',
+//            paymentNote: '', invoice, hours }
 // date is an ISO date string (e.g. "2026-10-22").
 const props = defineProps({
   booking: { type: Object, required: true },
@@ -10,7 +11,7 @@ const props = defineProps({
   manageable: { type: Boolean, default: false },
 })
 
-defineEmits(['cancel', 'confirm', 'markPaid'])
+defineEmits(['cancel', 'confirm', 'markPaid', 'refund'])
 
 function formatDate(date) {
   return new Date(`${date}T00:00`).toLocaleDateString('en-GB', {
@@ -21,7 +22,13 @@ function formatDate(date) {
   })
 }
 
-const paymentLabels = { paid: 'Paid', partial: 'Part paid', refunded: 'Refunded', unpaid: 'Unpaid' }
+const paymentLabels = {
+  paid: 'Paid',
+  partial: 'Part paid',
+  failed: 'Failed',
+  refunded: 'Refunded',
+  unpaid: 'Unpaid',
+}
 </script>
 
 <template>
@@ -42,6 +49,9 @@ const paymentLabels = { paid: 'Paid', partial: 'Part paid', refunded: 'Refunded'
       <p v-if="manageable && booking.invoice" class="visitor-invoice">
         Invoice {{ booking.invoice }} · {{ booking.total }}
       </p>
+      <p v-if="manageable && booking.paymentNote" class="visitor-note">
+        {{ booking.paymentNote }}
+      </p>
     </div>
     <div v-if="cancellable || manageable" class="visitor-actions">
       <button
@@ -59,6 +69,14 @@ const paymentLabels = { paid: 'Paid', partial: 'Part paid', refunded: 'Refunded'
         @click="$emit('markPaid', booking)"
       >
         Mark paid
+      </button>
+      <button
+        v-if="manageable && booking.refundable"
+        type="button"
+        class="visitor-refund"
+        @click="$emit('refund', booking)"
+      >
+        Refund
       </button>
       <button v-if="cancellable" type="button" class="visitor-cancel" @click="$emit('cancel', booking)">
         Cancel

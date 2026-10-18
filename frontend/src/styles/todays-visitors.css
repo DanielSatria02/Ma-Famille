@@ -124,9 +124,25 @@
   color: #9a3412;
 }
 
+.visitor-badge.is-pay-failed {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.visitor-badge.is-pay-refunded {
+  background: #e0e7ff;
+  color: #3730a3;
+}
+
 .visitor-invoice {
   margin: 0.25rem 0 0;
   color: #6b7280;
+  font-size: 0.75rem;
+}
+
+.visitor-note {
+  margin: 0.25rem 0 0;
+  color: #92400e;
   font-size: 0.75rem;
 }
 
@@ -138,7 +154,8 @@
 }
 
 .visitor-confirm,
-.visitor-paid {
+.visitor-paid,
+.visitor-refund {
   border: 1px solid #1f7a4d;
   border-radius: 8px;
   background: #ffffff;
@@ -155,6 +172,11 @@
   color: #2563eb;
 }
 
+.visitor-refund {
+  border-color: #b45309;
+  color: #b45309;
+}
+
 .visitor-confirm:hover,
 .visitor-confirm:focus-visible {
   background: #1f7a4d;
@@ -164,6 +186,12 @@
 .visitor-paid:hover,
 .visitor-paid:focus-visible {
   background: #2563eb;
+  color: #ffffff;
+}
+
+.visitor-refund:hover,
+.visitor-refund:focus-visible {
+  background: #b45309;
   color: #ffffff;
 }
 

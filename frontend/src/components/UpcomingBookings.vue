@@ -6,7 +6,7 @@ defineProps({
   bookings: { type: Array, default: () => [] },
 })
 
-defineEmits(['cancel', 'confirm', 'markPaid'])
+defineEmits(['cancel', 'confirm', 'markPaid', 'refund'])
 </script>
 
 <template>
@@ -23,6 +23,7 @@ defineEmits(['cancel', 'confirm', 'markPaid'])
         @cancel="$emit('cancel', $event)"
         @confirm="$emit('confirm', $event)"
         @mark-paid="$emit('markPaid', $event)"
+        @refund="$emit('refund', $event)"
       />
     </ul>
   </section>

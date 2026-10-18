@@ -29,6 +29,10 @@ const statusLine = computed(() => {
   const status = booking.value.status
   const payment = booking.value.payment_status
   if (payment === 'paid') return 'Paid. The booking is confirmed, see you there.'
+  if (payment === 'failed') {
+    return 'The payment did not go through. The venue still has your hours: it can confirm the visit or release them.'
+  }
+  if (payment === 'refunded') return 'The money for this visit was sent back.'
   if (status === 'confirmed') return 'Confirmed by the venue. The payment is handled offline.'
   if (status === 'cancelled') return 'This booking was cancelled and the hours are free again.'
   return ''
