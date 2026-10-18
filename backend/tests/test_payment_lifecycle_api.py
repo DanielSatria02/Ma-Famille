@@ -293,6 +293,23 @@ def test_money_arriving_for_a_cancelled_visit_asks_for_a_refund(monkeypatch):
         app.dependency_overrides.pop(get_db, None)
 
 
+def test_the_dashboard_row_carries_the_reason(monkeypatch):
+    """The manager list is built from BookingResponse: the note has to be in the schema."""
+    client = _client(_session_factory())
+    try:
+        booking = _booked(client)
+        _checkout(client, booking)
+        payment = _payments_of(client, booking)[0]
+        client.post(f"/v1/payments/{payment['public_id']}/mark-paid")
+        client.post(f"/v1/payments/{payment['public_id']}/refund")
+
+        row = client.get("/v1/manager/bookings", params={"day": DAY}).json()[0]
+        assert row["payment_status"] == "refunded"
+        assert row["payment_failure_reason"].startswith("refunded without a gateway")
+    finally:
+        app.dependency_overrides.pop(get_db, None)
+
+
 def test_an_expired_hold_takes_its_unpaid_invoice_with_it(monkeypatch):
     TestingSession = _session_factory()
     client = _client(TestingSession)
