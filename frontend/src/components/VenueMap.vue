@@ -35,6 +35,7 @@ const loadFailed = ref(false)
 let leaflet = null
 let markers = []
 let markersLayer = null
+let observer = null
 
 const placed = computed(() =>
   props.venues.filter(hasCoordinates).map((venue) => ({
@@ -161,21 +162,22 @@ onMounted(async () => {
 
   markersLayer = leaflet.layerGroup().addTo(map.value)
   drawMarkers()
+  fitToVenues()
 
-  // Leaflet decides which tiles to draw from whatever size its container had at
-  // the moment of the call. This panel sits below the venue grid, so on a first
-  // visit it has not been laid out when the map is made and the map would size
-  // itself against an empty box: one tile, pinned somewhere off-screen.
+  // Leaflet works out which tiles to draw from whatever size its container had
+  // at the moment of the call, and it never asks again on its own. This panel
+  // sits below the venue grid, so on a first visit it has not been laid out
+  // when the map is made, and the map sizes itself against an empty box: one
+  // tile, pinned over the middle of the Atlantic.
   //
-  // Measuring and then fitting is the order that works. It is done twice
-  // because the first measurement can still catch the page mid-layout.
-  const settle = () => {
-    if (!map.value) return
-    map.value.invalidateSize()
-    fitToVenues()
-  }
-  settle()
-  requestAnimationFrame(settle)
+  // Guessing when that happens is a losing game — the panel can be laid out
+  // after a font loads, after the venue list arrives, after a scrollbar appears.
+  // So the box is watched, and every time it changes Leaflet is told to measure
+  // itself again.
+  observer = new ResizeObserver(() => {
+    map.value?.invalidateSize({ animate: false })
+  })
+  observer.observe(container.value)
 })
 
 watch(
@@ -184,18 +186,19 @@ watch(
     // The venues arrive after this component mounts — the parent loads them —
     // so the first draw has nothing to put on the map and the map is still
     // sitting at the default view, which is the middle of the Atlantic.
-    // Fitting after every change is what puts the pins in the viewport and the
-    // tiles on screen; a redraw on its own leaves both off.
+    // Measuring and fitting is what puts the pins in the viewport and the tiles
+    // on screen; a redraw on its own leaves both off.
     if (!map.value) return
     drawMarkers()
-    // Same ordering as on mount: measure before fitting.
-    map.value.invalidateSize()
+    map.value.invalidateSize({ animate: false })
     fitToVenues()
   },
   { deep: true },
 )
 
 onBeforeUnmount(() => {
+  observer?.disconnect()
+  observer = null
   map.value?.remove()
   map.value = null
   markers = []
