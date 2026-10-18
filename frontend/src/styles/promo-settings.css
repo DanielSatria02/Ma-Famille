@@ -1,0 +1,216 @@
+.promo-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  border: 1px solid #d1d5db;
+  border-radius: 15px;
+  background: #ffffff;
+  padding: 1.25rem;
+}
+
+.promo-title {
+  margin: 0;
+  color: #111827;
+  font-size: 1.125rem;
+  font-weight: 700;
+  text-align: left;
+}
+
+.promo-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #fafafa;
+  padding: 0.875rem 1rem;
+}
+
+.promo-form-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+}
+
+.promo-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.promo-label {
+  color: #4b5563;
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+
+.promo-input {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 0.5rem 0.625rem;
+  color: #111827;
+  font-size: 0.9375rem;
+}
+
+.promo-input:focus-visible {
+  outline: 2px solid #e3a126;
+  outline-offset: 1px;
+}
+
+.promo-input-code {
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.promo-form-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.promo-button {
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 0.5rem 0.875rem;
+  color: #111827;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s, color 0.15s;
+}
+
+.promo-button:hover:not(:disabled),
+.promo-button:focus-visible:not(:disabled) {
+  background: #f3f4f6;
+}
+
+.promo-button.is-primary {
+  border-color: #e3a126;
+  background: #e3a126;
+  color: #ffffff;
+}
+
+.promo-button.is-primary:hover:not(:disabled),
+.promo-button.is-primary:focus-visible:not(:disabled) {
+  background: #c98a14;
+}
+
+.promo-button.is-danger {
+  border-color: #dc2626;
+  color: #dc2626;
+}
+
+.promo-button.is-danger:hover:not(:disabled),
+.promo-button.is-danger:focus-visible:not(:disabled) {
+  background: #dc2626;
+  color: #ffffff;
+}
+
+.promo-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.promo-notice {
+  margin: 0;
+  color: #15803d;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.promo-error {
+  margin: 0;
+  color: #dc2626;
+  font-size: 0.875rem;
+}
+
+.promo-panel {
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #fafafa;
+  padding: 0.875rem 1rem;
+}
+
+.promo-empty {
+  margin: 0;
+  color: #80796b;
+  font-size: 0.875rem;
+}
+
+.promo-row-main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+}
+
+.promo-divider {
+  height: 0;
+  margin: 0.875rem 0;
+  border-top: 1px solid #d1d5db;
+}
+
+.promo-code {
+  margin: 0;
+  color: #111827;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.promo-meta {
+  margin: 0.125rem 0 0;
+  color: #80796b;
+  font-size: 0.8125rem;
+  overflow-wrap: anywhere;
+}
+
+.promo-badge {
+  align-self: flex-start;
+  border-radius: 999px;
+  padding: 0.125rem 0.625rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.promo-badge.is-on {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.promo-badge.is-off {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+.promo-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+@media (min-width: 640px) {
+  .promo-settings {
+    padding: 1.5rem;
+  }
+
+  .promo-form-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .promo-row-main {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
+  .promo-badge {
+    align-self: center;
+  }
+
+  .promo-row-actions {
+    flex-shrink: 0;
+  }
+}

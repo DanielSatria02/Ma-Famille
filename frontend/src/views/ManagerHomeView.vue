@@ -8,6 +8,7 @@ import OccupancyChart from '../components/OccupancyChart.vue'
 import OpeningSchedule from '../components/OpeningSchedule.vue'
 import PhotoSettings from '../components/PhotoSettings.vue'
 import PricingSettings from '../components/PricingSettings.vue'
+import PromoSettings from '../components/PromoSettings.vue'
 import StatsOverview from '../components/StatsOverview.vue'
 import TodaysVisitors from '../components/TodaysVisitors.vue'
 import UnavailableNotice from '../components/UnavailableNotice.vue'
@@ -166,6 +167,7 @@ async function generateMonth() {
     <PhotoSettings :facilities="venuesStore.facilities" :venue-public-id="activeVenueId" />
     <GuestMessages />
     <PricingSettings :items="pricing" @update="venuesStore.updatePricing" />
+    <PromoSettings />
     <VenueStatus :venues="venueStatusItems" @toggle="venuesStore.toggleVenue" />
   </section>
 </template>
