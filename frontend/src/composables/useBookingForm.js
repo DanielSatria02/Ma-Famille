@@ -13,6 +13,7 @@ import { startCheckout } from '../services/payment.js'
 import { setCustomerContact } from '../services/session.js'
 import { useVenuesStore } from '../stores/venues.js'
 import { hasConflict, isBookableDate } from '../utils/bookingRules.js'
+import { formatLongDate } from '../utils/date.js'
 
 export const TIME_UNAVAILABLE_MESSAGE = 'That time is unavailable.'
 
@@ -27,6 +28,12 @@ export function useBookingForm(initialDate = '', initialFacilityKey = '') {
 
   const facilityKey = ref('')
   const date = ref(isBookableDate(initialDate) ? initialDate : '')
+  // A link can carry a date that has since become unbookable — yesterday's
+  // "book soonest free day" link, or a shared URL opened after midnight. Saying
+  // so beats an empty date field that looks like the page forgot the choice.
+  const droppedDate = ref(
+    initialDate && !isBookableDate(initialDate) ? formatLongDate(initialDate) : '',
+  )
   const startHour = ref(null)
   const endHour = ref(null)
   const customerName = ref('')
@@ -231,7 +238,12 @@ export function useBookingForm(initialDate = '', initialFacilityKey = '') {
   }
 
   function selectDate(isoDate) {
-    if (isBookableDate(isoDate)) date.value = isoDate
+    if (isBookableDate(isoDate)) {
+      date.value = isoDate
+      // The visitor has picked something valid, so the stale link is no longer
+      // worth mentioning.
+      droppedDate.value = ''
+    }
   }
 
   // Returns false (and sets a notice) when the range overlaps a taken hour.
@@ -340,6 +352,7 @@ export function useBookingForm(initialDate = '', initialFacilityKey = '') {
     promoDiscount,
     isClosed,
     timeNotice,
+    droppedDate,
     availabilityError,
     submitError,
     canConfirm,

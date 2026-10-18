@@ -128,44 +128,69 @@
   font-size: 0.8125rem;
 }
 
-.time-form {
-  display: flex;
-  flex-direction: column;
-  gap: 0.875rem;
-}
-
-.time-row {
+/* The hours, as a grid of targets. Free hours are plain buttons, taken ones are
+   dimmed and disabled, so the shape of what is left is readable without
+   opening anything. Six across on a phone, four on a desktop — wide enough to
+   hit with a thumb, narrow enough that the whole day fits without scrolling. */
+.time-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.75rem;
-}
-
-.time-field {
-  display: flex;
-  flex-direction: column;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 0.375rem;
 }
 
-.time-label {
-  color: #4b5563;
-  font-size: 0.875rem;
-  font-weight: 500;
+@media (min-width: 640px) {
+  .time-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
 }
 
-.time-select {
-  width: 100%;
-  min-width: 0;
+.time-chip {
+  min-height: 2.75rem;
   border: 1px solid #d1d5db;
   border-radius: 8px;
   background: #ffffff;
-  padding: 0.5rem 0.625rem;
   color: #111827;
-  font-size: 0.9375rem;
+  font: inherit;
+  font-size: 0.875rem;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  transition: border-color 140ms ease, background-color 140ms ease;
 }
 
-.time-select:focus-visible {
+.time-chip:hover:not(:disabled) {
+  border-color: #b45309;
+  background: #fffbeb;
+}
+
+.time-chip:focus-visible {
   outline: 2px solid #b45309;
   outline-offset: 1px;
+}
+
+.time-chip.is-open {
+  border-color: #b45309;
+  background: #fffbeb;
+}
+
+.time-chip.is-start {
+  border-color: #111827;
+  background: #111827;
+  color: #ffffff;
+}
+
+.time-chip.is-taken {
+  border-color: #f3f4f6;
+  background: #f9fafb;
+  color: #9ca3af;
+  cursor: not-allowed;
+}
+
+.picker-panel.is-time .picker-hint {
+  margin-top: 0.75rem;
+}
+
+.time-grid + .picker-hint {
+  margin-bottom: 0;
 }
 
 .picker-apply,
@@ -309,10 +334,6 @@
   margin: 0.75rem 0 0;
   color: #dc2626;
   font-size: 0.875rem;
-}
-
-.time-form .booking-error {
-  margin: 0;
 }
 
 .booking-summary {

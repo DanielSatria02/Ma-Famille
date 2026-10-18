@@ -15,76 +15,87 @@ const props = defineProps({
 
 const emit = defineEmits(['apply', 'toggle', 'close'])
 
-const startOptions = Array.from({ length: 23 }, (_, hour) => hour)
-const draftStart = ref(props.startHour ?? '')
-const draftEnd = ref(props.endHour ?? '')
+// The hours are a grid of targets, not two dropdowns. A <select> of 23 hours is
+// fine with a mouse and unusable on a phone: it opens a full-screen list, and
+// the handful of hours that are actually free are scattered through it between
+// disabled entries that all say "(booked)". Booking an hour nearby became four
+// taps through a list of twenty-three.
+//
+// Now the first tap sets the start, the second ends the range there. Free hours
+// are plain targets; taken ones are dimmed and untappable, so the grid itself
+// shows what is left.
+const HOURS = Array.from({ length: 23 }, (_, hour) => hour)
+
+const draftStart = ref(props.startHour ?? null)
 const error = ref('')
 
-// Keep the drafts in step when the parent changes or clears the time.
+// Keep the draft in step when the parent changes or clears the time.
 watch(
   () => [props.startHour, props.endHour],
-  ([start, end]) => {
-    draftStart.value = start ?? ''
-    draftEnd.value = end ?? ''
+  ([start]) => {
+    draftStart.value = start ?? null
     error.value = ''
   },
 )
-
-const endOptions = computed(() => {
-  const start = draftStart.value === '' ? 0 : draftStart.value
-  return Array.from({ length: 24 - start - 1 }, (_, index) => start + 1 + index)
-})
 
 const label = computed(() =>
   props.startHour === null ? '' : `${formatHour(props.startHour)} - ${formatHour(props.endHour)}`,
 )
 
-const isComplete = computed(() => draftStart.value !== '' && draftEnd.value !== '')
-const conflicts = computed(() => isComplete.value && hasConflict(props.taken, draftStart.value, draftEnd.value))
-
-function onStartChange() {
-  error.value = ''
-  if (draftEnd.value !== '' && draftEnd.value <= draftStart.value) draftEnd.value = ''
-}
-
-function apply() {
-  if (!isComplete.value) return
-  if (conflicts.value) {
-    error.value = 'That time is unavailable.'
+function pick(hour) {
+  if (props.taken.has(hour)) return
+  const start = draftStart.value
+  // First tap, or a tap at or before the start: that is a new start.
+  if (start === null || hour <= start) {
+    draftStart.value = hour
+    error.value = ''
     return
   }
-  emit('apply', { start: draftStart.value, end: draftEnd.value })
+  if (hasConflict(props.taken, start, hour)) {
+    error.value = 'One of those hours is taken. Try a shorter run.'
+    return
+  }
+  emit('apply', { start, end: hour })
   emit('close')
+}
+
+function startOver() {
+  draftStart.value = null
+  error.value = ''
 }
 </script>
 
 <template>
   <PickerField label="Time" :value="label" :open="open" panel-class="is-time" @toggle="emit('toggle')">
-    <form class="time-form" @submit.prevent="apply">
-      <div class="time-row">
-        <label class="time-field">
-          <span class="time-label">Start</span>
-          <select v-model="draftStart" class="time-select" @change="onStartChange">
-            <option value="" disabled>--:--</option>
-            <option v-for="hour in startOptions" :key="hour" :value="hour" :disabled="taken.has(hour)">
-              {{ formatHour(hour) }}{{ taken.has(hour) ? ' (booked)' : '' }}
-            </option>
-          </select>
-        </label>
-        <label class="time-field">
-          <span class="time-label">End</span>
-          <select v-model="draftEnd" class="time-select" :disabled="draftStart === ''" @change="error = ''">
-            <option value="" disabled>--:--</option>
-            <option v-for="hour in endOptions" :key="hour" :value="hour" :disabled="hasConflict(taken, draftStart, hour)">
-              {{ formatHour(hour) }}{{ hasConflict(taken, draftStart, hour) ? ' (booked)' : '' }}
-            </option>
-          </select>
-        </label>
-      </div>
+    <div class="time-grid">
+      <button
+        v-for="hour in HOURS"
+        :key="hour"
+        type="button"
+        class="time-chip"
+        :class="{
+          'is-taken': taken.has(hour),
+          'is-start': draftStart === hour,
+          'is-open':
+            draftStart !== null && hour > draftStart && !hasConflict(taken, draftStart, hour),
+        }"
+        :disabled="taken.has(hour)"
+        :aria-pressed="draftStart === hour"
+        @click="pick(hour)"
+      >
+        {{ formatHour(hour) }}
+      </button>
+    </div>
 
-      <p v-if="error || conflicts" class="booking-error" role="alert">That time is unavailable.</p>
+    <p class="picker-hint" role="status">
+      <template v-if="draftStart === null">Tap the hour you want to start.</template>
+      <template v-else>Starting {{ formatHour(draftStart) }}. Tap the hour it ends.</template>
+    </p>
 
-      <button type="submit" class="picker-apply" :disabled="!isComplete">Apply</button>
-    </form>
+    <p v-if="error" class="booking-error" role="alert">{{ error }}</p>
+
+    <button v-if="draftStart !== null" type="button" class="picker-apply" @click="startOver">
+      Pick a different start
+    </button>
   </PickerField>
 </template>

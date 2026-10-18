@@ -178,6 +178,10 @@ onUnmounted(() => {
     <p v-if="form.availabilityError.value" class="booking-error" role="alert">
       {{ form.availabilityError.value }}
     </p>
+    <p v-if="form.droppedDate.value" class="booking-error" role="status">
+      {{ form.droppedDate.value }} can no longer be booked — it is too close. Pick a date from
+      the calendar.
+    </p>
     <p v-if="form.timeNotice.value" class="booking-error" role="alert">{{ form.timeNotice.value }}</p>
 
     <!-- The code's verdict, from the server's dry run. A refused code blocks

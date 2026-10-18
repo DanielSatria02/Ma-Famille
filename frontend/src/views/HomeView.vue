@@ -152,12 +152,14 @@ watch(selectedKey, async (key) => {
   }
 })
 
-// The soonest day that can actually be booked. Bookings are H-1, so a date
-// with free hours today is not an option — offering it would send the visitor
-// to a form the server refuses.
+// The soonest day that can actually be booked. Bookings are a day ahead, so a
+// date with free hours today is not an option: sending the visitor there would
+// land them on a form that quietly refuses the date, which reads as the page
+// having lost what they picked. Computed from the same rule the form uses, so
+// the link and the form always agree.
 const nextOpenDay = computed(() => {
   if (!availabilityChecked.value) return ''
-  const earliest = toIsoDate(addDays(new Date(), 1))
+  const earliest = minBookableDate()
   const free = checkedDates.value.find((day) => day.free_hours > 0 && day.day >= earliest)
   return free?.day ?? ''
 })
