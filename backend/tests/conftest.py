@@ -21,5 +21,8 @@ def _isolate_secrets():
     settings.doku_client_id = ""
     settings.doku_secret_key = ""
     settings.manager_token = ""
+    old_password = settings.manager_password
+    settings.manager_password = ""
     yield
     settings.doku_client_id, settings.doku_secret_key, settings.manager_token = old
+    settings.manager_password = old_password

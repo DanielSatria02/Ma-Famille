@@ -18,6 +18,10 @@ class Settings(BaseSettings):
     doku_base_url: str = "https://api-sandbox.doku.com"
     # Empty = open (local dev). Production sets this in backend/.env.
     manager_token: str = ""
+    # Login password for the manager dashboard. Empty = POST /auth/login 501.
+    manager_password: str = ""
+    # Lifetime of a session token issued by POST /auth/login.
+    manager_session_minutes: int = 480
     # Pending bookings older than this are auto-cancelled on next read/write.
     booking_ttl_minutes: int = 30
     # Minimum days ahead a client may book (0 = today allowed, prod sets 1).

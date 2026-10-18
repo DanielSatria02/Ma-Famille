@@ -6,10 +6,14 @@ Base: `/v1`. All domain routes are wired to the store; the only
 ## Auth
 
 - Customer reads + booking flow: open.
+- `POST /auth/login` `{password}` → `{token, role, expires_at}` (501 when
+  `MANAGER_PASSWORD` is unset). The token goes in the same header as the static
+  token below; both are accepted until it expires.
 - Manager writes (`POST/PATCH/DELETE` venues & courts, slot create/update,
-  booking confirm, payment mark-paid, all of `/manager/*`):
-  header `X-Manager-Token` must match `MANAGER_TOKEN`
-  (empty in local dev = open). Wrong/missing → `401`.
+  booking confirm/cancel, payment mark-paid, all of `/manager/*`):
+  header `X-Manager-Token` must match `MANAGER_TOKEN` or be a valid session
+  token (empty `MANAGER_TOKEN` + empty `MANAGER_PASSWORD` = open, local dev).
+  Wrong/missing → `401`.
 
 ## Identifiers
 
@@ -69,6 +73,7 @@ GET    /facilities?venue_public_id=&kind= (client picker: bookable + reason)
 GET    /manager/facilities (rates, locked until priced)
 PATCH  /courts/{public_id} (manager)          DELETE /courts/{public_id} (manager, deactivates)
 GET    /slots?court_public_id=&day=           POST /slots (manager, bulk)
+POST   /auth/login {password} → {token}       (token replaces MANAGER_TOKEN)
 POST   /slots/generate (manager, from venue hours, idempotent)
 GET    /availability/hours?court_public_id=&day=  GET /availability/dates?court_public_id=&from_day=&to_day=
 GET    /pricing/quote?court_public_id=&starts_at=&ends_at= (rate, total, bookability)

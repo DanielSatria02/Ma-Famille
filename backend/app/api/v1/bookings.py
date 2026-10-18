@@ -122,7 +122,11 @@ def confirm_booking(public_id: UUID, db: Session = Depends(get_db)) -> BookingRe
     return _to_response(db, confirmed)
 
 
-@router.post("/{public_id}/cancel", summary="Cancel booking")
+@router.post(
+    "/{public_id}/cancel",
+    summary="Cancel booking (manager)",
+    dependencies=[Depends(require_manager)],
+)
 def cancel_booking(public_id: UUID, db: Session = Depends(get_db)) -> BookingResponse:
     booking = booking_service.get_by_public_id(db, public_id)
     if booking is None:
