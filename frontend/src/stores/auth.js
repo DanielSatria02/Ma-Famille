@@ -6,6 +6,13 @@ import { clearManagerToken, getManagerToken, setManagerToken } from '../services
 
 const OPEN_ACCESS_KEY = 'ma-famille.open-access'
 
+// "15 minutes" / "45 seconds" — reads better than a raw number.
+function waitSecondsLabel(seconds) {
+  if (seconds < 60) return `${seconds} seconds`
+  const minutes = Math.round(seconds / 60)
+  return minutes === 1 ? '1 minute' : `${minutes} minutes`
+}
+
 function readOpenAccess() {
   try {
     return sessionStorage.getItem(OPEN_ACCESS_KEY) === '1'
@@ -51,6 +58,16 @@ export const useAuthStore = defineStore('auth', () => {
         openAccess.value = true
         error.value = 'This server has no manager password set, so the dashboard stays open.'
         return true
+      }
+      if (errorStatus(err) === 429) {
+        // The lockout carries a Retry-After in seconds; say when to come back
+        // instead of leaving the manager guessing.
+        const seconds = Number(err?.response?.headers?.['retry-after'])
+        const wait = Number.isFinite(seconds) && seconds > 0 ? seconds : 0
+        error.value = wait
+          ? `Too many attempts. Try again in ${waitSecondsLabel(wait)}.`
+          : 'Too many attempts. Try again shortly.'
+        return false
       }
       error.value = errorStatus(err) === 401 ? 'Wrong password.' : errorDetail(err, 'Login failed.')
       return false
