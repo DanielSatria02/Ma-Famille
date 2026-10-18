@@ -1,0 +1,127 @@
+/* Touch targets, and the small screens that need them.
+ *
+ * Nothing in the app overflows its viewport on a phone — the layout was
+ * already fluid. What was wrong was the other half of "not responsive": the
+ * things you have to *press* were sized for a mouse. A 32px calendar arrow is
+ * three millimetres of slop either side of a fingertip, and the cost is paid
+ * by everyone holding the phone in one hand.
+ *
+ * 44px is the smallest target that is reliably hittable (the WCAG 2.2 floor,
+ * and what both platforms' own guidelines land on). Rather than hand-size
+ * every button, anything interactive grows to at least that, and only on
+ * coarse pointers — a mouse does not need bigger buttons, and inflating them
+ * on desktop would just waste space.
+ */
+
+@media (pointer: coarse) {
+  /* Buttons, links and form fields: the floor is applied as a minimum, never
+     a fixed height, so a button with two lines of text still fits. */
+  button,
+  a[href],
+  input:not([type='checkbox']):not([type='radio']),
+  select,
+  textarea,
+  [role='button'],
+  [role='option'],
+  [role='radio'],
+  [role='tab'] {
+    min-height: 44px;
+  }
+
+  /* Inline links inside a paragraph are prose, not controls — making them 44px
+     tall would push the text around. But "Sign in" here is the only way past a
+     step, so it still has to be hittable: a stretched pseudo-element gives it a
+     finger-sized target without touching the line the text sits on. */
+  p a[href],
+  li a[href] {
+    min-height: 0;
+  }
+
+  p a[href]::after,
+  li a[href]::after {
+    content: '';
+    position: absolute;
+    inset: -0.875rem -0.5rem;
+  }
+
+  p a[href],
+  li a[href] {
+    position: relative;
+  }
+
+  /* Icon-only controls need the floor in both directions; the height alone
+     would still leave a 32px-wide target to miss. */
+  button[aria-label],
+  button:has(> svg:only-child),
+  button:has(> span:only-child) {
+    min-width: 44px;
+  }
+}
+
+/* The calendar is the worst offender and the most used: a month of days, each
+   a small target, is exactly where a mis-tap cancels nothing but wastes a
+   minute of the user's time. */
+@media (pointer: coarse) {
+  .calendar-day,
+  .calendar-nav-button,
+  .facility-option {
+    min-height: 44px;
+  }
+}
+
+/* Sidebar links: the whole row is the target, so it only needs the height. */
+@media (pointer: coarse) {
+  .app-sidebar-link {
+    min-height: 48px;
+    display: flex;
+    align-items: center;
+  }
+}
+
+/* The review stars are five small targets in a row; at 44px each they wrap on
+   a narrow phone, which is fine and better than missing one. */
+@media (pointer: coarse) {
+  .reviews-star {
+    min-width: 44px;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
+/* Respect the notch and the rounded corners: a full-bleed page that ignores
+   the safe area puts buttons under the home indicator. */
+@supports (padding: max(0px)) {
+  @media (max-width: 480px) {
+    .login-page {
+      padding-left: max(1rem, env(safe-area-inset-left));
+      padding-right: max(1rem, env(safe-area-inset-right));
+    }
+  }
+}
+
+/* Landscape phones are short: the login card does not fit, and the point of
+   signing in is doing it without a pinch-zoom. */
+@media (max-height: 500px) and (orientation: landscape) {
+  .login-page {
+    min-height: 100dvh;
+    padding-top: 1.5rem;
+    padding-bottom: 1.5rem;
+    align-items: flex-start;
+  }
+
+  /* Let the short page scroll instead of clipping the submit button. */
+  .login-card {
+    margin-block: auto;
+  }
+}
+
+/* `100vh` on mobile is the *largest* viewport (address bar hidden), so a
+   page sized to it is taller than the screen can show and the bottom of a form
+   sits under the browser chrome. `dvh` tracks the bar as it hides. */
+@media (pointer: coarse) {
+  .login-page {
+    min-height: 100dvh;
+  }
+}
