@@ -1,7 +1,8 @@
-import { computed, ref, watch } from 'vue'
+import { computed, onUnmounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
 import {
+  checkPromotion,
   createRangeBooking,
   errorDetail,
   errorStatus,
@@ -37,6 +38,14 @@ export function useBookingForm(initialDate = '', initialFacilityKey = '') {
   const dayHours = ref([])
   const isClosed = ref(false)
   const quote = ref(null)
+
+  // Promo code as typed, plus the server's dry-run verdict on it. The check is
+  // advisory — the booking re-verifies the code — but it is what draws the
+  // discount line and what tells the customer why a code will not work.
+  const promoCode = ref('')
+  const promoResult = ref(null)
+  const promoChecking = ref(false)
+  const promoError = ref('')
 
   const facility = computed(
     () => venuesStore.venues.find((venue) => venue.key === facilityKey.value) ?? null,
@@ -84,7 +93,22 @@ export function useBookingForm(initialDate = '', initialFacilityKey = '') {
     facility.value ? venuesStore.hourlyRate(facility.value.key, date.value) : 0,
   )
   // The server quote wins: a weekend range can mix rates.
-  const total = computed(() => quote.value?.total ?? hourlyRate.value * hours.value)
+  const gross = computed(() => quote.value?.total ?? hourlyRate.value * hours.value)
+  const promoAccepted = computed(() => promoResult.value?.ok === true)
+  const promoRefused = computed(
+    () => Boolean(promoCode.value) && promoResult.value?.ok === false,
+  )
+  // Send the code whenever the box has one and the server has not said no.
+  // A failed check (server unreachable) must not silently drop the discount the
+  // customer asked for — the booking re-verifies it and answers 422 if wrong.
+  const promoToSend = computed(() =>
+    Boolean(promoCode.value) && !promoRefused.value ? promoCode.value.trim() : null,
+  )
+  // The line the customer sees: what the code took off this range.
+  const promoDiscount = computed(() =>
+    promoAccepted.value ? promoResult.value.discount : 0,
+  )
+  const total = computed(() => Math.max(0, gross.value - promoDiscount.value))
 
   const hasCustomer = computed(
     () => customerName.value.trim().length > 0 && customerContact.value.trim().length >= 3,
@@ -97,6 +121,8 @@ export function useBookingForm(initialDate = '', initialFacilityKey = '') {
       hasTime.value &&
       !isClosed.value &&
       hasCustomer.value &&
+      !promoRefused.value &&
+      !promoChecking.value &&
       !hasConflict(taken.value, startHour.value, endHour.value),
   )
 
@@ -136,6 +162,48 @@ export function useBookingForm(initialDate = '', initialFacilityKey = '') {
   watch([facilityKey, date], loadDay, { immediate: true })
   watch([facilityKey, date, startHour, endHour], loadQuote)
 
+  // Ask the server what the code does. Debounced so typing H-E-M-A-T does not
+  // fire five requests, and dropped entirely when the box is empty.
+  let promoTimer = null
+  async function runPromoCheck() {
+    const code = promoCode.value.trim()
+    if (!code) {
+      promoResult.value = null
+      promoError.value = ''
+      promoChecking.value = false
+      return
+    }
+    // Without a range there is nothing to discount yet; the code alone can
+    // still be checked so an unknown one is reported immediately.
+    const hasRange = Boolean(facilityKey.value && date.value && hasTime.value)
+    promoChecking.value = true
+    promoError.value = ''
+    try {
+      promoResult.value = await checkPromotion({
+        code,
+        courtPublicId: hasRange ? facilityKey.value : undefined,
+        startsAt: hasRange ? `${date.value}T${pad(startHour.value)}:00:00` : undefined,
+        endsAt: hasRange ? `${date.value}T${pad(endHour.value)}:00:00` : undefined,
+      })
+    } catch (err) {
+      // A failed check is not a verdict: leave the box usable and say why.
+      promoResult.value = null
+      promoError.value = errorDetail(err, 'Could not check that code.')
+    } finally {
+      promoChecking.value = false
+    }
+  }
+  function schedulePromoCheck() {
+    clearTimeout(promoTimer)
+    promoTimer = setTimeout(runPromoCheck, 350)
+  }
+  watch(promoCode, schedulePromoCheck)
+  // A new range changes what the code is worth, so re-run for the same code.
+  watch([facilityKey, date, startHour, endHour], () => {
+    if (promoCode.value.trim()) schedulePromoCheck()
+  })
+  onUnmounted(() => clearTimeout(promoTimer))
+
   // Deep link from the home page: preselect that facility once the list is in.
   watch(
     () => [venuesStore.facilities.length, initialFacilityKey],
@@ -168,12 +236,21 @@ export function useBookingForm(initialDate = '', initialFacilityKey = '') {
 
   // Returns false (and sets a notice) when the range overlaps a taken hour.
   function selectTime(start, end) {
-    if (hasConflict(taken.value, start, end)) {
+    // Normalise at the door: the picker hands over whatever the <select> gave
+    // it, and a non-numeric value would otherwise travel all the way into the
+    // quote URL (`Tundefined:00:00`) and render as "NaN hours" in the summary.
+    const startHourNum = Number(start)
+    const endHourNum = Number(end)
+    if (!Number.isInteger(startHourNum) || !Number.isInteger(endHourNum) || endHourNum <= startHourNum) {
+      timeNotice.value = `${TIME_UNAVAILABLE_MESSAGE} Please pick a new time.`
+      return false
+    }
+    if (hasConflict(taken.value, startHourNum, endHourNum)) {
       timeNotice.value = TIME_UNAVAILABLE_MESSAGE
       return false
     }
-    startHour.value = start
-    endHour.value = end
+    startHour.value = startHourNum
+    endHour.value = endHourNum
     timeNotice.value = ''
     return true
   }
@@ -189,6 +266,10 @@ export function useBookingForm(initialDate = '', initialFacilityKey = '') {
         ends_at: `${date.value}T${pad(endHour.value)}:00:00`,
         customer_name: customerName.value.trim(),
         customer_contact: customerContact.value.trim(),
+        // A refused code is blocked by `canConfirm`; anything else goes through
+        // and the server re-verifies it, so a failed check cannot silently
+        // charge full price for a booking that asked for a discount.
+        ...(promoToSend.value ? { promo_code: promoToSend.value } : {}),
       })
       const order = {
         bookingId: created.bookings[0].public_id,
@@ -200,7 +281,11 @@ export function useBookingForm(initialDate = '', initialFacilityKey = '') {
         endHour: endHour.value,
         hours: created.hours,
         hourlyRate: quote.value?.hourly_rate ?? hourlyRate.value,
+        // `created.total` is already net of the discount.
         total: created.total,
+        ...(created.bookings[0].discount
+          ? { discount: created.bookings[0].discount, promoCode: created.bookings[0].promo_code }
+          : {}),
       }
       // The hours just booked are no longer free.
       await loadDay()
@@ -208,6 +293,9 @@ export function useBookingForm(initialDate = '', initialFacilityKey = '') {
       setCustomerContact(customerContact.value.trim())
       startHour.value = null
       endHour.value = null
+      // The code was redeemed with that booking; do not carry it to the next one.
+      promoCode.value = ''
+      promoResult.value = null
       const { redirect } = await startCheckout(order)
       await router.push(redirect)
     } catch (err) {
@@ -240,7 +328,16 @@ export function useBookingForm(initialDate = '', initialFacilityKey = '') {
     openWindow,
     hourlyRate,
     total,
+    gross,
     quote,
+    promoCode,
+    promoResult,
+    promoChecking,
+    promoError,
+    promoAccepted,
+    promoRefused,
+    promoToSend,
+    promoDiscount,
     isClosed,
     timeNotice,
     availabilityError,

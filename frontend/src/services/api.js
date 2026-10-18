@@ -253,6 +253,44 @@ export async function refundPayment(paymentPublicId) {
   return res.data
 }
 
+// --- Promo codes ---------------------------------------------------------
+
+// The public dry run: what would this code do to that range, right now? Writes
+// nothing. The booking re-verifies the code anyway, so this only feeds the UI.
+export async function checkPromotion({ code, courtPublicId, startsAt, endsAt } = {}) {
+  const res = await api.get('/v1/promotions/check', {
+    params: {
+      code,
+      ...(courtPublicId ? { court_public_id: courtPublicId } : {}),
+      ...(startsAt ? { starts_at: startsAt } : {}),
+      ...(endsAt ? { ends_at: endsAt } : {}),
+    },
+  })
+  return res.data
+}
+
+export async function fetchPromotions(params = {}) {
+  const res = await api.get('/v1/promotions', { params })
+  return res.data
+}
+
+export async function createPromotion(payload) {
+  const res = await api.post('/v1/promotions', payload)
+  return res.data
+}
+
+export async function updatePromotion(publicId, payload) {
+  const res = await api.patch(`/v1/promotions/${publicId}`, payload)
+  return res.data
+}
+
+// A redeemed code answers 409 — it stays as evidence of what was charged.
+// Switch it off instead of deleting it.
+export async function deletePromotion(publicId) {
+  const res = await api.delete(`/v1/promotions/${publicId}`)
+  return res.data
+}
+
 // --- Payments -----------------------------------------------------------
 
 export async function createPayment(bookingPublicId, { amount, kind = 'full' }) {

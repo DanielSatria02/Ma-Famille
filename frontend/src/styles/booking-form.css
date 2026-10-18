@@ -238,6 +238,17 @@
   font-size: 0.8125rem;
 }
 
+/* The code itself reads better in caps; the value is upper-cased anyway. */
+.booking-input-promo {
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.booking-promo-ok {
+  color: #15803d;
+  font-weight: 500;
+}
+
 .booking-error {
   margin: 0.75rem 0 0;
   color: #dc2626;
@@ -272,6 +283,16 @@
 
 .booking-summary-total {
   color: #c98a14;
+}
+
+.booking-summary-discount {
+  color: #15803d;
+}
+
+/* With a promo line the summary has four cells, so give them four columns
+   instead of dropping the last one onto its own row. */
+.booking-summary:has(> div:nth-child(4)) {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 @media (min-width: 768px) {

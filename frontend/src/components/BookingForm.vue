@@ -107,6 +107,19 @@ onUnmounted(() => {
           class="booking-input"
         />
       </label>
+      <label class="booking-field">
+        <span class="booking-label">Promo code (optional)</span>
+        <input
+          v-model="form.promoCode.value"
+          type="text"
+          name="promo_code"
+          autocomplete="off"
+          autocapitalize="characters"
+          spellcheck="false"
+          placeholder="e.g. HEMAT20"
+          class="booking-input booking-input-promo"
+        />
+      </label>
     </div>
 
     <p v-if="form.openWindow.value" class="booking-hint" role="status">{{ form.openWindow.value }}</p>
@@ -120,6 +133,26 @@ onUnmounted(() => {
       {{ form.availabilityError.value }}
     </p>
     <p v-if="form.timeNotice.value" class="booking-error" role="alert">{{ form.timeNotice.value }}</p>
+
+    <!-- The code's verdict, from the server's dry run. A refused code blocks
+         Confirm outright: sending it would only bounce at booking time. -->
+    <p v-if="form.promoChecking.value" class="booking-hint" role="status">Checking code…</p>
+    <p
+      v-else-if="form.promoError.value"
+      class="booking-error"
+      role="alert"
+    >{{ form.promoError.value }}</p>
+    <p
+      v-else-if="form.promoRefused.value"
+      class="booking-error"
+      role="alert"
+    >{{ form.promoResult.value.reason }}</p>
+    <p
+      v-else-if="form.promoAccepted.value"
+      class="booking-hint booking-promo-ok"
+      role="status"
+    >{{ form.promoResult.value.code }} applied — {{ form.promoDiscount.value }} off</p>
+
     <p v-if="form.submitError.value" class="booking-error" role="alert">{{ form.submitError.value }}</p>
 
     <dl v-if="form.facility.value && form.hasTime.value && form.isFacilityBookable.value" class="booking-summary">
@@ -130,6 +163,10 @@ onUnmounted(() => {
       <div>
         <dt>Duration</dt>
         <dd>{{ form.hours.value }} {{ form.hours.value === 1 ? 'hour' : 'hours' }}</dd>
+      </div>
+      <div v-if="form.promoAccepted.value">
+        <dt>Promo ({{ form.promoResult.value.code }})</dt>
+        <dd class="booking-summary-discount">-{{ form.promoDiscount.value }}</dd>
       </div>
       <div>
         <dt>Total</dt>
