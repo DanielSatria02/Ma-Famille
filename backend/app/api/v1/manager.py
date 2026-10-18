@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from app.core.security import require_manager
 from app.db.session import get_db
 from app.schemas.booking import BookingResponse
-from app.schemas.manager import OccupancyPoint
+from app.schemas.manager import ManagerStats, OccupancyPoint
 from app.services import bookings as booking_service
 from app.services import manager as manager_service
 
@@ -60,9 +60,25 @@ def occupancy(
 ) -> list[OccupancyPoint]:
     if to_day < from_day:
         raise HTTPException(status_code=422, detail="to_day before from_day")
-    if (to_day - from_day).days > 93:
-        raise HTTPException(status_code=422, detail="range too wide (max 93 days)")
+    if (to_day - from_day).days > MAX_RANGE_DAYS:
+        raise HTTPException(
+            status_code=422, detail=f"range too wide (max {MAX_RANGE_DAYS} days)"
+        )
     return [
         OccupancyPoint(**point)
         for point in manager_service.occupancy(db, from_day, to_day)
     ]
+
+
+@router.get("/stats", summary="Dashboard counters (manager)", response_model=ManagerStats)
+def stats(
+    day: date | None = None,
+    week_start: date | None = None,
+    db: Session = Depends(get_db),
+) -> ManagerStats:
+    """Counters for the manager dashboard. `day` defaults to today; the week
+    runs Monday-Sunday around it unless `week_start` says otherwise."""
+    target = day if day is not None else date.today()
+    if week_start is not None and week_start > target:
+        raise HTTPException(status_code=422, detail="week_start after day")
+    return ManagerStats(**manager_service.stats(db, target, week_start))

@@ -75,6 +75,7 @@ POST   /payments  → {invoice_number, checkout_url}   GET /payments?booking_pub
 POST   /payments/{public_id}/mark-paid (manager, auto-confirms booking)
 POST   /payments/webhook/doku (DOKU signed notification → paid + auto-confirm)
 GET    /manager/bookings?booking_status=&day=&from_day=&to_day=   GET /manager/occupancy?from_day=&to_day=
+GET    /manager/stats?day=&week_start= (dashboard counters, one visit = one booking group)
 ```
 
 Booking also flips `slot.status` (`available`→`booked` on create,
