@@ -120,7 +120,15 @@ const submitLabel = computed(() => {
 </script>
 
 <template>
-  <section class="login-page relative isolate -mx-4 -my-6 flex min-h-[calc(100vh-10rem)] max-w-none items-center justify-center overflow-hidden px-4 py-10">
+  <!--
+    No negative margins here. This page is the one view that opts out of the
+    header and footer, so <main> gives it no padding at all and it is already the
+    full width of the screen. The -mx-4 that used to be here was left over from
+    when the page sat inside the padded main: it pushed the section 16px past the
+    left edge, and a box 16px wider than the viewport gives the document a
+    horizontal scrollbar on every screen size.
+  -->
+  <section class="login-page relative isolate flex min-h-dvh w-full max-w-none items-center justify-center overflow-hidden px-4 py-10">
     <div
       class="absolute inset-0 -z-20 bg-cover bg-center bg-no-repeat"
       :style="{ backgroundImage: `url(${loginBackground})` }"

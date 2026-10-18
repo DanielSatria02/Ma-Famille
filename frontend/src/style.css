@@ -1,3 +1,21 @@
 @import 'tailwindcss';
 @import './styles/motion.css';
 @import './styles/touch.css';
+
+/* The page never scrolls sideways.
+ *
+ * A box a few pixels wider than the screen is easy to write and easy to miss:
+ * the content still reads, the only symptom is a horizontal scrollbar and a
+ * layout that can be nudged sideways. Rather than hunt for those one page at a
+ * time, the document is told it has no sideways to give. Anything genuinely
+ * wider than the screen (a code block, a wide table) needs to scroll inside its
+ * own box instead, which is the right place for it anyway.
+ *
+ * Set on body rather than html: the html element is what overflow-x on a
+ * scrolling container has to be set on to take effect, and doing it there would
+ * make body a scroll container of its own, which breaks position: sticky
+ * further down the page. Nothing here is sticky, but the sidebar is position:
+ * fixed and this keeps its containing block where it belongs. */
+body {
+  overflow-x: hidden;
+}
