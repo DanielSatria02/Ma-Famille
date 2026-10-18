@@ -163,7 +163,11 @@ onMounted(async () => {
     <p v-else class="text-sm text-gray-600">
       Look up the visits booked with your WhatsApp number or email. The same contact
       is what lets you cancel a visit. Have an account?
-      <RouterLink to="/account" class="font-semibold text-gray-900 underline">Sign in</RouterLink>
+      <RouterLink
+        :to="{ name: 'login', query: { as: 'customer' } }"
+        class="font-semibold text-gray-900 underline"
+        >Sign in</RouterLink
+      >
       to skip this step.
     </p>
 

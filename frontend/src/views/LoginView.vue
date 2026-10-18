@@ -1,25 +1,111 @@
 <script setup>
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { computed, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import loginBackground from '../assets/loginbg.avif'
 import { useAuthStore } from '../stores/auth.js'
+import { useCustomerStore } from '../stores/customer.js'
 import '../styles/login.css'
 
+// One door, two kinds of people.
+//
+// Two separate pages used to ask for an email and a password in almost the
+// same words, and the navigation offered both — so arriving to book felt like
+// finding the wrong link. A tab says plainly which account is wanted and keeps
+// the fields, the styling and the error in one place.
+//
+// A manager is a venue owner signing in to run a dashboard; a customer is
+// someone keeping their own bookings together. They are different accounts
+// with different doors, and nothing here pretends otherwise: signing in as one
+// does not sign you in as the other.
+
+const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
+const customer = useCustomerStore()
+
+const TABS = [
+  { id: 'customer', label: 'Customer' },
+  { id: 'manager', label: 'Venue manager' },
+]
+
+// The old deep links still land on the right tab: /account is the customer
+// door, /login?as=manager is the dashboard door.
+const tab = ref(route.query.as === 'manager' ? 'manager' : 'customer')
+const isManager = computed(() => tab.value === 'manager')
 
 const email = ref('')
 const password = ref('')
+const displayName = ref('')
+const phone = ref('')
 const rememberMe = ref(false)
 
+const registering = ref(false)
+// Registration is a customer's business; a manager does not register here.
+const showRegister = computed(() => !isManager.value && registering.value)
+
+// One error slot for whichever account is being tried: only one form is
+// visible, so two errors would be noise.
+const error = computed(() => (isManager.value ? auth.error : customer.error))
+const busy = computed(() => (isManager.value ? auth.loading : customer.loading))
+
+function selectTab(next) {
+  if (tab.value === next) return
+  tab.value = next
+  // An address meant for one door is not a valid guess at the other, and an
+  // error left over from the other form would read as this one's failure.
+  password.value = ''
+  auth.error = ''
+  customer.error = ''
+  registering.value = false
+}
+
+function switchMode() {
+  registering.value = !registering.value
+  customer.error = ''
+}
+
 async function handleSubmit() {
-  const ok = await auth.login({ email: email.value, password: password.value })
-  if (ok) {
-    await router.push({ name: 'manager-home' })
-    return
+  const payload = { email: email.value.trim(), password: password.value }
+  let ok
+  if (isManager.value) {
+    ok = await auth.login(payload)
+    if (ok) {
+      await router.push({ name: 'manager-home' })
+      return
+    }
+  } else {
+    ok = registering.value
+      ? await customer.register({
+          ...payload,
+          displayName: displayName.value,
+          phone: phone.value.trim(),
+        })
+      : await customer.login(payload)
+    if (ok) {
+      // A customer lands on their bookings, not a dashboard they cannot use.
+      await router.push({ name: 'my-bookings' })
+      return
+    }
   }
+  // A failed attempt never leaves the password sitting in the field.
   password.value = ''
 }
+
+const headline = computed(() => {
+  if (isManager.value) return 'Ma Famille!'
+  return registering.value ? 'Create your account' : 'Welcome back'
+})
+
+const description = computed(() => {
+  if (isManager.value) return 'Sign in to run your venue dashboard'
+  if (registering.value) return 'An account keeps your bookings together'
+  return 'Sign in to see your bookings and cancel a visit'
+})
+
+const submitLabel = computed(() => {
+  if (isManager.value) return 'Sign in'
+  return registering.value ? 'Create account' : 'Sign in'
+})
 </script>
 
 <template>
@@ -31,14 +117,47 @@ async function handleSubmit() {
     />
     <div class="login-overlay absolute inset-0 -z-10" aria-hidden="true" />
 
-    <div class="w-full max-w-md space-y-8">
-      <div class="space-y-3 text-center">
-        <p class="login-eyebrow text-sm font-semibold uppercase tracking-[0.2em]">Welcome,</p>
-        <h1 class="login-title text-3xl tracking-tight">Ma Famille!</h1>
-        <p class="login-description">Book your next court session in a few clicks</p>
+    <div class="w-full max-w-md space-y-6">
+      <!--
+        Tabs rather than two pages: the choice is "which account", which is one
+        decision, so it should look like one place with a switch in it.
+      -->
+      <div class="login-tabs grid grid-cols-2 gap-1 rounded-xl border p-1" role="tablist" aria-label="Account type">
+        <button
+          v-for="option in TABS"
+          :key="option.id"
+          type="button"
+          role="tab"
+          :aria-selected="tab === option.id"
+          class="login-tab rounded-lg px-3 py-2 text-sm font-semibold transition"
+          :class="{ 'login-tab-active': tab === option.id }"
+          @click="selectTab(option.id)"
+        >
+          {{ option.label }}
+        </button>
+      </div>
+
+      <div class="space-y-2 text-center">
+        <p class="login-eyebrow text-sm font-semibold uppercase tracking-[0.2em]">Ma Famille</p>
+        <h1 class="login-title text-3xl tracking-tight">{{ headline }}</h1>
+        <p class="login-description">{{ description }}</p>
       </div>
 
       <form class="login-card space-y-5 rounded-2xl border p-6 shadow-sm" @submit.prevent="handleSubmit">
+        <div v-if="showRegister" class="space-y-2">
+          <label for="name" class="login-label block text-sm font-medium">Name on bookings</label>
+          <input
+            id="name"
+            v-model="displayName"
+            type="text"
+            name="name"
+            autocomplete="name"
+            required
+            placeholder="Your name"
+            class="login-input w-full rounded-lg border px-3 py-2.5 outline-none transition"
+          />
+        </div>
+
         <div class="space-y-2">
           <label for="email" class="login-label block text-sm font-medium">Email address</label>
           <input
@@ -60,38 +179,64 @@ async function handleSubmit() {
             v-model="password"
             type="password"
             name="password"
-            autocomplete="current-password"
+            :autocomplete="showRegister ? 'new-password' : 'current-password'"
+            :placeholder="showRegister ? 'At least 8 characters' : 'Enter your password'"
+            :minlength="showRegister ? 8 : undefined"
             required
-            placeholder="Enter your password"
             class="login-input w-full rounded-lg border px-3 py-2.5 outline-none transition"
           />
         </div>
 
-        <div class="flex items-center justify-between gap-4 text-sm">
+        <div v-if="showRegister" class="space-y-2">
+          <label for="phone" class="login-label block text-sm font-medium">
+            WhatsApp number <span class="login-body-text-acc">(optional)</span>
+          </label>
+          <input
+            id="phone"
+            v-model="phone"
+            type="tel"
+            name="phone"
+            autocomplete="tel"
+            placeholder="0812…"
+            class="login-input w-full rounded-lg border px-3 py-2.5 outline-none transition"
+          />
+          <p class="login-body-text text-xs">
+            The venue reaches you here. Leave it blank and we use your email.
+          </p>
+        </div>
+
+        <!--
+          Only where it means something: the manager's session already survives
+          a restart, and a checkbox that does nothing is worse than none.
+        -->
+        <div v-if="isManager" class="flex items-center justify-between gap-4 text-sm">
           <label class="login-body-text flex items-center gap-2">
-            <input v-model="rememberMe" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+            <input
+              v-model="rememberMe"
+              type="checkbox"
+              class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+            />
             Remember me
           </label>
-          <a href="#" class="login-link font-medium">Forgot password?</a>
         </div>
 
         <button
           type="submit"
           class="login-button w-full rounded-lg px-4 py-2.5 font-semibold transition disabled:opacity-50"
-          :disabled="auth.loading"
+          :disabled="busy"
         >
-          {{ auth.loading ? 'Signing in…' : 'Sign in' }}
+          {{ busy ? 'One moment…' : submitLabel }}
         </button>
 
-        <p v-if="auth.error" class="login-body-text text-center text-sm" role="alert">
-          {{ auth.error }}
+        <p v-if="error" class="login-body-text text-center text-sm" role="alert">{{ error }}</p>
+
+        <p v-if="!isManager" class="login-body-text text-center text-sm">
+          {{ registering ? 'Already have an account?' : 'No account yet?' }}
+          <button type="button" class="login-link font-medium" @click="switchMode">
+            {{ registering ? 'Sign in' : 'Create one' }}
+          </button>
         </p>
       </form>
-
-      <p class="login-body-text-acc text-center text-sm">
-        Don't have an account?
-        <a href="#" class="login-link font-semibold">Create one</a>
-      </p>
     </div>
   </section>
 </template>

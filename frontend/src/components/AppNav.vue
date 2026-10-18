@@ -15,6 +15,9 @@ const router = useRouter()
 const isSidebarOpen = ref(false)
 
 const isManagerArea = computed(() => route.path.startsWith('/manager'))
+// The dashboard area shows the link even when nobody is signed in — it is the
+// door, not proof of a session. The sign-out button needs the session.
+const isManagerSignedIn = computed(() => auth.isLoggedIn)
 const homePath = computed(() => (isManagerArea.value ? '/manager' : '/'))
 const brandName = computed(() => route.meta.franchise ?? DEFAULT_FRANCHISE)
 
@@ -49,7 +52,7 @@ function handleKeydown(event) {
 function logOut() {
   auth.logout()
   closeSidebar()
-  router.push({ name: 'login' })
+  router.push({ name: 'login', query: { as: 'manager' } })
 }
 
 // Sign out of a customer account. The visit ends either way — a failed call
@@ -57,7 +60,7 @@ function logOut() {
 async function signOut() {
   await customer.logout()
   closeSidebar()
-  router.push({ name: 'account' })
+  router.push({ name: 'login', query: { as: 'customer' } })
 }
 </script>
 
@@ -114,27 +117,41 @@ async function signOut() {
         <RouterLink :to="homePath" class="app-sidebar-link rounded-lg px-3 py-2 no-underline" @click="closeSidebar">Home</RouterLink>
         <RouterLink to="/health" class="app-sidebar-link rounded-lg px-3 py-2 no-underline" @click="closeSidebar">Health</RouterLink>
         <RouterLink v-if="!isManagerArea" to="/my-bookings" class="app-sidebar-link rounded-lg px-3 py-2 no-underline" @click="closeSidebar">My bookings</RouterLink>
-        <RouterLink v-if="!isManagerArea" to="/login" class="app-sidebar-link rounded-lg px-3 py-2 no-underline" @click="closeSidebar">Manager login</RouterLink>
-        <RouterLink v-if="isManagerArea" :to="homePath" class="app-sidebar-link rounded-lg px-3 py-2 no-underline" @click="closeSidebar">Dashboard</RouterLink>
-        <button type="button" class="app-sidebar-link rounded-lg px-3 py-2 text-left" @click="logOut">Log out</button>
-
-        <!-- A customer's account. The name is shown when signed in so it is
-             obvious whose bookings "My bookings" will list. -->
+        <!-- One door, two accounts. The link opens the customer tab; the
+             manager tab is the same page with ?as=manager. -->
         <RouterLink
-          v-if="!isManagerArea"
-          to="/account"
+          v-if="!isManagerArea && !customer.isSignedIn"
+          :to="{ name: 'login', query: { as: 'customer' } }"
           class="app-sidebar-link rounded-lg px-3 py-2 no-underline"
           @click="closeSidebar"
         >
-          {{ customer.isSignedIn ? customer.displayName || 'Account' : 'Sign in' }}
+          Sign in
         </RouterLink>
+        <RouterLink
+          v-if="isManagerArea"
+          :to="{ name: 'login', query: { as: 'manager' } }"
+          class="app-sidebar-link rounded-lg px-3 py-2 no-underline"
+          @click="closeSidebar"
+        >
+          Manager login
+        </RouterLink>
+        <RouterLink v-if="isManagerArea" :to="homePath" class="app-sidebar-link rounded-lg px-3 py-2 no-underline" @click="closeSidebar">Dashboard</RouterLink>
+        <!-- Only when there is a manager session to end. Showing "Log out"
+             to someone who never signed in as a manager is a second sign-out
+             button that does nothing they recognise. -->
+        <button v-if="isManagerSignedIn" type="button" class="app-sidebar-link rounded-lg px-3 py-2 text-left" @click="logOut">
+          Log out
+        </button>
+
+        <!-- A customer's account. The name is shown when signed in so it is
+             obvious whose bookings "My bookings" will list. -->
         <button
           v-if="!isManagerArea && customer.isSignedIn"
           type="button"
           class="app-sidebar-link rounded-lg px-3 py-2 text-left"
           @click="signOut"
         >
-          Sign out
+          {{ customer.displayName || 'Account' }} — sign out
         </button>
       </nav>
     </aside>

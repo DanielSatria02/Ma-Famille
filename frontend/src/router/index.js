@@ -2,10 +2,9 @@ import { createRouter, createWebHistory } from 'vue-router'
 
 import { PREMIERE_FRANCHISE } from '../config/franchise.js'
 import { useAuthStore } from '../stores/auth.js'
-import AccountView from '../views/AccountView.vue'
+import HomeView from '../views/HomeView.vue'
 import BookingView from '../views/BookingView.vue'
 import HealthView from '../views/HealthView.vue'
-import HomeView from '../views/HomeView.vue'
 import LoginView from '../views/LoginView.vue'
 import ManagerHomeView from '../views/ManagerHomeView.vue'
 import MyBookingsView from '../views/MyBookingsView.vue'
@@ -18,10 +17,10 @@ const router = createRouter({
     { path: '/', name: 'home', component: HomeView },
     { path: '/health', name: 'health', component: HealthView },
     { path: '/my-bookings', name: 'my-bookings', component: MyBookingsView },
+    // One door for both accounts. `?as=manager` opens the manager tab; without
+    // it the customer tab is showing, which is what most visitors want.
     { path: '/login', name: 'login', component: LoginView },
-    // A customer's own account: sign in, or create one. Kept apart from
-    // /login, which is the manager dashboard's door.
-    { path: '/account', name: 'account', component: AccountView },
+    { path: '/account', redirect: (to) => ({ name: 'login', query: to.query }) },
     {
       path: '/manager',
       name: 'manager-home',
