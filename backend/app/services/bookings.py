@@ -55,12 +55,15 @@ def get_by_public_id(db: Session, public_id: UUID) -> Booking | None:
 
 
 def list_by_contact(db: Session, customer_contact: str) -> list[Booking]:
-    stmt = (
-        select(Booking)
-        .where(Booking.customer_contact == customer_contact)
-        .order_by(Booking.id)
-    )
-    return list(db.scalars(stmt).all())
+    """Every booking made with that contact.
+
+    A phone comes back written any way the customer typed it (`0812…`, `+62 812…`),
+    so rows are compared phone-digit-wise instead of by an exact string match.
+    The table is small and this is not a hot path.
+    """
+    needle = normalise_contact(customer_contact)
+    rows = db.scalars(select(Booking).order_by(Booking.id)).all()
+    return [b for b in rows if normalise_contact(b.customer_contact) == needle]
 
 
 def create_booking(db: Session, data: BookingCreate) -> Booking | None:

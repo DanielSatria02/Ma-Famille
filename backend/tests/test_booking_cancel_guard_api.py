@@ -56,6 +56,26 @@ def _visit(client, contact="0812-3456-7890", day="2026-10-19"):
     return created
 
 
+def test_history_finds_the_booking_written_differently(monkeypatch):
+    client = _client()
+    try:
+        visit = _visit(client)  # booked with 0812-3456-7890
+        monkeypatch.setattr(settings, "manager_password", "rahasia")
+
+        found = client.get(
+            "/v1/bookings", params={"customer_contact": "+62 812 3456 7890"}
+        )
+        assert found.status_code == 200
+        rows = found.json()
+        assert [row["group_public_id"] for row in rows] == [visit["group_public_id"]] * 2
+
+        assert client.get(
+            "/v1/bookings", params={"customer_contact": "0812-9999-9999"}
+        ).json() == []
+    finally:
+        app.dependency_overrides.pop(get_db, None)
+
+
 def test_contact_normalisation_handles_phone_and_text():
     from app.services.bookings import normalise_contact
 
