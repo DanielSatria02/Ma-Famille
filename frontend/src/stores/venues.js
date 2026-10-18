@@ -1,62 +1,161 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 
-// Single source of truth for venue status and hourly prices, shared by the manager and booking pages.
-// To be loaded from and saved to the API later.
+import { errorDetail, fetchFacilities, fetchManagerFacilities, updateCourt } from '../services/api.js'
+
+// Facilities are the backend's `courts` rows: the single source of truth for
+// what a client can book (availability + rate) and for the manager panels.
+// `public_id` is the key every view uses.
 export const useVenuesStore = defineStore('venues', () => {
-  // null price means no price set: unavailable for booking (not free). Venues without a key here have no rate.
-  const prices = ref({ arena: 100000, office: 100000 })
+  const facilities = ref([])
+  const loading = ref(false)
+  const error = ref('')
 
-  const venues = ref([
-    { key: 'cafe', label: 'Cafe', available: true },
-    { key: 'office', label: 'Office', available: true },
-    { key: 'arena', label: 'Padel Arena', available: true },
-  ])
-
-  const hasPrice = (key) => key in prices.value
-
-  function isBookable(key) {
-    const venue = venues.value.find((entry) => entry.key === key)
-    if (!venue?.available) return false
-    return !hasPrice(key) || prices.value[key] !== null
-  }
-
-  function hourlyRate(key) {
-    return hasPrice(key) ? prices.value[key] : 0
-  }
-
-  // An unavailable venue shows no price in the manager's pricing panel.
-  const pricing = computed(() =>
-    [
-      { key: 'arena', label: 'Arena' },
-      { key: 'office', label: 'Office' },
-    ].map((item) => ({ ...item, price: isBookable(item.key) ? prices.value[item.key] : null })),
-  )
-
-  const venueStatusItems = computed(() =>
-    venues.value.map((venue) => ({
-      ...venue,
-      locked: hasPrice(venue.key) && prices.value[venue.key] === null,
+  const venues = computed(() =>
+    facilities.value.map((facility) => ({
+      key: facility.public_id,
+      label: facility.name,
+      available: facility.is_bookable,
     })),
   )
 
-  function updatePricing({ key, price }) {
-    const venue = venues.value.find((entry) => entry.key === key)
-    if (!venue) return
-    if (price === null) {
-      prices.value[key] = null
-      venue.available = false
-      return
+  const activeVenue = computed(() => facilities.value[0] ?? null)
+
+  function byKey(key) {
+    return facilities.value.find((facility) => facility.public_id === key) ?? null
+  }
+
+  function isBookable(key) {
+    return Boolean(byKey(key)?.is_bookable)
+  }
+
+  // Why a facility cannot be booked, in the client's words.
+  function unavailableNote(key) {
+    const facility = byKey(key)
+    if (!facility) return ''
+    if (!facility.is_active || facility.unavailable_reason === 'inactive') return 'Closed'
+    if (!facility.is_price_set || facility.unavailable_reason === 'no_rate') return 'No price set'
+    return ''
+  }
+
+  // Weekend rates apply on Saturday and Sunday, like the backend.
+  function isWeekend(isoDate) {
+    const [year, month, day] = isoDate.split('-').map(Number)
+    return new Date(Date.UTC(year, month - 1, day)).getUTCDay() >= 5
+  }
+
+  function hourlyRate(key, isoDate = '') {
+    const facility = byKey(key)
+    if (!facility || !facility.is_price_set) return 0
+    const weekend = isoDate ? isWeekend(isoDate) : false
+    const rate = weekend ? facility.price_weekend : facility.price_weekday
+    return rate ?? facility.price_weekday ?? facility.price_weekend ?? 0
+  }
+
+  // Manager pricing panel: facilities that sell hours (the cafe is not bookable time).
+  const pricing = computed(() =>
+    facilities.value
+      .filter((facility) => facility.kind !== 'cafe')
+      .map((facility) => ({
+        key: facility.public_id,
+        label: facility.name,
+        price: facility.is_price_set ? facility.price_weekday ?? facility.price_weekend : null,
+      })),
+  )
+
+  // Manager venue-status panel: `locked` = cannot be switched on until priced.
+  const venueStatusItems = computed(() =>
+    facilities.value.map((facility) => ({
+      key: facility.public_id,
+      label: facility.name,
+      available: facility.is_active,
+      locked: facility.locked ?? !facility.is_price_set,
+    })),
+  )
+
+  // A court row comes back without the facility roll-ups, so recompute them.
+  function applyCourt(entry, court) {
+    const merged = { ...entry, ...court }
+    merged.is_bookable = Boolean(merged.is_active && merged.is_price_set)
+    merged.locked = !merged.is_price_set
+    if (merged.is_price_set) merged.unavailable_reason = null
+    else merged.unavailable_reason = 'no_rate'
+    return merged
+  }
+
+  async function load(params = {}) {
+    loading.value = true
+    error.value = ''
+    try {
+      facilities.value = await fetchFacilities(params)
+    } catch (err) {
+      error.value = errorDetail(err, 'Could not load the facilities.')
+      facilities.value = []
+    } finally {
+      loading.value = false
     }
-    // Setting a price after a reset brings the venue back.
-    if (prices.value[key] === null) venue.available = true
-    prices.value[key] = price
   }
 
-  function toggleVenue({ key, available }) {
-    const venue = venues.value.find((entry) => entry.key === key)
-    if (venue) venue.available = available
+  // Same listing plus `locked`, so the manager sees what is missing a rate.
+  async function loadForManager(params = {}) {
+    loading.value = true
+    error.value = ''
+    try {
+      facilities.value = await fetchManagerFacilities(params)
+    } catch (err) {
+      error.value = errorDetail(err, 'Could not load the facilities.')
+      facilities.value = []
+    } finally {
+      loading.value = false
+    }
   }
 
-  return { prices, venues, pricing, venueStatusItems, isBookable, hourlyRate, updatePricing, toggleVenue }
+  async function updatePricing({ key, price }) {
+    const facility = byKey(key)
+    if (!facility) return
+    error.value = ''
+    try {
+      const patch =
+        price === null
+          ? { price_weekday: null, price_weekend: null }
+          : {
+              price_weekday: price,
+              price_weekend: price,
+              // Setting a rate after a reset brings the facility back.
+              ...(facility.is_price_set ? {} : { is_active: true }),
+            }
+      const updated = await updateCourt(key, patch)
+      facilities.value = facilities.value.map((entry) => (entry.public_id === key ? applyCourt(entry, updated) : entry))
+    } catch (err) {
+      error.value = errorDetail(err, 'Could not save the price.')
+    }
+  }
+
+  async function toggleVenue({ key, available }) {
+    error.value = ''
+    try {
+      const updated = await updateCourt(key, { is_active: available })
+      facilities.value = facilities.value.map((entry) => (entry.public_id === key ? applyCourt(entry, updated) : entry))
+    } catch (err) {
+      error.value = errorDetail(err, 'Could not update the facility.')
+    }
+  }
+
+  return {
+    facilities,
+    loading,
+    error,
+    venues,
+    activeVenue,
+    pricing,
+    venueStatusItems,
+    byKey,
+    isBookable,
+    unavailableNote,
+    hourlyRate,
+    load,
+    loadForManager,
+    updatePricing,
+    toggleVenue,
+  }
 })

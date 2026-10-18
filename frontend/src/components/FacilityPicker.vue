@@ -36,7 +36,7 @@ function choose(option) {
           @click="choose(option)"
         >
           <span>{{ option.label }}</span>
-          <span v-if="!option.bookable" class="facility-option-note">Unavailable</span>
+          <span v-if="!option.bookable" class="facility-option-note">{{ option.note || 'Unavailable' }}</span>
         </button>
       </li>
     </ul>

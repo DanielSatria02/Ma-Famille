@@ -4,6 +4,7 @@ import DatePicker from './DatePicker.vue'
 import FacilityPicker from './FacilityPicker.vue'
 import TimePicker from './TimePicker.vue'
 import { useBookingForm } from '../composables/useBookingForm.js'
+import { useVenuesStore } from '../stores/venues.js'
 import '../styles/booking-form.css'
 
 const props = defineProps({
@@ -11,7 +12,13 @@ const props = defineProps({
 })
 
 const form = useBookingForm(props.initialDate)
+const venuesStore = useVenuesStore()
 const activePicker = ref(null)
+
+onMounted(() => {
+  // Facilities come from the API; HomeView may already have loaded them.
+  if (!venuesStore.facilities.length) venuesStore.load()
+})
 
 function toggle(picker) {
   activePicker.value = activePicker.value === picker ? null : picker
@@ -76,10 +83,42 @@ onUnmounted(() => {
       </button>
     </div>
 
+    <div class="booking-customer">
+      <label class="booking-field">
+        <span class="booking-label">Name</span>
+        <input
+          v-model="form.customerName.value"
+          type="text"
+          name="customer_name"
+          autocomplete="name"
+          placeholder="Your name"
+          class="booking-input"
+        />
+      </label>
+      <label class="booking-field">
+        <span class="booking-label">WhatsApp / email</span>
+        <input
+          v-model="form.customerContact.value"
+          type="text"
+          name="customer_contact"
+          autocomplete="tel"
+          placeholder="0812… or you@example.com"
+          class="booking-input"
+        />
+      </label>
+    </div>
+
     <p v-if="form.facility.value && !form.isFacilityBookable.value" class="booking-error" role="alert">
       {{ form.facility.value.label }} is currently unavailable.
     </p>
+    <p v-if="form.isClosed.value" class="booking-error" role="alert">
+      The venue is closed on that date.
+    </p>
+    <p v-if="form.availabilityError.value" class="booking-error" role="alert">
+      {{ form.availabilityError.value }}
+    </p>
     <p v-if="form.timeNotice.value" class="booking-error" role="alert">{{ form.timeNotice.value }}</p>
+    <p v-if="form.submitError.value" class="booking-error" role="alert">{{ form.submitError.value }}</p>
 
     <dl v-if="form.facility.value && form.hasTime.value && form.isFacilityBookable.value" class="booking-summary">
       <div>

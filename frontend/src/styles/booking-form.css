@@ -194,6 +194,44 @@
   cursor: not-allowed;
 }
 
+.booking-customer {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.booking-field {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.booking-label {
+  color: #80796b;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.booking-input {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 0.5rem 0.625rem;
+  color: #111827;
+  font-size: 0.9375rem;
+}
+
+.booking-input:focus-visible {
+  outline: 2px solid #e3a126;
+  outline-offset: 1px;
+}
+
 .booking-error {
   margin: 0.75rem 0 0;
   color: #dc2626;
@@ -237,6 +275,10 @@
 
   .booking-form-bar {
     grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .booking-customer {
+    grid-template-columns: repeat(2, minmax(0, 16rem));
   }
 
   .picker-field {
