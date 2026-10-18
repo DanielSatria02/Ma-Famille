@@ -65,6 +65,8 @@ POST   /slots/generate (manager, from venue hours, idempotent)
 GET    /availability/hours?court_public_id=&day=  GET /availability/dates?court_public_id=&from_day=&to_day=
 PATCH  /slots/{public_id} (manager, open/close)
 POST   /bookings  (409 on conflict)           GET /bookings?customer_contact= (history)
+POST   /bookings/range (whole-hour range on one court → one group, 409 on conflict)
+POST   /bookings/groups/{group_public_id}/cancel (cancels the whole range)
 POST   /bookings/{public_id}/confirm (manager)  POST /bookings/{public_id}/cancel
 POST   /payments  → {invoice_number, checkout_url}   GET /payments?booking_public_id=
 POST   /payments/{public_id}/mark-paid (manager, auto-confirms booking)
