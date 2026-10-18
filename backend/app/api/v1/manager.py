@@ -10,9 +10,11 @@ from app.schemas.booking import BookingResponse
 from app.schemas.court import CourtKind
 from app.schemas.facility import ManagerFacilityResponse
 from app.schemas.manager import ManagerStats, OccupancyPoint
+from app.schemas.notification import NotificationDispatchResult, NotificationResponse
 from app.services import bookings as booking_service
 from app.services import facilities as facility_service
 from app.services import manager as manager_service
+from app.services import notifications as notification_service
 
 router = APIRouter(
     prefix="/manager", tags=["manager"], dependencies=[Depends(require_manager)]
@@ -104,3 +106,55 @@ def facilities(
     if entries is None:
         raise HTTPException(status_code=404, detail="venue not found")
     return [ManagerFacilityResponse(**entry) for entry in entries]
+
+
+@router.get(
+    "/notifications",
+    summary="Guest messages queued for this venue (manager)",
+    response_model=list[NotificationResponse],
+)
+def notifications(
+    status: str | None = None, limit: int = 50, db: Session = Depends(get_db)
+) -> list[NotificationResponse]:
+    """The outbox: what the venue has told (or still owes) its guests.
+
+    `status=queued` shows what a dispatch would work on next.
+    """
+    if status is not None and status not in ("queued", "sent", "logged", "failed"):
+        raise HTTPException(status_code=422, detail="unknown status")
+    rows = notification_service.list_notifications(db, status, max(min(limit, 200), 1))
+    return [
+        NotificationResponse(
+            public_id=row.public_id,
+            event=row.event,
+            channel=row.channel,
+            recipient=row.recipient,
+            subject=row.subject,
+            body=row.body,
+            status=row.status,
+            transport=row.transport,
+            error=row.error,
+            attempts=row.attempts,
+            sent_at=row.sent_at,
+            created_at=row.created_at,
+        )
+        for row in rows
+    ]
+
+
+@router.post(
+    "/notifications/dispatch",
+    summary="Send the queued guest messages (manager)",
+    response_model=NotificationDispatchResult,
+)
+def dispatch_notifications(
+    limit: int = 20, db: Session = Depends(get_db)
+) -> NotificationDispatchResult:
+    """Run the queue through the configured transport once.
+
+    With the default `NOTIFY_TRANSPORT=log` nothing is delivered: the messages are
+    recorded and reported as `logged`.
+    """
+    return NotificationDispatchResult(
+        **notification_service.dispatch_pending(db, max(min(limit, 100), 1))
+    )

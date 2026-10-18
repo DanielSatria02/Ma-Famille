@@ -29,6 +29,18 @@ class Settings(BaseSettings):
     # Opening window used for days a venue has no stored hours for.
     default_opens_at: str = "08:00"
     default_closes_at: str = "22:00"
+    # Guest notifications. `notify_transport` picks how a queued message leaves
+    # the building: "log" (default: recorded in the DB + server log, nothing is
+    # delivered), "smtp" for email, "whatsapp" for the Cloud API.
+    notify_transport: str = "log"
+    notify_from: str = "no-reply@ma-famille.local"
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_password: str = ""
+    smtp_use_tls: bool = True
+    whatsapp_token: str = ""
+    whatsapp_phone_id: str = ""
 
     @property
     def cors_origins(self) -> list[str]:
@@ -37,6 +49,14 @@ class Settings(BaseSettings):
     @property
     def doku_configured(self) -> bool:
         return bool(self.doku_client_id and self.doku_secret_key)
+
+    @property
+    def smtp_configured(self) -> bool:
+        return bool(self.smtp_host)
+
+    @property
+    def whatsapp_configured(self) -> bool:
+        return bool(self.whatsapp_token and self.whatsapp_phone_id)
 
 
 settings = Settings()

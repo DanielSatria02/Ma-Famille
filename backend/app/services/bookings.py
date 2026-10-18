@@ -17,6 +17,7 @@ from app.models.venue import Venue
 from app.schemas.booking import BookingCreate, BookingRangeCreate
 from app.services import closures as closure_service
 from app.services import courts as court_service
+from app.services import notifications as notification_service
 
 
 class SlotUnavailable(RuntimeError):
@@ -116,6 +117,7 @@ def create_booking(db: Session, data: BookingCreate) -> Booking | None:
         db.rollback()
         raise
     db.refresh(booking)
+    notification_service.queue_event(db, [booking], "pending")
     return booking
 
 
@@ -195,6 +197,7 @@ def create_range_booking(db: Session, data: BookingRangeCreate) -> dict | None:
         raise
     for booking in bookings:
         db.refresh(booking)
+    notification_service.queue_event(db, bookings, "pending")
     return {
         "group_public_id": group_public_id,
         "hours": len(bookings),
@@ -248,6 +251,7 @@ def confirm_group(db: Session, group_public_id: UUID) -> list[Booking]:
         db.commit()
         for booking in bookings:
             db.refresh(booking)
+        notification_service.queue_event(db, bookings, "confirmed")
     return bookings
 
 
@@ -259,6 +263,7 @@ def cancel_group(db: Session, group_public_id: UUID) -> list[Booking]:
         db.commit()
         for booking in bookings:
             db.refresh(booking)
+        notification_service.queue_event(db, bookings, "cancelled")
     return bookings
 
 
@@ -268,6 +273,7 @@ def confirm_booking(db: Session, booking: Booking) -> Booking | None:
     booking.status = "confirmed"
     db.commit()
     db.refresh(booking)
+    notification_service.queue_event(db, list_group(db, booking.group_public_id), "confirmed")
     return booking
 
 
@@ -275,6 +281,7 @@ def cancel_booking(db: Session, booking: Booking) -> Booking:
     _release(db, booking)
     db.commit()
     db.refresh(booking)
+    notification_service.queue_event(db, list_group(db, booking.group_public_id), "cancelled")
     return booking
 
 

@@ -57,6 +57,19 @@ on YYYY-MM-DD (reason)` — including for slots generated before the closure was
 Creating one returns `affected_bookings`: the live bookings already inside the window,
 so the manager knows who to call. Max 90 days per closure.
 
+### Notification (guest message)
+```json
+{ "public_id": "uuidv7", "event": "pending|confirmed|cancelled", "channel": "email|whatsapp", "recipient": "0812…", "subject": "Booking received: …", "body": "Hi Budi, …", "status": "queued|sent|logged|failed", "transport": "log|smtp|whatsapp", "error": "", "attempts": 0, "sent_at": null }
+```
+Written by the booking flow (one message per visit, not per hour), so a guest never loses
+a booking because a mail server was down. `channel` follows the contact: an address with
+`@` is email, anything else is treated as a WhatsApp number (`0812…` → `62812…`).
+`POST /manager/notifications/dispatch` is the only thing that leaves the building, and it
+reports the truth: `sent` (a provider accepted it), `logged` (no provider configured, so
+the message was only recorded — the default `NOTIFY_TRANSPORT=log`), `failed` (provider
+said no; reason kept on the row), still `queued` (the transport cannot carry that channel,
+or `SMTP_HOST` / `WHATSAPP_*` are missing).
+
 ### Slot (Schedule)
 ```json
 { "public_id": "uuidv7", "court_public_id": "uuidv7", "starts_at": "2026-09-20T10:00:00Z", "ends_at": "2026-09-20T11:00:00Z", "price": 120000, "status": "available|held|booked|blocked" }
@@ -112,6 +125,8 @@ POST   /payments/{public_id}/mark-paid (manager, auto-confirms booking)
 POST   /payments/webhook/doku (DOKU signed notification → paid + auto-confirm)
 GET    /manager/bookings?booking_status=&day=&from_day=&to_day=   GET /manager/occupancy?from_day=&to_day=
 GET    /manager/stats?day=&week_start= (dashboard counters, one visit = one booking group)
+GET    /manager/notifications?status=&limit= (outbox: queued/sent/logged/failed)
+POST   /manager/notifications/dispatch?limit= (send the queue once, reports the tally)
 ```
 
 Booking also flips `slot.status` (`available`→`booked` on create,
