@@ -1,3 +1,64 @@
+/* A hand when there is something to press.
+ *
+ * This is the one thing every site gets for free and this one was missing:
+ * there was no `cursor` rule anywhere in the stylesheets, so every button and
+ * link resolved to the browser default — an arrow on Windows, an I-beam over
+ * a text field. A visitor has no way to tell a button from a label except by
+ * pressing it and seeing what happens, which is the wrong way to find out
+ * about a form that is going to ask for an email address next.
+ *
+ * It lives here, once, rather than on each component: the components are
+ * `button` and `a[href]` already, so the selector list is short, and a new
+ * button gets the right cursor without anyone remembering to add it.
+ *
+ * Not applied to touch: there is no cursor on a phone, and setting one costs
+ * nothing but also gains nothing. The exclusion is for the keyboard case, where
+ * the hand is a lie.
+ */
+
+@media (hover: hover) and (pointer: fine) {
+  button:not(:disabled),
+  a[href],
+  select:not(:disabled),
+  textarea:not(:disabled),
+  summary,
+  input[type='checkbox']:not(:disabled),
+  input[type='radio']:not(:disabled),
+  [role='button']:not([aria-disabled='true']),
+  [role='option'],
+  [role='radio'],
+  [role='switch']:not([aria-disabled='true']),
+  [role='tab'],
+  label[for] {
+    cursor: pointer;
+  }
+
+  /* Text entry keeps the I-beam. This is the exception that proves the rule is
+       about pressing things: a hand over a text field says "press me" and the
+       press is a caret, not a click. */
+    input:not([type='checkbox']):not([type='radio']):not([type='range']):not(:disabled),
+    textarea:not(:disabled) {
+      cursor: text;
+    }
+
+  /* A disabled control is the one place the arrow is the honest answer: the
+     pointer says "yes, you can" and the press does nothing. */
+  button:disabled,
+  a[aria-disabled='true'],
+  [role='button'][aria-disabled='true'] {
+    cursor: not-allowed;
+  }
+
+  /* Range sliders are dragged, not pressed. */
+  input[type='range']:not(:disabled) {
+    cursor: grab;
+  }
+
+  input[type='range']:not(:disabled):active {
+    cursor: grabbing;
+  }
+}
+
 /* Touch targets, and the small screens that need them.
  *
  * Nothing in the app overflows its viewport on a phone — the layout was

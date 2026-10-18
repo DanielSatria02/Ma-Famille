@@ -220,8 +220,11 @@
   }
 }
 
+/* A day that is greyed out is a day with a hand on it that does nothing. The
+   arrow is the honest cursor for that; the pointer says "press me" and there is
+   nothing on the other side. Same as .calendar-nav-button:disabled above. */
 .calendar-day:disabled {
-  cursor: default;
+  cursor: not-allowed;
 }
 
 .calendar-day.is-today {
