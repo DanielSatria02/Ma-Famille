@@ -59,7 +59,19 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  function logout() {
+  // Server first, then local: revoking puts the token on the backend deny-list
+  // so it cannot be replayed for the rest of its 480-minute life. A failed call
+  // (offline, 401 because it already expired) must never trap the manager in a
+  // logged-in state — the local session is always dropped either way.
+  async function logout() {
+    const hadToken = Boolean(token.value)
+    if (hadToken) {
+      try {
+        await logoutManager()
+      } catch {
+        /* the local clear below is what matters */
+      }
+    }
     clearManagerToken()
     writeOpenAccess(false)
     token.value = ''

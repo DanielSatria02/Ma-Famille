@@ -51,6 +51,13 @@ export async function loginManager({ email, password }) {
   return res.data
 }
 
+// Put the session token on the backend deny-list. Only worth calling when a
+// token exists (local open-access dev has none) — see the auth store.
+export async function logoutManager() {
+  const res = await api.post('/v1/auth/logout')
+  return res.data
+}
+
 // --- Venues, facilities, hours ------------------------------------------
 
 export async function fetchVenues({ q, tag } = {}) {
