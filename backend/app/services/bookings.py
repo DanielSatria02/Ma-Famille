@@ -19,6 +19,7 @@ from app.services import closures as closure_service
 from app.services import courts as court_service
 from app.services import notifications as notification_service
 from app.services import payments as payment_service
+from app.services import promotions as promo_service
 
 
 class SlotUnavailable(RuntimeError):
@@ -128,11 +129,21 @@ def create_booking(db: Session, data: BookingCreate) -> Booking | None:
         _closed_day_guard(db, venue, _naive(slot.starts_at).date())
     if slot.status != "available":
         raise SlotUnavailable(f"slot is {slot.status}")
+    # A promo is verified here, not trusted from the client. It is redeemed in
+    # the same transaction as the booking, so a rollback frees the use too.
+    discount = 0
+    promo_code = None
+    if data.promo_code:
+        promo, discount = promo_service.apply(db, data.promo_code, court, slot.price)
+        promo_service.redeem(db, promo)
+        promo_code = promo.code
     booking = Booking(
         slot_id=slot.id,
         group_public_id=uuid7(),
         customer_name=data.customer_name,
         customer_contact=data.customer_contact,
+        discount=discount,
+        promo_code=promo_code,
     )
     slot.status = "booked"
     db.add(booking)
@@ -202,6 +213,15 @@ def create_range_booking(db: Session, data: BookingRangeCreate) -> dict | None:
     expire_stale_bookings(db, settings.booking_ttl_minutes)
 
     slots = _group_slots(db, court, data)
+    gross = sum(slot.price for slot in slots)
+    # The whole group is one purchase, so one code prices the whole thing and
+    # its discount sits on the first row — summing rows counts it exactly once.
+    discount = 0
+    promo_code = None
+    if data.promo_code:
+        promo, discount = promo_service.apply(db, data.promo_code, court, gross)
+        promo_service.redeem(db, promo)
+        promo_code = promo.code
     group_public_id = uuid7()
     bookings = [
         Booking(
@@ -209,8 +229,10 @@ def create_range_booking(db: Session, data: BookingRangeCreate) -> dict | None:
             group_public_id=group_public_id,
             customer_name=data.customer_name,
             customer_contact=data.customer_contact,
+            discount=discount if index == 0 else 0,
+            promo_code=promo_code,
         )
-        for slot in slots
+        for index, slot in enumerate(slots)
     ]
     for slot in slots:
         slot.status = "booked"
@@ -226,7 +248,7 @@ def create_range_booking(db: Session, data: BookingRangeCreate) -> dict | None:
     return {
         "group_public_id": group_public_id,
         "hours": len(bookings),
-        "total": sum(slot.price for slot in slots),
+        "total": gross - discount,
         "bookings": bookings,
     }
 
@@ -362,7 +384,11 @@ def detail(db: Session, booking: Booking) -> dict:
             if venue is None
             else {"public_id": venue.public_id, "name": venue.name}
         ),
-        "total": slot.price if slot is not None else 0,
+        "total": (slot.price - booking.discount) if slot is not None else 0,
+        # Rupiah taken off by a promo, and the code that did it. Both nil/0 when
+        # no code was used, so the client shows a discount line only when real.
+        "discount": booking.discount,
+        "promo_code": booking.promo_code,
         "payment_public_id": payment.public_id if payment is not None else None,
         "payment_invoice_number": payment.invoice_number if payment is not None else None,
         "payment_status": payment.status if payment is not None else "unpaid",

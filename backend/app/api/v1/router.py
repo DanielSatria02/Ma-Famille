@@ -11,6 +11,7 @@ from app.api.v1 import (
     manager,
     payments,
     pricing,
+    promotions,
     slots,
     venues,
 )
@@ -29,3 +30,4 @@ router.include_router(facilities.router)
 router.include_router(bookings.router)
 router.include_router(payments.router)
 router.include_router(manager.router)
+router.include_router(promotions.router)

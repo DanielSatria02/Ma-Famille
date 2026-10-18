@@ -100,10 +100,12 @@ Rule: `ends_at > starts_at`. No overlap for same court unless `status=blocked` r
 { "public_id": "uuidv7", "slot_public_id": "uuidv7", "group_public_id": "uuidv7", "customer_name": "...", "customer_contact": "...", "status": "pending|confirmed|cancelled", "created_at": "..." }
 ```
 Every booking response also embeds `slot` (`starts_at`, `ends_at`, `price`, `status`),
-`court` (`name`, `sport`), `venue` (`name`), `total`, `payment_status`, `expires_in_seconds`
+`court` (`name`, `sport`), `venue` (`name`), `total`, `discount`, `promo_code`,
+`payment_status`, `expires_in_seconds`
 (`null` unless the booking is still on hold as `pending`) and — once an invoice exists —
 `payment_public_id` + `payment_invoice_number`, so list views render without a follow-up
-request per row and the manager can mark that payment paid.
+request per row and the manager can mark that payment paid. `total` is already net of
+`discount`; `promo_code` is `null` when no code was used.
 Rules:
 - One active booking per slot (overlap/conflict guard backend-side, `409`).
 - `pending` expires after TTL unless confirmed + deposit.
@@ -146,6 +148,7 @@ GET    /pricing/quote?court_public_id=&starts_at=&ends_at= (rate, total, bookabi
 PATCH  /slots/{public_id} (manager, open/close)
 POST   /bookings  (409 on conflict)           GET /bookings?customer_contact= (history)
 POST   /bookings/range (whole-hour range on one court → one group, 409 on conflict)
+     └ both accept optional `promo_code`; a refused code is 422 and books nothing
 POST   /bookings/groups/{group_public_id}/confirm (manager, every hour of the visit)
 POST   /bookings/groups/{group_public_id}/cancel (manager, or the customer with `customer_contact`)
 POST   /bookings/{public_id}/confirm (manager)  POST /bookings/{public_id}/cancel (same rule)
@@ -158,6 +161,10 @@ GET    /manager/stats?day=&week_start= (dashboard counters, one visit = one book
 GET    /manager/notifications?status=&limit=&offset= (outbox: queued/sent/logged/failed)
 POST   /manager/notifications/dispatch?limit= (send the queue once, reports the tally)
 GET    /manager/audit?entity_type=&entity_public_id=&action=&actor=&limit=&offset=
+GET    /promotions?limit=&offset=             POST /promotions (manager, 201; 409 on dup code)
+PATCH  /promotions/{public_id} (manager)      DELETE /promotions/{public_id} (manager, 204;
+                                              409 if already redeemed — deactivate instead)
+GET    /promotions/check?code=&court_public_id=&starts_at=&ends_at= (public, dry run)
 ```
 Every manager booking row carries `payment_public_id`, `payment_invoice_number`,
 `payment_status` and `payment_failure_reason` so the dashboard can show (and refund)
@@ -190,6 +197,36 @@ sub-action (`/payments/{id}/refund`) beats the HTTP verb. Two honest limits:
 
 Recording is best-effort: if the audit write fails, the business response still
 goes out (the trail must never turn a booking into a 500).
+
+### Promo codes
+
+A manager mints a code (`percent` = 1–100, or `amount` = rupiah off), optionally
+scoped to one venue and bounded by `valid_from`/`valid_to`/`max_uses`. Codes are
+**case-insensitive and stored upper-case**, so `hemat` and `HEMAT` are one voucher;
+a duplicate is `409`.
+
+Redeeming: `POST /bookings` and `POST /bookings/range` take an optional
+`promo_code`. The code is re-verified at booking time — the client's check is a
+hint, never the authority — and the use count is redeemed in the same
+transaction, so a rollback gives the use back. A refused code is `422` with a
+reason the customer can act on, and **books nothing**:
+
+| refusal | message |
+|---|---|
+| unknown | `that code does not exist` |
+| switched off | `that code is no longer active` |
+| not started / past | `that code is not active yet` / `that code has expired` |
+| used up | `that code has been used the maximum number of times` |
+| other venue | `that code is only valid for a different venue` |
+
+`GET /promotions/check` is the public dry run the client calls before booking.
+It writes nothing, and its refusal must match booking-time refusal exactly.
+
+Money: the discount is capped at the gross, so a code can never make a booking
+cost less than zero. On a **multi-hour group** one code prices the whole
+purchase, and the discount sits on the group's first row only — summing the
+rows' `discount` counts it exactly once, and `BookingRangeResponse.total` is
+already net (`gross - discount`). `total` per row is likewise net.
 
 ### Photos (venues and courts)
 

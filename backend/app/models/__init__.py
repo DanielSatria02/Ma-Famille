@@ -9,6 +9,7 @@ from app.models.booking import Booking
 from app.models.court import Court
 from app.models.notification import Notification
 from app.models.payment import Payment
+from app.models.promotion import Promotion
 from app.models.revoked_token import RevokedToken
 from app.models.slot import Slot
 from app.models.venue import Venue
@@ -22,6 +23,7 @@ __all__ = [
     "Court",
     "Notification",
     "Payment",
+    "Promotion",
     "RevokedToken",
     "Slot",
     "Venue",

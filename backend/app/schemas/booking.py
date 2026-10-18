@@ -32,6 +32,8 @@ class BookingCreate(BaseModel):
     slot_public_id: UUID
     customer_name: str = Field(min_length=1, max_length=120)
     customer_contact: str = Field(min_length=3, max_length=60)
+    # Optional discount code. Verified at booking time, not trusted from here.
+    promo_code: str | None = Field(default=None, max_length=40)
 
 
 class BookingRangeCreate(BaseModel):
@@ -46,6 +48,7 @@ class BookingRangeCreate(BaseModel):
     ends_at: datetime
     customer_name: str = Field(min_length=1, max_length=120)
     customer_contact: str = Field(min_length=3, max_length=60)
+    promo_code: str | None = Field(default=None, max_length=40)
 
     @model_validator(mode="after")
     def _check_range(self):
@@ -73,6 +76,9 @@ class BookingResponse(BaseModel):
     court: BookingCourtInfo | None = None
     venue: BookingVenueInfo | None = None
     total: int = 0
+    # Rupiah taken off by a promo, and the code that did it (nil when none).
+    discount: int = 0
+    promo_code: str | None = None
     payment_public_id: UUID | None = None
     payment_invoice_number: str | None = None
     payment_status: PaymentStatus = "unpaid"

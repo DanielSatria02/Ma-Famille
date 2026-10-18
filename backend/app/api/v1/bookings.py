@@ -15,6 +15,7 @@ from app.schemas.booking import (
     BookingResponse,
 )
 from app.services import bookings as booking_service
+from app.services import promotions as promo_service
 
 router = APIRouter(prefix="/bookings", tags=["bookings"])
 
@@ -45,6 +46,10 @@ def create_booking(body: BookingCreate, db: Session = Depends(get_db)) -> Bookin
         raise HTTPException(status_code=409, detail="slot already booked")
     except booking_service.SlotUnavailable as exc:
         raise HTTPException(status_code=409, detail=str(exc))
+    except promo_service.PromoError as exc:
+        # The code was refused for a reason the customer can act on (expired,
+        # other venue, maxed out). Nothing was written.
+        raise HTTPException(status_code=422, detail=str(exc))
     if booking is None:
         raise HTTPException(status_code=404, detail="slot not found")
     return _to_response(db, booking)
@@ -84,6 +89,8 @@ def create_range_booking(
     except booking_service.SlotUnavailable as exc:
         raise HTTPException(status_code=409, detail=str(exc))
     except booking_service.LeadTimeViolation as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    except promo_service.PromoError as exc:
         raise HTTPException(status_code=422, detail=str(exc))
     if result is None:
         raise HTTPException(status_code=404, detail="court not found")

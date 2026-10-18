@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from sqlalchemy import ForeignKey, Index, String, Uuid, text
+from sqlalchemy import ForeignKey, Index, Integer, String, Uuid, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base, PKMixin, PublicIdMixin, TimestampMixin
@@ -35,3 +35,7 @@ class Booking(Base, PKMixin, PublicIdMixin, TimestampMixin):
     customer_name: Mapped[str] = mapped_column(String(120), nullable=False)
     customer_contact: Mapped[str] = mapped_column(String(60), nullable=False)
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending")
+    # Rupiah taken off by a promo code. For a multi-hour group the whole
+    # discount sits on the group's first row so summing rows counts it once.
+    discount: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    promo_code: Mapped[str | None] = mapped_column(String(40), nullable=True)
