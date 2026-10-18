@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response, Security
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Response, Security
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -15,9 +15,24 @@ from app.schemas.booking import (
     BookingResponse,
 )
 from app.services import bookings as booking_service
+from app.services import customers as customer_service
 from app.services import promotions as promo_service
 
 router = APIRouter(prefix="/bookings", tags=["bookings"])
+
+
+def _signed_in_customer(
+    db: Session = Depends(get_db),
+    x_customer_token: str | None = Header(default=None, alias="X-Customer-Token"),
+):
+    """The account behind `X-Customer-Token`, or None.
+
+    None is a normal answer, not an error: a walk-up booking without an
+    account is still a booking. An expired or unknown token is treated the
+    same way rather than failing the request — the booking does not depend
+    on it, and refusing would punish someone for a stale browser tab.
+    """
+    return customer_service.customer_for_token(db, x_customer_token)
 
 
 def _to_response(db: Session, booking) -> BookingResponse:
@@ -39,9 +54,15 @@ def _to_response(db: Session, booking) -> BookingResponse:
     status_code=201,
     responses={409: {"description": "Slot already booked"}},
 )
-def create_booking(body: BookingCreate, db: Session = Depends(get_db)) -> BookingResponse:
+def create_booking(
+    body: BookingCreate,
+    customer=Depends(_signed_in_customer),
+    db: Session = Depends(get_db),
+) -> BookingResponse:
     try:
-        booking = booking_service.create_booking(db, body)
+        booking = booking_service.create_booking(
+            db, body, customer_id=customer.id if customer else None
+        )
     except IntegrityError:
         raise HTTPException(status_code=409, detail="slot already booked")
     except booking_service.SlotUnavailable as exc:
@@ -57,11 +78,30 @@ def create_booking(body: BookingCreate, db: Session = Depends(get_db)) -> Bookin
 
 @router.get("", summary="Customer booking history (paged, newest first)")
 def list_my_bookings(
-    customer_contact: str,
+    customer_contact: str | None = Query(default=None, min_length=3),
+    customer=Depends(_signed_in_customer),
     page: Page = Depends(),
     response: Response = None,
     db: Session = Depends(get_db),
 ):
+    """A signed-in customer gets their account's bookings; otherwise the
+    contact has to be named.
+
+    The account list is the one that cannot be split by a typo, so it wins
+    when both are present — the contact is only there to carry the lookup
+    for a booking made without an account.
+    """
+    if customer is not None:
+        rows = booking_service.list_by_customer(
+            db, customer.id, limit=page.limit, offset=page.offset
+        )
+        set_total(response, booking_service.count_by_customer(db, customer.id))
+        return [_to_response(db, b) for b in rows]
+    if not customer_contact:
+        raise HTTPException(
+            status_code=422,
+            detail="Sign in, or give the contact the booking was made with.",
+        )
     bookings = booking_service.list_by_contact(
         db, customer_contact, limit=page.limit, offset=page.offset
     )
@@ -80,10 +120,14 @@ def list_my_bookings(
     },
 )
 def create_range_booking(
-    body: BookingRangeCreate, db: Session = Depends(get_db)
+    body: BookingRangeCreate,
+    customer=Depends(_signed_in_customer),
+    db: Session = Depends(get_db),
 ) -> BookingRangeResponse:
     try:
-        result = booking_service.create_range_booking(db, body)
+        result = booking_service.create_range_booking(
+            db, body, customer_id=customer.id if customer else None
+        )
     except IntegrityError:
         raise HTTPException(status_code=409, detail="slot already booked")
     except booking_service.SlotUnavailable as exc:
@@ -111,14 +155,19 @@ def cancel_group(
     group_public_id: UUID,
     customer_contact: str | None = Query(default=None, min_length=3),
     token: str | None = Security(manager_token_header),
+    customer=Depends(_signed_in_customer),
     db: Session = Depends(get_db),
 ) -> list[BookingResponse]:
     existing = booking_service.list_group(db, group_public_id)
     if not existing:
         raise HTTPException(status_code=404, detail="booking group not found")
-    # A manager may cancel anything; a customer only their own visit, proven
-    # by the contact the booking was made with.
-    if not is_manager(token, db=db) and not booking_service.contact_matches(
+    # A manager may cancel anything. A customer only their own visit, and the
+    # account they booked with counts as proof — that is the point of having
+    # one: it cannot be faked by typing the right number.
+    owns_by_account = customer is not None and any(
+        booking.customer_id == customer.id for booking in existing
+    )
+    if not is_manager(token, db=db) and not owns_by_account and not booking_service.contact_matches(
         customer_contact, existing
     ):
         raise HTTPException(

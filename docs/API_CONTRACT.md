@@ -28,6 +28,16 @@ Base: `/v1`. All domain routes are wired to the store; the only
   cancel routes; the contact is compared digit-wise, so `0812…` and `+62 812…`
   are the same person. A wrong or missing contact → `403` (never `401`: the
   route is not manager-only).
+- Booking routes also read `X-Customer-Token`. When it resolves to a signed-in
+  customer, the booking is **attached to that account** (`bookings.customer_id`)
+  and the token alone is enough to list or cancel it — no contact to retype,
+  and no guessing a number to reach someone else's visits. An absent, expired
+  or unknown token is not an error here: the booking goes through with no
+  account attached, exactly as before, because refusing would cost someone a
+  booking over a stale browser tab.
+- `GET /bookings` lists by **account when signed in**, by `?customer_contact=`
+  otherwise. With neither → `422`. The account wins when both are present, so
+  naming someone else's contact cannot widen the list.
 
 ### Customer accounts
 

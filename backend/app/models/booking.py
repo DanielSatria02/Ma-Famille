@@ -29,6 +29,12 @@ class Booking(Base, PKMixin, PublicIdMixin, TimestampMixin):
     )
 
     slot_id: Mapped[int] = mapped_column(ForeignKey("slots.id"), nullable=False)
+    # Set when the booking was made by a signed-in customer, so the visit is
+    # attached to an account and not only to a contact string that a typo can
+    # split. Nullable: most bookings still arrive without an account.
+    customer_id: Mapped[int | None] = mapped_column(
+        ForeignKey("customers.id"), nullable=True, index=True
+    )
     group_public_id: Mapped[UUID | None] = mapped_column(
         Uuid, index=True, nullable=True
     )

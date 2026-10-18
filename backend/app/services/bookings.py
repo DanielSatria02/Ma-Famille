@@ -99,6 +99,32 @@ def list_by_contact(
     return rows
 
 
+def list_by_customer(
+    db: Session, customer_id: int, limit: int | None = None, offset: int = 0
+) -> list[Booking]:
+    """Every booking attached to an account, newest first.
+
+    This is the list the contact lookup was standing in for: it cannot be
+    split by a typo, and guessing someone's number does not reach it.
+    """
+    stmt = (
+        select(Booking)
+        .where(Booking.customer_id == customer_id)
+        .order_by(Booking.id.desc())
+    )
+    if offset:
+        stmt = stmt.offset(offset)
+    if limit is not None:
+        stmt = stmt.limit(limit)
+    return list(db.scalars(stmt).all())
+
+
+def count_by_customer(db: Session, customer_id: int) -> int:
+    return len(
+        db.scalars(select(Booking).where(Booking.customer_id == customer_id)).all()
+    )
+
+
 def count_by_contact(db: Session, customer_contact: str) -> int:
     return len(_by_contact(db, customer_contact))
 
@@ -116,8 +142,15 @@ def _closed_day_guard(db: Session, venue: Venue, day: date) -> None:
         raise SlotUnavailable(f"venue is closed on {day:%Y-%m-%d} ({reason})")
 
 
-def create_booking(db: Session, data: BookingCreate) -> Booking | None:
-    """Returns None when the slot is unknown; raises IntegrityError on conflict."""
+def create_booking(
+    db: Session, data: BookingCreate, customer_id: int | None = None
+) -> Booking | None:
+    """Returns None when the slot is unknown; raises IntegrityError on conflict.
+
+    `customer_id` is the signed-in account behind the booking, when there is
+    one. It is taken from the request's token, never from the body, so a
+    client cannot book against someone else's account.
+    """
     slot = db.scalars(select(Slot).where(Slot.public_id == data.slot_public_id)).first()
     if slot is None:
         return None
@@ -140,6 +173,7 @@ def create_booking(db: Session, data: BookingCreate) -> Booking | None:
     booking = Booking(
         slot_id=slot.id,
         group_public_id=uuid7(),
+        customer_id=customer_id,
         customer_name=data.customer_name,
         customer_contact=data.customer_contact,
         discount=discount,
@@ -197,8 +231,14 @@ def _group_slots(db: Session, court: Court, data: BookingRangeCreate) -> list[Sl
     return chosen
 
 
-def create_range_booking(db: Session, data: BookingRangeCreate) -> dict | None:
-    """Book consecutive hours as one group. None when the court is unknown."""
+def create_range_booking(
+    db: Session, data: BookingRangeCreate, customer_id: int | None = None
+) -> dict | None:
+    """Book consecutive hours as one group. None when the court is unknown.
+
+    `customer_id` is the signed-in account, when there is one — same rule as
+    `create_booking`: from the token, never the body.
+    """
     court = db.scalars(
         select(Court).where(Court.public_id == data.court_public_id)
     ).first()
@@ -227,6 +267,7 @@ def create_range_booking(db: Session, data: BookingRangeCreate) -> dict | None:
         Booking(
             slot_id=slot.id,
             group_public_id=group_public_id,
+            customer_id=customer_id,
             customer_name=data.customer_name,
             customer_contact=data.customer_contact,
             discount=discount if index == 0 else 0,
