@@ -262,3 +262,113 @@ def test_peak_overrides_weekend_rate_too():
         assert _quote(client, court["public_id"], day="2026-10-24", hour=10)["total"] == 150000
     finally:
         app.dependency_overrides.clear()
+
+
+def _slots_by_hour(client, court_id, day=WEEKDAY):
+    rows = client.get("/v1/slots", params={"court_public_id": court_id, "day": day}).json()
+    return {s["starts_at"][11:13]: s for s in rows}
+
+
+def test_rate_change_reprices_open_slots_but_not_booked_ones():
+    """Slots are priced at generation, and generate skips existing rows — so a
+    new rate has to reach open hours itself or quote keeps charging the old one.
+    A booked hour keeps the price the customer already agreed to.
+    """
+    client = _client()
+    try:
+        _, court = _venue_court(client)
+        cid = court["public_id"]
+        client.post(
+            "/v1/slots/generate",
+            json={"court_public_id": cid, "from_day": WEEKDAY, "to_day": WEEKDAY},
+        )
+        before = _slots_by_hour(client, cid)
+        assert before["10"]["price"] == 100000
+
+        # Sell one hour first; its price is now an agreement, not a rate.
+        booked = client.post(
+            "/v1/bookings",
+            json={
+                "slot_public_id": before["10"]["public_id"],
+                "customer_name": "Budi",
+                "customer_contact": "0812",
+            },
+        )
+        assert booked.status_code == 201, booked.text
+
+        res = client.patch(f"/v1/courts/{cid}", json={"price_weekday": 120000})
+        assert res.status_code == 200, res.text
+
+        after = _slots_by_hour(client, cid)
+        # Open hours moved to the new rate...
+        assert after["11"]["price"] == 120000
+        assert after["16"]["price"] == 120000
+        # ...and the sold one did not.
+        assert after["10"]["status"] == "booked"
+        assert after["10"]["price"] == 100000
+
+        # The quote agrees with both: it reads the slot rows.
+        assert _quote(client, cid, hour=11)["total"] == 120000
+        assert _quote(client, cid, hour=10)["total"] == 100000
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_setting_a_peak_window_reaches_slots_that_already_exist():
+    """The manager can add peak hours after generating the schedule."""
+    client = _client()
+    try:
+        _, court = _venue_court(client)
+        cid = court["public_id"]
+        client.post(
+            "/v1/slots/generate",
+            json={"court_public_id": cid, "from_day": WEEKDAY, "to_day": WEEKDAY},
+        )
+        assert _slots_by_hour(client, cid)["18"]["price"] == 100000
+
+        res = client.patch(
+            f"/v1/courts/{cid}",
+            json={"price_peak": 250000, "peak_start_hour": 17, "peak_end_hour": 22},
+        )
+        assert res.status_code == 200, res.text
+
+        after = _slots_by_hour(client, cid)
+        # Inside [17, 22) the existing rows now carry the premium...
+        assert after["17"]["price"] == 250000
+        assert after["21"]["price"] == 250000
+        # ...and hours outside it keep the day rate. Half-open: 22 is not peak.
+        assert after["16"]["price"] == 100000
+
+        assert _quote(client, cid, hour=18)["total"] == 250000
+        assert _quote(client, cid, hour=16)["total"] == 100000
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_slots_in_the_past_keep_the_price_they_had():
+    """Repricing only looks forward: history is not rewritten by a rate change."""
+    client = _client()
+    try:
+        _, court = _venue_court(client)
+        cid = court["public_id"]
+        # An explicit slot on a day that has already gone by (2026-10-01).
+        made = client.post(
+            "/v1/slots",
+            json=[
+                {
+                    "court_public_id": cid,
+                    "starts_at": "2026-10-01T10:00:00",
+                    "ends_at": "2026-10-01T11:00:00",
+                    "price": 90000,
+                }
+            ],
+        )
+        assert made.status_code in (200, 201), made.text
+
+        res = client.patch(f"/v1/courts/{cid}", json={"price_weekday": 120000})
+        assert res.status_code == 200, res.text
+
+        old = _slots_by_hour(client, cid, day="2026-10-01")
+        assert old["10"]["price"] == 90000
+    finally:
+        app.dependency_overrides.clear()

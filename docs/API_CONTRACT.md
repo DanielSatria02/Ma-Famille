@@ -61,9 +61,21 @@ active only when all three fields are set together — `price_peak` (the rate),
 `peak_start_hour` and `peak_end_hour` — and it applies inside the half-open
 window `[start, end)`, so 17–21 prices hours 17, 18, 19 and 20. Outside the
 window the weekday/weekend rate stands; on a weekend hour inside the window the
-peak rate still wins. A partial window is a `422`, not a silent no-op. Slots are
-priced **per hour at generation time**, so changing the peak window affects
-future generates, not already-generated slots.
+peak rate still wins. A partial window is a `422`, not a silent no-op.
+
+Slots are priced **per hour at generation time**, and `POST /slots/generate`
+skips hours that already exist — so a `PATCH` that touches any rate field
+(`price_weekday`, `price_weekend`, `price_peak`, `peak_start_hour`,
+`peak_end_hour`) also **restamps the court's still-open future slots** with the
+current rates. Without that, raising a rate (or adding a peak window) would
+never reach a schedule that was already generated and quote would keep charging
+the old price. What is *not* restamped:
+
+- **Booked / held slots** — the customer agreed to that price, and rewriting it
+  would change an invoice that exists.
+- **Slots in the past** — history is not rewritten by a rate change.
+
+So a rate change reads as: open hours move, sold hours and history stay put.
 
 ### VenueClosure (holiday)
 ```json
