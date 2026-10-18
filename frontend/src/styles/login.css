@@ -86,3 +86,29 @@
   outline: 2px solid var(--login-accent);
   outline-offset: 2px;
 }
+
+/* The account-type switch. The unselected tab stays readable rather than
+   disappearing, so the choice is visible rather than inferred. */
+.login-tabs {
+  border-color: rgb(255 255 255 / 25%);
+  background: rgb(15 23 42 / 35%);
+  backdrop-filter: blur(4px);
+}
+
+.login-tab {
+  color: rgb(255 255 255 / 70%);
+  transition:
+    background-color var(--motion-fast) var(--motion-ease),
+    color var(--motion-fast) var(--motion-ease);
+}
+
+.login-tab:hover {
+  color: #ffffff;
+  background: rgb(255 255 255 / 8%);
+}
+
+.login-tab-active,
+.login-tab-active:hover {
+  color: #111827;
+  background: var(--login-accent);
+}

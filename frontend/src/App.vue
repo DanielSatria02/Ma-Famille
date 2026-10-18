@@ -5,17 +5,30 @@ import AppNav from './components/AppNav.vue'
 import './styles/page.css'
 
 const route = useRoute()
-const showNavigation = computed(() => route.name !== 'login')
+// The login screen is full-bleed on purpose — it has its own background and
+// takes the whole window — so the chrome around it would only crowd it. The
+// footer goes with it: "foundation iteration" is a note to ourselves, not
+// something to greet a customer with.
+const bare = computed(() => route.name === 'login')
 </script>
 
 <template>
   <div :class="['flex min-h-screen flex-col text-gray-900', route.meta.gradient ? 'page-gradient' : 'bg-white']">
-    <AppNav v-if="showNavigation" />
-    <main class="mx-auto w-full max-w-4xl flex-1 px-4 py-6">
-      <RouterView />
+    <AppNav v-if="!bare" />
+    <main :class="['mx-auto w-full flex-1', bare ? 'max-w-none' : 'max-w-4xl px-4 py-6']">
+      <!--
+        Keyed on the path so each view is its own transition. Without the key
+        Vue reuses one element between routes and the animation would only
+        ever play on the first page.
+      -->
+      <RouterView v-slot="{ Component, route: view }">
+        <Transition name="fade" mode="out-in">
+          <component :is="Component" :key="view.path" />
+        </Transition>
+      </RouterView>
     </main>
-    <footer class="border-t border-gray-200 py-4 text-center text-sm text-gray-500">
-      ma-famille · Sports Venue Booking · foundation iteration
+    <footer v-if="!bare" class="border-t border-gray-200 py-4 text-center text-sm text-gray-500">
+      ma-famille · Sports Venue Booking
     </footer>
   </div>
 </template>

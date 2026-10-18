@@ -196,9 +196,10 @@ onMounted(async () => {
 
     <ul class="space-y-3">
       <li
-        v-for="visit in grouped"
+        v-for="(visit, index) in grouped"
         :key="visit.id"
-        class="space-y-1 rounded-2xl border border-gray-300 bg-white p-4"
+        class="stagger-item space-y-1 rounded-2xl border border-gray-300 bg-white p-4 tappable"
+        :style="{ animationDelay: `${Math.min(index, 8) * 40}ms` }"
       >
         <div class="flex items-start justify-between gap-3">
           <div>

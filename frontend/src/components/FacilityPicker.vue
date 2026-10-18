@@ -25,11 +25,16 @@ function choose(option) {
     @toggle="emit('toggle')"
   >
     <ul class="facility-list" role="listbox" aria-label="Facility">
-      <li v-for="option in options" :key="option.key">
+      <li
+        v-for="(option, index) in options"
+        :key="option.key"
+        class="stagger-item"
+        :style="{ animationDelay: `${Math.min(index, 8) * 40}ms` }"
+      >
         <button
           type="button"
           role="option"
-          class="facility-option"
+          class="facility-option tappable"
           :class="{ 'is-selected': option.key === modelValue }"
           :aria-selected="option.key === modelValue"
           :disabled="!option.bookable"

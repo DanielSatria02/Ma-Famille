@@ -1,0 +1,189 @@
+/* Motion for the whole app.
+ *
+ * Everything here is a transition, not an animation that runs on its own: the
+ * app should feel like it is answering you, not performing. Durations are short
+ * enough that a slow device still feels responsive, and long enough that a
+ * state change is noticeable.
+ *
+ * `prefers-reduced-motion` collapses all of it to near-zero rather than
+ * removing the feedback entirely, so a change still reads as a change.
+ */
+
+:root {
+  --motion-fast: 150ms;
+  --motion-base: 250ms;
+  --motion-slow: 400ms;
+  --motion-ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --motion-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --motion-fast: 1ms;
+    --motion-base: 1ms;
+    --motion-slow: 1ms;
+  }
+}
+
+/* --- Route changes -------------------------------------------------------
+ *
+ * A view that appears instantly after the one before it leaves has no sense of
+ * having moved. The new view rises slightly as it arrives; the keyframes run
+ * once, on mount, and never loop.
+ */
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 8px, 0);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+.view-enter-active {
+  animation: rise-in var(--motion-slow) var(--motion-ease) both;
+}
+
+/* --- Lists ----------------------------------------------------------------
+ *
+ * Used by the booking rows, venue cards and manager tables. The stagger comes
+ * from a per-item delay set inline, capped so a long list does not leave the
+ * last rows arriving seconds after the first.
+ */
+
+@keyframes rise-in-staggered {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 10px, 0);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+.stagger-item {
+  animation: rise-in-staggered var(--motion-slow) var(--motion-ease) both;
+}
+
+/* --- List changes --------------------------------------------------------
+ *
+ * When rows are added or removed the list should not jump. Transitioning the
+ * list's own layout is not possible in CSS, but the container can at least
+ * settle rather than snap.
+ */
+
+@keyframes settle {
+  from {
+    opacity: 0.6;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+.list-settle {
+  animation: settle var(--motion-base) var(--motion-ease) both;
+}
+
+/* --- Feedback ------------------------------------------------------------- */
+
+/* A loading state that breathes instead of blinking. */
+@keyframes breathe {
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.45;
+  }
+}
+
+.breathe {
+  animation: breathe 1.4s var(--motion-ease) infinite;
+}
+
+/* A value that just changed draws the eye to it, then gets out of the way. */
+@keyframes flash-changed {
+  0% {
+    background-color: rgb(217 119 6 / 18%);
+  }
+
+  100% {
+    background-color: transparent;
+  }
+}
+
+.value-changed {
+  animation: flash-changed 900ms var(--motion-ease) both;
+}
+
+/* --- Interactive affordances ----------------------------------------------- */
+
+.tappable {
+  transition:
+    transform var(--motion-fast) var(--motion-ease),
+    box-shadow var(--motion-base) var(--motion-ease),
+    background-color var(--motion-fast) var(--motion-ease);
+}
+
+.tappable:hover {
+  transform: translateY(-1px);
+}
+
+.tappable:active {
+  transform: translateY(0) scale(0.99);
+  transition-duration: var(--motion-fast);
+}
+
+.tappable:focus-visible {
+  outline: 2px solid var(--motion-focus, #2563eb);
+  outline-offset: 2px;
+}
+
+/* --- Fades for anything conditionally shown ------------------------------- */
+
+.fade-enter-active,
+.fade-leave-active {
+  transition:
+    opacity var(--motion-base) var(--motion-ease),
+    transform var(--motion-base) var(--motion-ease);
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+  transform: translate3d(0, 6px, 0);
+}
+
+/* --- Reduced motion, for real --------------------------------------------- *
+ *
+ * The variables above already shrink the durations. This also stops the loops,
+ * because an infinite pulse is the one thing that cannot be made brief.
+ */
+
+@media (prefers-reduced-motion: reduce) {
+  .breathe,
+  .view-enter-active,
+  .stagger-item,
+  .list-settle,
+  .value-changed {
+    animation: none;
+  }
+
+  .tappable {
+    transition: none;
+  }
+
+  .tappable:hover,
+  .tappable:active {
+    transform: none;
+  }
+}
