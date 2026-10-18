@@ -5,6 +5,7 @@ import BookingCalendar from '../components/BookingCalendar.vue'
 import LocationPanel from '../components/LocationPanel.vue'
 import VenueCard from '../components/VenueCard.vue'
 import { addDays, toIsoDate } from '../utils/date.js'
+import { resolveImage } from '../utils/image.js'
 import { errorDetail, fetchAvailabilityDates, fetchVenueHours, fetchVenues } from '../services/api.js'
 import { useVenuesStore } from '../stores/venues.js'
 
@@ -79,6 +80,7 @@ function cardProps(facility) {
     tags: tagsOf(facility),
     openTime: today?.is_closed ? 'Closed today' : (today?.opens_at ?? ''),
     closeTime: today?.is_closed ? '' : (today?.closes_at ?? ''),
+    image: resolveImage(facility.image_url),
   }
 }
 

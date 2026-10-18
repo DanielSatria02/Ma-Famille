@@ -2,8 +2,15 @@ import axios from 'axios'
 
 import { getManagerToken } from './session.js'
 
+// Where the API lives. Media URLs come back as paths (`/media/…`), so the client
+// needs the origin to turn them into something an <img> can load.
+export const API_ORIGIN = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(
+  /\/$/,
+  '',
+)
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000',
+  baseURL: API_ORIGIN,
   timeout: 8000,
 })
 
@@ -58,6 +65,40 @@ export async function fetchVenueTags() {
 
 export async function fetchVenue(publicId) {
   const res = await api.get(`/v1/venues/${publicId}`)
+  return res.data
+}
+
+export async function updateVenue(publicId, patch) {
+  const res = await api.patch(`/v1/venues/${publicId}`, patch)
+  return res.data
+}
+
+// Photos travel as the raw file body (no multipart), the same shape the backend
+// accepts: /venues/{id}/photo and /courts/{id}/photo.
+function photoConfig(file) {
+  return {
+    headers: { 'Content-Type': file.type || 'application/octet-stream' },
+    timeout: 20000,
+  }
+}
+
+export async function uploadVenuePhoto(publicId, file) {
+  const res = await api.put(`/v1/venues/${publicId}/photo`, file, photoConfig(file))
+  return res.data
+}
+
+export async function removeVenuePhoto(publicId) {
+  const res = await api.delete(`/v1/venues/${publicId}/photo`)
+  return res.data
+}
+
+export async function uploadCourtPhoto(publicId, file) {
+  const res = await api.put(`/v1/courts/${publicId}/photo`, file, photoConfig(file))
+  return res.data
+}
+
+export async function removeCourtPhoto(publicId) {
+  const res = await api.delete(`/v1/courts/${publicId}/photo`)
   return res.data
 }
 

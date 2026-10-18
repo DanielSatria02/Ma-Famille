@@ -42,6 +42,7 @@ def _entry(db: Session, court: Court, manager_view: bool) -> dict:
         "is_active": court.is_active,
         "is_bookable": reason is None,
         "unavailable_reason": reason,
+        "image_url": court.image_url,
     }
     if manager_view:
         entry["locked"] = not priced

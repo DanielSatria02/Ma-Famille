@@ -1,5 +1,6 @@
 <script setup>
 import '../styles/venue-card.css'
+import { initialOf } from '../utils/image.js'
 
 defineProps({
   image: { type: String, default: '' },
@@ -17,6 +18,7 @@ defineEmits(['check-availability'])
   <article class="venue-card">
     <div class="venue-card-image">
       <img v-if="image" :src="image" :alt="title" class="venue-card-image-el" />
+      <span v-else class="venue-card-image-empty" aria-hidden="true">{{ initialOf(title) }}</span>
     </div>
 
     <div class="venue-card-body">

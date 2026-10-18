@@ -35,6 +35,18 @@
   object-fit: cover;
 }
 
+/* No photo yet: the initial of the venue on a soft gradient, so the grid reads. */
+.venue-card-image-empty {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  place-items: center;
+  background: linear-gradient(135deg, #e0f2fe, #eef2ff 55%, #fef3c7);
+  color: #475569;
+  font-size: 2.25rem;
+  font-weight: 700;
+}
+
 .venue-card-body {
   padding: 0.9rem 1rem 1rem;
 }

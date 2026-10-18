@@ -27,6 +27,7 @@ class FacilityResponse(BaseModel):
     is_active: bool
     is_bookable: bool
     unavailable_reason: UnavailableReason | None = None
+    image_url: str | None = None
 
 
 class ManagerFacilityResponse(FacilityResponse):
