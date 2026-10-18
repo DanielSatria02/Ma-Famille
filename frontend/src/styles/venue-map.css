@@ -1,0 +1,243 @@
+/* The map, and the addresses that go with it. */
+
+.venue-map {
+  border: 1px solid #e5e7eb;
+  border-radius: 0.75rem;
+  background: #ffffff;
+  padding: 1rem;
+}
+
+.venue-map-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.venue-map-title {
+  margin: 0;
+  color: #111827;
+  font-size: 0.9375rem;
+  font-weight: 700;
+}
+
+.venue-map-count {
+  margin: 0;
+  color: #6b7280;
+  font-size: 0.8125rem;
+}
+
+.venue-map-note {
+  margin: 0;
+  color: #4b5563;
+  font-size: 0.875rem;
+}
+
+.venue-map-canvas {
+  width: 100%;
+  /* Tall enough to recognise a building and its surroundings, short enough
+     that it does not push the list of venues off the screen. */
+  height: 16rem;
+  border-radius: 0.5rem;
+  background: #e5e7eb;
+}
+
+/* Leaflet paints its own chrome; these three only need to be told where the
+   app's own colours are. */
+.venue-map-canvas .leaflet-container {
+  font: inherit;
+}
+
+.venue-map-canvas .leaflet-control-attribution {
+  background: rgb(255 255 255 / 0.85);
+  color: #4b5563;
+  font-size: 0.6875rem;
+}
+
+.venue-map-canvas .leaflet-control-attribution a {
+  color: #4b5563;
+}
+
+.venue-map-canvas .leaflet-bar a {
+  color: #111827;
+}
+
+/* The pin. Drawn here rather than using Leaflet's own image, which points at a
+   path inside the package and comes out blank once bundled. */
+.venue-map-pin-wrapper {
+  background: none;
+  border: 0;
+}
+
+.venue-map-pin {
+  display: block;
+  width: 22px;
+  height: 22px;
+  border: 2px solid #ffffff;
+  border-radius: 999px 999px 999px 0;
+  background: #374151;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.35);
+  transform: rotate(-45deg);
+}
+
+.venue-map-pin.is-active {
+  background: #b45309;
+}
+
+/* Leaflet appends the popup to <body>, outside the map, so the rules that style
+   it have to stand on their own rather than descend from .venue-map-canvas.
+   Leaflet's own rule for a link inside a popup is one class deep and blue; this
+   is two, which is enough to win. */
+.leaflet-popup-content {
+  margin: 0.75rem 0.875rem;
+  font-family: inherit;
+  line-height: 1.4;
+}
+
+.leaflet-popup-content .venue-map-popup .venue-map-popup-go {
+  display: inline-flex;
+  min-height: 2.25rem;
+  align-items: center;
+  margin-top: 0.6rem;
+  border-radius: 0.375rem;
+  background: #b45309;
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  line-height: 1;
+  padding: 0 0.75rem;
+  text-decoration: none;
+}
+
+.leaflet-popup-content .venue-map-popup .venue-map-popup-go:hover {
+  background: #92400e;
+  color: #ffffff;
+}
+
+.leaflet-popup-content .venue-map-popup .venue-map-popup-go:focus-visible {
+  outline: 2px solid #111827;
+  outline-offset: 2px;
+}
+
+/* The popup's own chrome: a smaller arrow and no heavy border, so the card
+   reads as part of this app rather than as a library widget dropped on top. */
+.leaflet-popup-content-wrapper {
+  border-radius: 0.5rem;
+  box-shadow: 0 6px 20px rgb(17 24 39 / 0.18);
+}
+
+.leaflet-popup-tip {
+  box-shadow: none;
+}
+
+.leaflet-popup-close-button {
+  width: 2rem;
+  height: 2rem;
+  color: #6b7280;
+  font-size: 1.25rem;
+  padding: 0.25rem 0 0;
+  right: 0.125rem;
+  top: 0.125rem;
+}
+
+.leaflet-popup-close-button:hover {
+  color: #111827;
+}
+
+.venue-map-popup {
+  font-family: inherit;
+  min-width: 11rem;
+}
+
+.venue-map-popup-name {
+  margin: 0;
+  padding-right: 1.25rem;
+  color: #111827;
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+.venue-map-popup-address {
+  margin: 0.15rem 0 0;
+  color: #4b5563;
+  font-size: 0.8125rem;
+}
+
+/* --- The addresses -------------------------------------------------------
+ *
+ * Always rendered, whatever the map is doing. A map is a picture; a list of
+ * addresses is a fact, and it still works with the tiles blocked.
+ */
+
+.venue-map-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 0.875rem;
+}
+
+.venue-map-list-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 0.75rem;
+  border-top: 1px solid #f3f4f6;
+  padding-top: 0.75rem;
+}
+
+.venue-map-list-name {
+  min-height: 2.75rem;
+  border: 0;
+  background: none;
+  color: #111827;
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 700;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.venue-map-list-name.is-active {
+  color: #b45309;
+}
+
+.venue-map-list-name:focus-visible {
+  outline: 2px solid #b45309;
+  outline-offset: 2px;
+}
+
+.venue-map-list-address {
+  flex: 1 1 12rem;
+  color: #4b5563;
+  font-size: 0.8125rem;
+}
+
+/* `flex` rather than `inline-flex`: the utility classes in the app's stylesheet
+   reset the display on every anchor, and a specificity contest over one word is
+   not worth having. */
+.venue-map-list-item .venue-map-list-go {
+  display: flex;
+  align-items: center;
+  min-height: 2.75rem;
+  color: #111827;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  padding: 0 0.5rem;
+  text-decoration: none;
+}
+
+.venue-map-list-go:focus-visible {
+  outline: 2px solid #b45309;
+  outline-offset: 2px;
+}
+
+@media (max-width: 640px) {
+  .venue-map-canvas {
+    height: 13rem;
+  }
+}

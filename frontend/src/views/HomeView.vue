@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import BookingCalendar from '../components/BookingCalendar.vue'
 import ReviewsPanel from '../components/ReviewsPanel.vue'
@@ -8,7 +8,12 @@ import { errorDetail, fetchAvailabilityDates, fetchVenueHours, fetchVenues } fro
 import { useVenuesStore } from '../stores/venues.js'
 import { addDays, formatLongDate, toIsoDate } from '../utils/date.js'
 import { minBookableDate } from '../utils/bookingRules.js'
+import { hasCoordinates } from '../utils/maps.js'
 import { resolveImage } from '../utils/image.js'
+
+// The map pulls in Leaflet, which is worth 145KB of JavaScript. Loading it here keeps
+// it out of the first screenful, where the venue grid is what matters.
+const LazyVenueMap = defineAsyncComponent(() => import('../components/VenueMap.vue'))
 
 // One page, three decisions, in the order they get made.
 //
@@ -48,6 +53,13 @@ const selectedVenue = computed(() => venueOf(selected.value))
 const availabilityChecked = computed(
   () => Boolean(checkedKey.value) && checkedKey.value === selectedKey.value,
 )
+
+// The map is per venue, not per facility: a venue with three courts has one
+// address and one pin, and three markers on the same spot would be noise. The
+// venues without coordinates are dropped, and the map says so rather than
+// showing an empty grey box.
+const mapVenues = computed(() => venues.value.filter(hasCoordinates))
+const activeVenueOnMap = computed(() => selectedVenue.value?.public_id ?? '')
 
 // Only the kinds and tags actually in use are offered as filters.
 const filterGroups = computed(() => {
@@ -125,6 +137,19 @@ watch(
   },
   { immediate: true },
 )
+
+// Tapping a pin selects that venue's first bookable facility, which is what the
+// visitor would have clicked on the card grid directly below. Selecting the
+// venue rather than jumping straight to a facility matters when the venue has
+// several and only some of them are bookable: the first bookable one is the one
+// the grid would have chosen for them anyway.
+function selectVenueOnMap(venuePublicId) {
+  const candidates = facilities.value.filter(
+    (facility) => facility.venue?.public_id === venuePublicId,
+  )
+  const target = candidates.find((facility) => facility.is_bookable) ?? candidates[0]
+  if (target) selectedKey.value = target.public_id
+}
 
 // Picking a venue loads its calendar straight away. The old flow made this a
 // separate button, so the visitor had to know that clicking a card was not
@@ -226,6 +251,15 @@ const freeHoursTotal = computed(() =>
       <p v-if="!visibleFacilities.length && !loading" class="text-sm text-gray-600">
         No venue matches those filters.
       </p>
+
+      <!-- Below the grid, not above it: someone opening the front page is
+           asking what they can book here, and only once they know what it is
+           does the street address matter. -->
+      <LazyVenueMap
+        :venues="mapVenues"
+        :active-public-id="activeVenueOnMap"
+        @select="selectVenueOnMap"
+      />
     </section>
 
     <p v-if="error" class="text-sm text-red-600" role="alert">{{ error }}</p>
