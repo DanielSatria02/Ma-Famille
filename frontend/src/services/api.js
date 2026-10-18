@@ -326,8 +326,7 @@ async function getPaged(url, params) {
 // --- Manager ------------------------------------------------------------
 
 export async function fetchManagerBookings(params = {}) {
-  const res = await api.get('/v1/manager/bookings', { params })
-  return res.data
+  return getPaged('/v1/manager/bookings', params)
 }
 
 // Who changed what, newest first. Narrow it with entity_type (venue, court,

@@ -154,6 +154,25 @@ async function generateMonth() {
       @mark-paid="markVisitPaid"
       @refund="refundVisit"
     />
+    <!-- The backend pages at 50; say how much of the window is on screen so a
+         busy day is never mistaken for a quiet one. -->
+    <div
+      v-if="bookingsStore.totalBookings > 0"
+      class="flex items-center justify-between gap-3 text-sm text-gray-600"
+    >
+      <span role="status">
+        Showing {{ bookingsStore.bookings.length }} of {{ bookingsStore.totalBookings }} booked hours
+      </span>
+      <button
+        v-if="bookingsStore.hasMore"
+        type="button"
+        class="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-900 disabled:opacity-50"
+        :disabled="bookingsStore.loading"
+        @click="bookingsStore.loadMore"
+      >
+        {{ bookingsStore.loading ? 'Loading…' : 'Load more' }}
+      </button>
+    </div>
     <p v-if="notice" class="text-sm text-gray-600" role="status">{{ notice }}</p>
     <button
       type="button"

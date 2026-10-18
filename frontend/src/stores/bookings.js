@@ -94,35 +94,79 @@ export const useBookingsStore = defineStore('bookings', () => {
   const weeklyVisitors = computed(() => stats.value.weekly_visitors ?? 0)
   const canceledCount = computed(() => stats.value.cancelled_bookings ?? 0)
 
+  // The backend pages at 50 rows and reports the real total in `X-Total-Count`.
+  // Without it a busy window would quietly show only the first page and look
+  // like the whole day.
+  const PAGE_SIZE = 50
+  const totalBookings = ref(0)
+  const hasMore = computed(() => bookings.value.length < totalBookings.value)
+
+  const toVisitRow = (row) => ({
+    id: row.public_id,
+    groupId: row.group_public_id ?? row.public_id,
+    date: dateOf(row.slot?.starts_at),
+    startTime: timeOf(row.slot?.starts_at),
+    endTime: timeOf(row.slot?.ends_at),
+    visitorName: row.customer_name,
+    contact: row.customer_contact,
+    venueName: row.court?.name ?? '',
+    place: row.venue?.name ?? '',
+    status: row.status,
+    total: row.total ?? 0,
+    paymentStatus: row.payment_status ?? 'unpaid',
+    paymentIds: row.payment_public_id ? [row.payment_public_id] : [],
+    paymentNote: row.payment_failure_reason ?? '',
+    invoice: row.payment_invoice_number ?? '',
+  })
+
   async function load({ day = '', fromDay = '', toDay = '' } = {}) {
     loading.value = true
     window.value = { fromDay: fromDay || day, toDay: toDay || day }
     try {
-      const [rows, counters] = await Promise.all([
-        fetchManagerBookings({ day: day || undefined, from_day: fromDay || undefined, to_day: toDay || undefined }),
+      const [page, counters] = await Promise.all([
+        fetchManagerBookings({
+          day: day || undefined,
+          from_day: fromDay || undefined,
+          to_day: toDay || undefined,
+          limit: PAGE_SIZE,
+          offset: 0,
+        }),
         fetchManagerStats({ day: day || undefined }),
       ])
-      bookings.value = rows.map((row) => ({
-        id: row.public_id,
-        groupId: row.group_public_id ?? row.public_id,
-        date: dateOf(row.slot?.starts_at),
-        startTime: timeOf(row.slot?.starts_at),
-        endTime: timeOf(row.slot?.ends_at),
-        visitorName: row.customer_name,
-        contact: row.customer_contact,
-        venueName: row.court?.name ?? '',
-        place: row.venue?.name ?? '',
-        status: row.status,
-        total: row.total ?? 0,
-        paymentStatus: row.payment_status ?? 'unpaid',
-        paymentIds: row.payment_public_id ? [row.payment_public_id] : [],
-        paymentNote: row.payment_failure_reason ?? '',
-        invoice: row.payment_invoice_number ?? '',
-      }))
+      totalBookings.value = page.total
+      bookings.value = page.rows.map(toVisitRow)
       stats.value = counters
       error.value = ''
     } catch (err) {
       error.value = errorDetail(err, 'Could not load the bookings.')
+    } finally {
+      loading.value = false
+    }
+  }
+
+  // One more page of the same window, appended and de-duplicated by id.
+  async function loadMore() {
+    if (loading.value || !hasMore.value) return
+    loading.value = true
+    try {
+      const page = await fetchManagerBookings({
+        day:
+          window.value.fromDay && window.value.fromDay === window.value.toDay
+            ? window.value.fromDay
+            : undefined,
+        from_day: window.value.fromDay || undefined,
+        to_day: window.value.toDay || undefined,
+        limit: PAGE_SIZE,
+        offset: bookings.value.length,
+      })
+      const seen = new Set(bookings.value.map((row) => row.id))
+      bookings.value = [
+        ...bookings.value,
+        ...page.rows.map(toVisitRow).filter((row) => !seen.has(row.id)),
+      ]
+      totalBookings.value = page.total
+    } catch (err) {
+      error.value = errorDetail(err, 'Could not load the next page.')
     } finally {
       loading.value = false
     }
@@ -233,7 +277,10 @@ export const useBookingsStore = defineStore('bookings', () => {
     bookedDates,
     weeklyVisitors,
     canceledCount,
+    totalBookings,
+    hasMore,
     load,
+    loadMore,
     cancelBooking,
     confirmVisit,
     markVisitPaid,
