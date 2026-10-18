@@ -1,4 +1,5 @@
 from datetime import date
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
@@ -6,8 +7,11 @@ from sqlalchemy.orm import Session
 from app.core.security import require_manager
 from app.db.session import get_db
 from app.schemas.booking import BookingResponse
+from app.schemas.court import CourtKind
+from app.schemas.facility import ManagerFacilityResponse
 from app.schemas.manager import ManagerStats, OccupancyPoint
 from app.services import bookings as booking_service
+from app.services import facilities as facility_service
 from app.services import manager as manager_service
 
 router = APIRouter(
@@ -82,3 +86,21 @@ def stats(
     if week_start is not None and week_start > target:
         raise HTTPException(status_code=422, detail="week_start after day")
     return ManagerStats(**manager_service.stats(db, target, week_start))
+
+
+@router.get(
+    "/facilities",
+    summary="Facilities with live status and rates (manager)",
+    response_model=list[ManagerFacilityResponse],
+)
+def facilities(
+    venue_public_id: UUID | None = None,
+    kind: CourtKind | None = None,
+    db: Session = Depends(get_db),
+) -> list[ManagerFacilityResponse]:
+    entries = facility_service.list_facilities(
+        db, venue_public_id, kind, manager_view=True
+    )
+    if entries is None:
+        raise HTTPException(status_code=404, detail="venue not found")
+    return [ManagerFacilityResponse(**entry) for entry in entries]
