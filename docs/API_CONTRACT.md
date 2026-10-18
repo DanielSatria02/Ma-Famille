@@ -57,8 +57,9 @@ Rule: `ends_at > starts_at`. No overlap for same court unless `status=blocked` r
 { "public_id": "uuidv7", "slot_public_id": "uuidv7", "group_public_id": "uuidv7", "customer_name": "...", "customer_contact": "...", "status": "pending|confirmed|cancelled", "created_at": "..." }
 ```
 Every booking response also embeds `slot` (`starts_at`, `ends_at`, `price`, `status`),
-`court` (`name`, `sport`), `venue` (`name`), `total` and `payment_status`, so list
-views render without a follow-up request per row.
+`court` (`name`, `sport`), `venue` (`name`), `total`, `payment_status` and — once an
+invoice exists — `payment_public_id` + `payment_invoice_number`, so list views render
+without a follow-up request per row and the manager can mark that payment paid.
 Rules:
 - One active booking per slot (overlap/conflict guard backend-side, `409`).
 - `pending` expires after TTL unless confirmed + deposit.

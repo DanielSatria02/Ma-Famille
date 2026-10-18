@@ -300,5 +300,7 @@ def detail(db: Session, booking: Booking) -> dict:
             else {"public_id": venue.public_id, "name": venue.name}
         ),
         "total": slot.price if slot is not None else 0,
+        "payment_public_id": payment.public_id if payment is not None else None,
+        "payment_invoice_number": payment.invoice_number if payment is not None else None,
         "payment_status": payment.status if payment is not None else "unpaid",
     }

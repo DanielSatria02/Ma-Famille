@@ -73,6 +73,8 @@ class BookingResponse(BaseModel):
     court: BookingCourtInfo | None = None
     venue: BookingVenueInfo | None = None
     total: int = 0
+    payment_public_id: UUID | None = None
+    payment_invoice_number: str | None = None
     payment_status: PaymentStatus = "unpaid"
 
 
