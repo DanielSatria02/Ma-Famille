@@ -133,6 +133,11 @@ export async function createRangeBooking(payload) {
   return res.data
 }
 
+export async function fetchBooking(publicId) {
+  const res = await api.get(`/v1/bookings/${publicId}`)
+  return res.data
+}
+
 export async function fetchBookingHistory(customerContact) {
   const res = await api.get('/v1/bookings', { params: { customer_contact: customerContact } })
   return res.data
