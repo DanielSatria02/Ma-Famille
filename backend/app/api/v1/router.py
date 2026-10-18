@@ -7,6 +7,7 @@ from app.api.v1 import (
     health,
     manager,
     payments,
+    pricing,
     slots,
     venues,
 )
@@ -18,6 +19,7 @@ router.include_router(venues.router)
 router.include_router(courts.router)
 router.include_router(slots.router)
 router.include_router(availability.router)
+router.include_router(pricing.router)
 router.include_router(bookings.router)
 router.include_router(payments.router)
 router.include_router(manager.router)
