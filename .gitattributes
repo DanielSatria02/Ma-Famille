@@ -1,0 +1,18 @@
+# Text files carry CRLF in this repository — WSL writes them that way and the
+# Windows editor agrees. Declaring it stops git from seeing every line as
+# changed when a file is checked out on the other side.
+*.css   text eol=crlf
+*.vue   text eol=crlf
+*.js    text eol=crlf
+*.json  text eol=crlf
+*.md    text eol=crlf
+
+# Backend runs on Linux in Docker; keep those bytes exactly as written.
+*.py    text eol=lf
+
+# Nothing to normalise.
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.avif  binary
+*.svg   text eol=crlf

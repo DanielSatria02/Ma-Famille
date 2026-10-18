@@ -8,7 +8,7 @@
   --card-heading: #111827;
   --card-text: #4b5563;
   --card-border: #d1d5db;
-  --card-accent: #f79e0e;
+  --card-accent: #b45309;
   --card-tag-background: #f8fafc;
   display: flex;
   flex-direction: column;
@@ -125,7 +125,7 @@
 }
 
 .venue-card-button:hover {
-  background: #f9ef29;
+  background: #c2620f;
 }
 
 .venue-card-button:active {

@@ -33,12 +33,12 @@
 
 .picker-trigger:hover,
 .picker-trigger.is-open {
-  border-color: #e3a126;
+  border-color: #b45309;
   background: #fffeef;
 }
 
 .picker-trigger:focus-visible {
-  outline: 2px solid #e3a126;
+  outline: 2px solid #b45309;
   outline-offset: 2px;
 }
 
@@ -164,7 +164,7 @@
 }
 
 .time-select:focus-visible {
-  outline: 2px solid #e3a126;
+  outline: 2px solid #b45309;
   outline-offset: 1px;
 }
 
@@ -172,7 +172,7 @@
 .booking-confirm {
   border: 0;
   border-radius: 12px;
-  background: #e3a126;
+  background: #b45309;
   padding: 0.625rem 1rem;
   color: #ffffff;
   font-size: 0.9375rem;
@@ -284,7 +284,7 @@
 }
 
 .booking-input:focus-visible {
-  outline: 2px solid #e3a126;
+  outline: 2px solid #b45309;
   outline-offset: 1px;
 }
 

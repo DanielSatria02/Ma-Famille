@@ -77,11 +77,11 @@
 }
 
 .venue-switch.is-on {
-  background: #e3a126;
+  background: #b45309;
 }
 
 .venue-switch:focus-visible {
-  outline: 2px solid #e3a126;
+  outline: 2px solid #b45309;
   outline-offset: 2px;
 }
 
