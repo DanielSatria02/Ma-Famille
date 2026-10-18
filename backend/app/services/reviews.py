@@ -12,6 +12,7 @@ the average from being padded by repeated submits. A visitor without an
 account is held by the contact they booked with, for the same reason.
 """
 
+import logging
 from datetime import UTC, datetime
 
 from sqlalchemy import func, select
@@ -25,6 +26,8 @@ from app.models.review import Review
 from app.models.slot import Slot
 from app.models.venue import Venue
 from app.services.bookings import normalise_contact
+
+logger = logging.getLogger(__name__)
 
 
 class ReviewError(Exception):
@@ -164,12 +167,13 @@ def write_review(
     db.add(review)
     try:
         db.commit()
-    except IntegrityError:
+    except IntegrityError as exc:
         # Two tabs submitting at once: the unique constraint is the only thing
         # that can settle it, and it settles it in favour of the first write.
         db.rollback()
         existing = _existing(db, venue.id, customer_id, contact)
         if existing is None:
+            logger.warning("review insert failed with no existing row: %s", exc.orig)
             raise ReviewError("could not save that rating, try again", 409) from None
         existing.rating = rating
         existing.comment = comment
