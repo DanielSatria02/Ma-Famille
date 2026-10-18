@@ -76,6 +76,8 @@ class BookingResponse(BaseModel):
     payment_public_id: UUID | None = None
     payment_invoice_number: str | None = None
     payment_status: PaymentStatus = "unpaid"
+    # Seconds left before a pending booking is released, None when it is settled.
+    expires_in_seconds: int | None = None
 
 
 class BookingRangeResponse(BaseModel):

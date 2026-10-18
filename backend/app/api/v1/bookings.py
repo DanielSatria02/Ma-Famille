@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Security
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.core.security import is_manager, manager_token_header, require_manager
 from app.db.session import get_db
 from app.schemas.booking import (
@@ -128,6 +129,9 @@ def confirm_group(
 
 @router.get("/{public_id}", summary="Get booking")
 def get_booking(public_id: UUID, db: Session = Depends(get_db)) -> BookingResponse:
+    # Reading is a place the lazy sweep belongs: an abandoned pending booking
+    # must not look alive to a client polling its status.
+    booking_service.expire_stale_bookings(db, settings.booking_ttl_minutes)
     booking = booking_service.get_by_public_id(db, public_id)
     if booking is None:
         raise HTTPException(status_code=404, detail="booking not found")

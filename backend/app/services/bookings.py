@@ -26,6 +26,21 @@ class LeadTimeViolation(RuntimeError):
     pass
 
 
+def hold_seconds_left(booking: Booking, ttl_minutes: int) -> int | None:
+    """How much longer this booking is held, or None once it is not held.
+
+    Counted against the same naive-UTC clock as `expire_stale_bookings`, so the
+    client never has to guess a timezone.
+    """
+    if booking.status != "pending":
+        return None
+    created = booking.created_at
+    if created.tzinfo is not None:
+        created = created.replace(tzinfo=None)
+    left = timedelta(minutes=ttl_minutes) - (datetime.now(UTC).replace(tzinfo=None) - created)
+    return max(int(left.total_seconds()), 0)
+
+
 def expire_stale_bookings(db: Session, ttl_minutes: int) -> int:
     """Cancel pending bookings older than TTL and free their slots.
 
@@ -306,4 +321,6 @@ def detail(db: Session, booking: Booking) -> dict:
         "payment_public_id": payment.public_id if payment is not None else None,
         "payment_invoice_number": payment.invoice_number if payment is not None else None,
         "payment_status": payment.status if payment is not None else "unpaid",
+        # Null once the booking is no longer held (confirmed, paid or cancelled).
+        "expires_in_seconds": hold_seconds_left(booking, settings.booking_ttl_minutes),
     }
