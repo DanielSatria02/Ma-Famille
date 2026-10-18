@@ -20,6 +20,12 @@ class Court(Base, PKMixin, PublicIdMixin, TimestampMixin):
     kind: Mapped[str] = mapped_column(String(20), nullable=False, default="court")
     price_weekday: Mapped[int | None] = mapped_column(Integer, nullable=True)
     price_weekend: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # Optional premium rate for a window of hours (peak time). Active only when
+    # all three are set: it overlays the day's rate inside [start, end), so a
+    # court can charge more for an evening without touching weekday/weekend.
+    price_peak: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    peak_start_hour: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    peak_end_hour: Mapped[int | None] = mapped_column(Integer, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     # Photo of the facility itself (upload under /media or a pasted link).
     image_url: Mapped[str | None] = mapped_column(String(300), nullable=True)

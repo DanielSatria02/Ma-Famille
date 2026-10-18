@@ -23,6 +23,9 @@ class FacilityResponse(BaseModel):
     venue: FacilityVenueInfo
     price_weekday: int | None = None
     price_weekend: int | None = None
+    price_peak: int | None = None
+    peak_start_hour: int | None = None
+    peak_end_hour: int | None = None
     is_price_set: bool
     is_active: bool
     is_bookable: bool

@@ -37,7 +37,6 @@ def _rows_of_day(db: Session, court: Court, day: date) -> dict[datetime, Slot]:
 
 
 def quote(db: Session, court: Court, starts_at: datetime, ends_at: datetime) -> dict:
-    fallback_rate = court_service.rate_for(court, starts_at.date())
     rows = _rows_of_day(db, court, starts_at.date())
 
     unpriced = False
@@ -46,11 +45,15 @@ def quote(db: Session, court: Court, starts_at: datetime, ends_at: datetime) -> 
         slot = rows.get(hour)
         if slot is not None:
             price = slot.price
-        elif fallback_rate is not None:
-            price = fallback_rate
         else:
-            price = 0
-            unpriced = True
+            # Fallback is per hour, not per day: a peak hour with no slot row
+            # (e.g. the window widened past what was generated) still pays peak.
+            fallback_rate = court_service.rate_for_hour(court, starts_at.date(), hour.hour)
+            if fallback_rate is not None:
+                price = fallback_rate
+            else:
+                price = 0
+                unpriced = True
         breakdown.append(
             {
                 "hour": hour.hour,

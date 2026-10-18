@@ -150,7 +150,9 @@ def generate_slots(db: Session, data: SlotGenerateRequest) -> dict | None:
                         court_id=court.id,
                         starts_at=starts_at,
                         ends_at=datetime.combine(day, time(hour + 1)),
-                        price=price,
+                        # Peak time is priced per hour, so the rate is chosen here
+                        # rather than once for the whole day.
+                        price=court_service.rate_for_hour(court, day, hour),
                     )
                 )
                 created += 1

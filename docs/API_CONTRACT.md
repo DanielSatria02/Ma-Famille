@@ -50,11 +50,20 @@ use, so the filter panel needs no hardcoded options.
 
 ### Court
 ```json
-{ "public_id": "uuidv7", "venue_public_id": "uuidv7", "name": "Court A", "sport": "futsal|badminton", "kind": "court|office|cafe", "price_weekday": 100000, "price_weekend": 150000, "is_price_set": true, "is_active": true, "image_url": "/media/courts/<public_id>.jpg | null" }
+{ "public_id": "uuidv7", "venue_public_id": "uuidv7", "name": "Court A", "sport": "futsal|badminton", "kind": "court|office|cafe", "price_weekday": 100000, "price_weekend": 150000, "price_peak": 200000, "peak_start_hour": 17, "peak_end_hour": 21, "is_price_set": true, "is_active": true, "image_url": "/media/courts/<public_id>.jpg | null" }
 ```
 `price_*: null` (and `is_price_set: false`) means the manager has not priced the
 facility: it is listed to clients but cannot be booked. `PATCH` writes only the
 fields present in the body, so `"price_weekday": null` clears that rate.
+
+**Peak-hour pricing** is an optional premium layered over the day's rate. It is
+active only when all three fields are set together — `price_peak` (the rate),
+`peak_start_hour` and `peak_end_hour` — and it applies inside the half-open
+window `[start, end)`, so 17–21 prices hours 17, 18, 19 and 20. Outside the
+window the weekday/weekend rate stands; on a weekend hour inside the window the
+peak rate still wins. A partial window is a `422`, not a silent no-op. Slots are
+priced **per hour at generation time**, so changing the peak window affects
+future generates, not already-generated slots.
 
 ### VenueClosure (holiday)
 ```json
@@ -133,7 +142,7 @@ POST   /auth/logout                            (deny-list the session token)
 POST   /slots/generate (manager, from venue hours, idempotent)
 POST   /slots/block (manager, close/reopen a window of hours; booked hours untouched)
 GET    /availability/hours?court_public_id=&day=  GET /availability/dates?court_public_id=&from_day=&to_day=
-GET    /pricing/quote?court_public_id=&starts_at=&ends_at= (rate, total, bookability)
+GET    /pricing/quote?court_public_id=&starts_at=&ends_at= (rate, total, bookability; per-hour peak applies)
 PATCH  /slots/{public_id} (manager, open/close)
 POST   /bookings  (409 on conflict)           GET /bookings?customer_contact= (history)
 POST   /bookings/range (whole-hour range on one court → one group, 409 on conflict)

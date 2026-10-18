@@ -24,6 +24,36 @@ def rate_for(court: Court, day: date) -> int | None:
     return court.price_weekend if day.weekday() >= 5 else court.price_weekday
 
 
+def peak_active(court: Court) -> bool:
+    """Is the peak overlay switchable on?
+
+    Only when all three peak fields are present. A half-set window (say a rate
+    with no hours) is treated as "no peak" rather than an error: the day rate
+    still books the court, and the manager sees the window they left incomplete.
+    """
+    return (
+        court.price_peak is not None
+        and court.peak_start_hour is not None
+        and court.peak_end_hour is not None
+    )
+
+
+def rate_for_hour(court: Court, day: date, hour: int) -> int | None:
+    """Rate for one hour: the peak rate wins inside the peak window.
+
+    The window is half-open — [start, end) — so a 17–21 evening peak prices the
+    17, 18, 19 and 20 hours, and the 21 hour falls back to the day rate. Outside
+    the window (or with no peak set) this is just `rate_for`.
+    """
+    if peak_active(court):
+        # Guard the comparison so a bad window (start > end) never matches
+        # every hour by accident.
+        start, end = court.peak_start_hour, court.peak_end_hour
+        if start <= end and start <= hour < end:
+            return court.price_peak
+    return rate_for(court, day)
+
+
 def list_courts(db: Session, venue_public_id: UUID | None = None) -> list[Court]:
     stmt = select(Court).order_by(Court.id)
     if venue_public_id is not None:
@@ -49,6 +79,9 @@ def create_court(db: Session, data: CourtCreate) -> Court | None:
         kind=data.kind,
         price_weekday=data.price_weekday,
         price_weekend=data.price_weekend,
+        price_peak=data.price_peak,
+        peak_start_hour=data.peak_start_hour,
+        peak_end_hour=data.peak_end_hour,
     )
     db.add(court)
     db.commit()
@@ -67,6 +100,12 @@ def update_court(db: Session, court: Court, data: CourtUpdate) -> Court:
         court.price_weekday = data.price_weekday
     if "price_weekend" in provided:
         court.price_weekend = data.price_weekend
+    if "price_peak" in provided:
+        court.price_peak = data.price_peak
+    if "peak_start_hour" in provided:
+        court.peak_start_hour = data.peak_start_hour
+    if "peak_end_hour" in provided:
+        court.peak_end_hour = data.peak_end_hour
     if data.is_active is not None and "is_active" in provided:
         court.is_active = data.is_active
     if "image_url" in provided:
