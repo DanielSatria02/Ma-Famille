@@ -228,9 +228,12 @@ export async function fetchBooking(publicId) {
   return res.data
 }
 
-export async function fetchBookingHistory(customerContact) {
-  const res = await api.get('/v1/bookings', { params: { customer_contact: customerContact } })
-  return res.data
+export async function fetchBookingHistory(customerContact, { limit, offset } = {}) {
+  return getPaged('/v1/bookings', {
+    customer_contact: customerContact,
+    ...(limit ? { limit } : {}),
+    ...(offset ? { offset } : {}),
+  })
 }
 
 // A manager token cancels anything; a customer must send the contact the

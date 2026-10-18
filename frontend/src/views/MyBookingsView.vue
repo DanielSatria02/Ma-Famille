@@ -11,6 +11,13 @@ const note = ref('')
 const error = ref('')
 const busyGroup = ref('')
 
+// The history endpoint pages at 50 rows and reports the real total in
+// `X-Total-Count`; without it a long booking history would quietly stop
+// after the first page and look like the whole record.
+const PAGE_SIZE = 50
+const total = ref(0)
+const hasMore = computed(() => visits.value.length < total.value)
+
 const pad = (value) => String(value).padStart(2, '0')
 const dateOf = (value) => String(value ?? '').slice(0, 10)
 const timeOf = (value) => String(value ?? '').slice(11, 16)
@@ -72,12 +79,37 @@ async function search() {
   error.value = ''
   note.value = ''
   try {
-    visits.value = await fetchBookingHistory(needle)
+    const page = await fetchBookingHistory(needle, { limit: PAGE_SIZE, offset: 0 })
+    visits.value = page.rows
+    total.value = page.total
     setCustomerContact(needle)
     if (!visits.value.length) note.value = 'No booking found for that contact.'
   } catch (err) {
     visits.value = []
+    total.value = 0
     error.value = errorDetail(err, 'Could not load your bookings.')
+  } finally {
+    loading.value = false
+  }
+}
+
+// One more page of the same contact's history, appended and de-duplicated by
+// row id.
+async function loadMore() {
+  const needle = contact.value.trim()
+  if (!needle || loading.value || !hasMore.value) return
+  loading.value = true
+  error.value = ''
+  try {
+    const page = await fetchBookingHistory(needle, {
+      limit: PAGE_SIZE,
+      offset: visits.value.length,
+    })
+    const seen = new Set(visits.value.map((row) => row.public_id))
+    visits.value = [...visits.value, ...page.rows.filter((row) => !seen.has(row.public_id))]
+    total.value = page.total
+  } catch (err) {
+    error.value = errorDetail(err, 'Could not load the next page.')
   } finally {
     loading.value = false
   }
@@ -175,5 +207,25 @@ onMounted(() => {
         </button>
       </li>
     </ul>
+
+    <!-- The history endpoint pages at 50; say how much is on screen so a long
+         record is never mistaken for a short one. -->
+    <div
+      v-if="total > 0"
+      class="flex items-center justify-between gap-3 text-sm text-gray-600"
+    >
+      <span role="status">
+        Showing {{ visits.length }} of {{ total }} booked hours
+      </span>
+      <button
+        v-if="hasMore"
+        type="button"
+        class="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-900 disabled:opacity-50"
+        :disabled="loading"
+        @click="loadMore"
+      >
+        {{ loading ? 'Loading…' : 'Load more' }}
+      </button>
+    </div>
   </section>
 </template>
