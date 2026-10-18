@@ -8,7 +8,8 @@ name: deploy
 #
 # Required secrets: SSH_PRIVATE_KEY, CF_ACCESS_CLIENT_ID, CF_ACCESS_CLIENT_SECRET
 # Optional vars: DEPLOY_HOST (default be-ssh.rzidinc.com),
-#   DEPLOY_USER (default deploy), DEPLOY_APP_DIR (default /home/deploy/ma-famille)
+#   DEPLOY_USER (default deploy), DEPLOY_APP_DIR (default /home/deploy/ma-famille),
+#   SEED_DB (default 1; set 0 to skip the idempotent demo seed after deploy)
 
 on:
   push:

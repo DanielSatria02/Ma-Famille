@@ -43,14 +43,24 @@ i=0
 while [ $i -lt 30 ]; do
   if $FETCH http://127.0.0.1:8000/ma-famille/v1/health >/dev/null; then
     echo "prod api healthy"
-    exit 0
+    break
   fi
   sleep 2
   i=$((i + 1))
 done
-echo "prod stack never became healthy" >&2
-$COMPOSE -f docker-compose.yml -f compose.prod.yml logs --tail=50 api
-exit 1
+if [ "$i" -ge 30 ]; then
+  echo "prod stack never became healthy" >&2
+  $COMPOSE -f docker-compose.yml -f compose.prod.yml logs --tail=50 api
+  exit 1
+fi
+
+# Seed demo data so a fresh prod DB isn't an empty venue list. Idempotent:
+# app.db.seed exits quietly ("already seeded") if the demo venue exists, so a
+# repeat deploy never duplicates rows. Set SEED_DB=0 to skip on a deploy.
+if [ "${SEED_DB:-1}" != "0" ]; then
+  echo "==> seed demo data (SEED_DB=${SEED_DB:-1})"
+  $COMPOSE -f docker-compose.yml -f compose.prod.yml exec -T api python -m app.db.seed
+fi
 EOF
 
 echo "==> prune old images"
