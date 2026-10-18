@@ -43,6 +43,17 @@ const registering = ref(false)
 // Registration is a customer's business; a manager does not register here.
 const showRegister = computed(() => !isManager.value && registering.value)
 
+// Where to go once through the door. The guard sends people here with `next`
+// when they were on their way somewhere, so a visitor who tried to book and
+// had to sign in first lands on the booking form, not on the home page.
+const destination = computed(() => {
+  const next = route.query.next
+  // Only same-site paths: an attacker-supplied `//evil.test` must not become
+  // the place we send someone straight after they hand over a password.
+  if (typeof next === 'string' && next.startsWith('/') && !next.startsWith('//')) return next
+  return isManager.value ? '/manager' : '/my-bookings'
+})
+
 // One error slot for whichever account is being tried: only one form is
 // visible, so two errors would be noise.
 const error = computed(() => (isManager.value ? auth.error : customer.error))
@@ -82,8 +93,7 @@ async function handleSubmit() {
         })
       : await customer.login(payload)
     if (ok) {
-      // A customer lands on their bookings, not a dashboard they cannot use.
-      await router.push({ name: 'my-bookings' })
+      await router.push(destination.value)
       return
     }
   }
@@ -98,8 +108,9 @@ const headline = computed(() => {
 
 const description = computed(() => {
   if (isManager.value) return 'Sign in to run your venue dashboard'
-  if (registering.value) return 'An account keeps your bookings together'
-  return 'Sign in to see your bookings and cancel a visit'
+  if (registering.value) return 'One account keeps every booking and cancellation together'
+  // Say why the door is here, or it reads as an arbitrary hurdle.
+  return 'Your bookings, cancellations and receipts live behind this'
 })
 
 const submitLabel = computed(() => {

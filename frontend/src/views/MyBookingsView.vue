@@ -1,12 +1,14 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import { cancelBookingGroup, errorDetail, errorStatus, fetchBookingHistory } from '../services/api.js'
-import { getCustomerContact, setCustomerContact } from '../services/session.js'
 import { useCustomerStore } from '../stores/customer.js'
 import { formatHour, formatLongDate, toIsoDate } from '../utils/date.js'
 
 const customer = useCustomerStore()
-const contact = ref(getCustomerContact())
+// The router guard means nobody reaches this page without a session, so the
+// token is the only query there is. The contact field used to sit here asking
+// for a phone number — on a signed-in page it asked the user to prove they
+// were themselves, twice.
 const visits = ref([])
 const loading = ref(false)
 const note = ref('')
@@ -72,26 +74,14 @@ function paymentLabel(status) {
 }
 
 async function search() {
-  const needle = contact.value.trim()
-  // Signed in, the token already says who is asking — the contact is for
-  // looking up visits made without an account.
-  if (!customer.isSignedIn && needle.length < 3) {
-    error.value = 'Enter the WhatsApp number or email you booked with.'
-    return
-  }
   loading.value = true
   error.value = ''
   note.value = ''
   try {
-    const page = await fetchBookingHistory(needle || null, { limit: PAGE_SIZE, offset: 0 })
+    const page = await fetchBookingHistory(null, { limit: PAGE_SIZE, offset: 0 })
     visits.value = page.rows
     total.value = page.total
-    if (needle) setCustomerContact(needle)
-    if (!visits.value.length) {
-      note.value = customer.isSignedIn
-        ? 'No booking on this account yet.'
-        : 'No booking found for that contact.'
-    }
+    if (!visits.value.length) note.value = 'No booking on this account yet.'
   } catch (err) {
     visits.value = []
     total.value = 0
@@ -101,15 +91,13 @@ async function search() {
   }
 }
 
-// One more page of the same contact's history, appended and de-duplicated by
-// row id.
+// One more page of the same history, appended and de-duplicated by row id.
 async function loadMore() {
-  const needle = contact.value.trim()
-  if ((!needle && !customer.isSignedIn) || loading.value || !hasMore.value) return
+  if (loading.value || !hasMore.value) return
   loading.value = true
   error.value = ''
   try {
-    const page = await fetchBookingHistory(needle || null, {
+    const page = await fetchBookingHistory(null, {
       limit: PAGE_SIZE,
       offset: visits.value.length,
     })
@@ -128,8 +116,7 @@ async function cancelVisit(visit) {
   error.value = ''
   note.value = ''
   try {
-    // Signed in, the token proves ownership; otherwise the contact does.
-    await cancelBookingGroup(visit.id, contact.value.trim())
+    await cancelBookingGroup(visit.id)
     note.value = 'Visit cancelled. The hours are free again.'
     await search()
   } catch (err) {
@@ -144,52 +131,16 @@ async function cancelVisit(visit) {
   }
 }
 
-onMounted(async () => {
-  // A signed-in customer's list needs nothing typed: the token is the query.
-  if (customer.isSignedIn) {
-    await search()
-    return
-  }
-  if (contact.value.length >= 3) search()
-})
+onMounted(search)
 </script>
 
 <template>
   <section class="mx-auto max-w-2xl space-y-5">
     <h1 class="text-3xl font-bold tracking-tight text-gray-900">My bookings</h1>
-    <p v-if="customer.isSignedIn" class="text-sm text-gray-600">
-      Everything booked on your account. Cancel here too — no number to retype.
+    <p class="text-sm text-gray-600">
+      Everything booked on <span class="font-semibold text-gray-900">{{ customer.displayName }}</span>.
+      Cancel here too — no number to retype.
     </p>
-    <p v-else class="text-sm text-gray-600">
-      Look up the visits booked with your WhatsApp number or email. The same contact
-      is what lets you cancel a visit. Have an account?
-      <RouterLink
-        :to="{ name: 'login', query: { as: 'customer' } }"
-        class="font-semibold text-gray-900 underline"
-        >Sign in</RouterLink
-      >
-      to skip this step.
-    </p>
-
-    <form class="flex flex-wrap items-end gap-2" @submit.prevent="search">
-      <label class="flex min-w-0 flex-1 flex-col gap-1">
-        <span class="text-xs font-semibold uppercase tracking-wide text-gray-500">WhatsApp / email</span>
-        <input
-          v-model="contact"
-          type="text"
-          name="customer_contact"
-          placeholder="0812… or you@example.com"
-          class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900"
-        />
-      </label>
-      <button
-        type="submit"
-        class="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold disabled:opacity-50"
-        :disabled="loading"
-      >
-        {{ loading ? 'Searching…' : 'Find my bookings' }}
-      </button>
-    </form>
 
     <p v-if="error" class="text-sm text-red-600" role="alert">{{ error }}</p>
     <p v-if="note" class="text-sm text-gray-600" role="status">{{ note }}</p>

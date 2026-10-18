@@ -1,9 +1,10 @@
 <script setup>
-import { onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import DatePicker from './DatePicker.vue'
 import FacilityPicker from './FacilityPicker.vue'
 import TimePicker from './TimePicker.vue'
 import { useBookingForm } from '../composables/useBookingForm.js'
+import { useCustomerStore } from '../stores/customer.js'
 import { useVenuesStore } from '../stores/venues.js'
 import '../styles/booking-form.css'
 
@@ -14,11 +15,30 @@ const props = defineProps({
 
 const form = useBookingForm(props.initialDate, props.initialFacility)
 const venuesStore = useVenuesStore()
+const customer = useCustomerStore()
 const activePicker = ref(null)
+// Signed in, the name and contact collapse to one line. This opens them back
+// up when the booking is for someone else — a group, a friend — because the
+// visit belongs to whoever plays, not to whoever holds the login.
+const editingCustomer = ref(false)
+
+// Booking is behind a login, so the account already knows who is booking and
+// how to reach them. Asking again meant retyping the same details into a
+// second form on the way to the same place — and getting it wrong here put the
+// visit on an account it does not belong to, because the backend takes the
+// owner from the token, not from this field.
+const knownCustomer = computed(() => customer.isSignedIn && Boolean(customer.contact))
+
+function fillFromAccount() {
+  if (!customer.profile) return
+  if (customer.displayName) form.customerName.value = customer.displayName
+  if (customer.contact) form.customerContact.value = customer.contact
+}
 
 onMounted(() => {
   // Facilities come from the API; HomeView may already have loaded them.
   if (!venuesStore.facilities.length) venuesStore.load()
+  fillFromAccount()
 })
 
 function toggle(picker) {
@@ -85,28 +105,54 @@ onUnmounted(() => {
     </div>
 
     <div class="booking-customer">
-      <label class="booking-field">
-        <span class="booking-label">Name</span>
-        <input
-          v-model="form.customerName.value"
-          type="text"
-          name="customer_name"
-          autocomplete="name"
-          placeholder="Your name"
-          class="booking-input"
-        />
-      </label>
-      <label class="booking-field">
-        <span class="booking-label">WhatsApp / email</span>
-        <input
-          v-model="form.customerContact.value"
-          type="text"
-          name="customer_contact"
-          autocomplete="tel"
-          placeholder="0812… or you@example.com"
-          class="booking-input"
-        />
-      </label>
+      <!--
+        Signed in: one line saying who the booking is for, with a way to
+        change it. Typing the same name and number a second time invited
+        mistakes, and the backend takes the owner from the token anyway, so a
+        typo here did not even do what it looked like it should.
+      -->
+      <div v-if="knownCustomer" class="booking-field">
+        <span class="booking-label">Booking for</span>
+        <div class="booking-known">
+          <span class="booking-known-text">
+            {{ customer.displayName }}
+            <span v-if="customer.contact" class="booking-known-contact">· {{ customer.contact }}</span>
+          </span>
+          <button
+            type="button"
+            class="booking-known-edit"
+            :aria-expanded="editingCustomer"
+            @click="editingCustomer = !editingCustomer"
+          >
+            {{ editingCustomer ? 'Keep as is' : 'Change' }}
+          </button>
+        </div>
+      </div>
+
+      <div v-if="!knownCustomer || editingCustomer" class="booking-customer-fields">
+        <label class="booking-field">
+          <span class="booking-label">Name</span>
+          <input
+            v-model="form.customerName.value"
+            type="text"
+            name="customer_name"
+            autocomplete="name"
+            placeholder="Your name"
+            class="booking-input"
+          />
+        </label>
+        <label class="booking-field">
+          <span class="booking-label">WhatsApp / email</span>
+          <input
+            v-model="form.customerContact.value"
+            type="text"
+            name="customer_contact"
+            autocomplete="tel"
+            placeholder="0812… or you@example.com"
+            class="booking-input"
+          />
+        </label>
+      </div>
       <label class="booking-field">
         <span class="booking-label">Promo code (optional)</span>
         <input

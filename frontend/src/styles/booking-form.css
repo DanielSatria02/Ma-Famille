@@ -201,6 +201,62 @@
   margin-top: 0.75rem;
 }
 
+/* The name and contact collapse into one full-width line when the account
+   already knows them, so the promo code below does not sit next to an empty
+   half of the form. */
+.booking-customer-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  grid-column: 1 / -1;
+}
+
+.booking-known {
+  display: flex;
+  min-height: 2.75rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--booking-border, #d1d5db);
+  border-radius: 0.5rem;
+  background: var(--booking-muted, #f9fafb);
+  grid-column: 1 / -1;
+}
+
+.booking-known-text {
+  min-width: 0;
+  overflow: hidden;
+  font-weight: 600;
+  color: var(--booking-text, #111827);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.booking-known-contact {
+  font-weight: 400;
+  color: var(--booking-muted-text, #6b7280);
+}
+
+.booking-known-edit {
+  flex: none;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--booking-accent, #2563eb);
+  cursor: pointer;
+}
+
+.booking-known-edit:hover {
+  background: var(--booking-hover, #f3f4f6);
+}
+
+.booking-known-edit:focus-visible {
+  outline: 2px solid var(--booking-accent, #2563eb);
+  outline-offset: 2px;
+}
+
 .booking-field {
   display: flex;
   min-width: 0;
