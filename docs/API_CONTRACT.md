@@ -46,6 +46,17 @@ use, so the filter panel needs no hardcoded options.
 facility: it is listed to clients but cannot be booked. `PATCH` writes only the
 fields present in the body, so `"price_weekday": null` clears that rate.
 
+### VenueClosure (holiday)
+```json
+{ "public_id": "uuidv7", "venue_public_id": "uuidv7", "starts_on": "2026-12-25", "ends_on": "2026-12-26", "days": 2, "reason": "Christmas" }
+```
+Overrides the weekly hours for the dates it covers: `/availability/hours` reports the day
+`is_closed` with `closure_reason`, `/availability/dates` omits it, `POST /slots/generate`
+counts it in `skipped_closure_days`, and booking that date answers `409` `venue is closed
+on YYYY-MM-DD (reason)` — including for slots generated before the closure was added.
+Creating one returns `affected_bookings`: the live bookings already inside the window,
+so the manager knows who to call. Max 90 days per closure.
+
 ### Slot (Schedule)
 ```json
 { "public_id": "uuidv7", "court_public_id": "uuidv7", "starts_at": "2026-09-20T10:00:00Z", "ends_at": "2026-09-20T11:00:00Z", "price": 120000, "status": "available|held|booked|blocked" }
@@ -78,6 +89,8 @@ GET    /config (booking TTL, min lead days, login + payment availability)
 GET    /venues /venues/{public_id}            POST /venues (manager)
 PATCH  /venues/{public_id} (manager)          DELETE /venues/{public_id} (manager)
 GET    /venues/{public_id}/hours (7 days)     PUT /venues/{public_id}/hours/{day} (manager, 0=Mon)
+GET    /venues/{public_id}/closures            POST /venues/{public_id}/closures (manager, 201)
+DELETE /venues/{public_id}/closures/{public_id} (manager, 204)
 GET    /courts?venue_public_id=...            POST /courts (manager)
 GET    /facilities?venue_public_id=&kind= (client picker: bookable + reason)
 GET    /manager/facilities (rates, locked until priced)

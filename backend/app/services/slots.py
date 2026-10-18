@@ -10,6 +10,7 @@ from app.models.slot import Slot
 from app.models.venue import Venue
 from app.schemas.slot import SlotBlockRequest, SlotCreate, SlotGenerateRequest, SlotUpdate
 from app.services import bookings as booking_service
+from app.services import closures as closure_service
 from app.services import courts as court_service
 from app.services import hours as hours_service
 
@@ -106,6 +107,9 @@ def generate_slots(db: Session, data: SlotGenerateRequest) -> dict | None:
     booking_service.expire_stale_bookings(db, settings.booking_ttl_minutes)
 
     created = skipped_existing = skipped_closed_days = skipped_unpriced = 0
+    skipped_closure_days = 0
+    # Per venue, so a wide range does not re-read the closure table per day.
+    closed_by_venue: dict[int, set] = {}
     day = data.from_day
     while day <= data.to_day:
         day_start = datetime.combine(day, time.min)
@@ -115,6 +119,13 @@ def generate_slots(db: Session, data: SlotGenerateRequest) -> dict | None:
             window = hours_service.window(db, venue, day.weekday())
             if window is None:
                 skipped_closed_days += 1
+                continue
+            if day in closed_by_venue.setdefault(
+                venue.id,
+                closure_service.days_off(db, venue, data.from_day, data.to_day),
+            ):
+                # A closure (holiday): no slots, even if the weekly hours are open.
+                skipped_closure_days += 1
                 continue
             price = court_service.rate_for(court, day)
             if price is None:
@@ -154,6 +165,7 @@ def generate_slots(db: Session, data: SlotGenerateRequest) -> dict | None:
         "created": created,
         "skipped_existing": skipped_existing,
         "skipped_closed_days": skipped_closed_days,
+        "skipped_closure_days": skipped_closure_days,
         "skipped_unpriced": skipped_unpriced,
     }
 

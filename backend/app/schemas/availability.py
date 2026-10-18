@@ -36,6 +36,8 @@ class DayHoursResponse(BaseModel):
     day: date
     day_of_week: int = Field(ge=0, le=6)
     is_closed: bool
+    # Set when the venue is shut by a closure (holiday), not by the weekly hours.
+    closure_reason: str | None = None
     opens_at: str | None = None
     closes_at: str | None = None
     hours: list[HourAvailability]

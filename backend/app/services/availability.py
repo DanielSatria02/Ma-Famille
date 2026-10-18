@@ -15,6 +15,7 @@ from app.models.court import Court
 from app.models.slot import Slot
 from app.models.venue import Venue
 from app.services import bookings as booking_service
+from app.services import closures as closure_service
 from app.services import hours as hours_service
 
 # Slots are stored as wall time; Postgres returns them tz-aware.
@@ -41,8 +42,10 @@ def _slots_of_day(db: Session, court: Court, day: date) -> list[Slot]:
 def day_hours(db: Session, court: Court, day: date) -> dict:
     booking_service.expire_stale_bookings(db, settings.booking_ttl_minutes)
     venue = db.get(Venue, court.venue_id)
+    # A closure (holiday) closes the whole date, whatever the weekly hours say.
+    closure_reason = closure_service.closed_day(db, venue, day)
     entry = hours_service.day_hours(db, venue, day.weekday())
-    window = hours_service.window(db, venue, day.weekday())
+    window = None if closure_reason else hours_service.window(db, venue, day.weekday())
 
     rows = {_naive(slot.starts_at).hour: slot for slot in _slots_of_day(db, court, day)}
     hours: list[dict] = []
@@ -65,6 +68,7 @@ def day_hours(db: Session, court: Court, day: date) -> dict:
         "day": day,
         "day_of_week": day.weekday(),
         "is_closed": window is None,
+        "closure_reason": closure_reason,
         "opens_at": None if window is None else entry["opens_at"],
         "closes_at": None if window is None else entry["closes_at"],
         "hours": hours,
@@ -89,7 +93,11 @@ def date_summary(db: Session, court: Court, from_day: date, to_day: date) -> lis
         buckets.setdefault(_naive(slot.starts_at).date(), []).append(slot)
 
     summary: list[dict] = []
+    closed = closure_service.days_off(db, db.get(Venue, court.venue_id), from_day, to_day)
     for day, slots in buckets.items():
+        if day in closed:
+            # A holiday: the calendar must not offer a day the venue is shut.
+            continue
         free = sum(1 for slot in slots if slot.status in _FREE_STATUSES)
         summary.append(
             {

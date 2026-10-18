@@ -1,6 +1,6 @@
 import re
 from collections.abc import Iterable
-from datetime import UTC, datetime, time, timedelta
+from datetime import UTC, date, datetime, time, timedelta
 from uuid import UUID
 
 from sqlalchemy import select
@@ -15,6 +15,7 @@ from app.models.payment import Payment
 from app.models.slot import Slot
 from app.models.venue import Venue
 from app.schemas.booking import BookingCreate, BookingRangeCreate
+from app.services import closures as closure_service
 from app.services import courts as court_service
 
 
@@ -81,6 +82,13 @@ def list_by_contact(db: Session, customer_contact: str) -> list[Booking]:
     return [b for b in rows if normalise_contact(b.customer_contact) == needle]
 
 
+def _closed_day_guard(db: Session, venue: Venue, day: date) -> None:
+    """A venue shut for a closure (holiday) takes no new bookings."""
+    reason = closure_service.closed_day(db, venue, day)
+    if reason is not None:
+        raise SlotUnavailable(f"venue is closed on {day:%Y-%m-%d} ({reason})")
+
+
 def create_booking(db: Session, data: BookingCreate) -> Booking | None:
     """Returns None when the slot is unknown; raises IntegrityError on conflict."""
     slot = db.scalars(select(Slot).where(Slot.public_id == data.slot_public_id)).first()
@@ -88,6 +96,10 @@ def create_booking(db: Session, data: BookingCreate) -> Booking | None:
         return None
     expire_stale_bookings(db, settings.booking_ttl_minutes)
     db.refresh(slot)
+    court = db.get(Court, slot.court_id)
+    venue = db.get(Venue, court.venue_id) if court is not None else None
+    if venue is not None:
+        _closed_day_guard(db, venue, _naive(slot.starts_at).date())
     if slot.status != "available":
         raise SlotUnavailable(f"slot is {slot.status}")
     booking = Booking(
@@ -156,6 +168,7 @@ def create_range_booking(db: Session, data: BookingRangeCreate) -> dict | None:
         return None
     if not court.is_active:
         raise SlotUnavailable("court is not active")
+    _closed_day_guard(db, db.get(Venue, court.venue_id), data.starts_at.date())
     if court_service.rate_for(court, data.starts_at.date()) is None:
         raise SlotUnavailable("court has no rate set for that day")
     _check_lead_time(data.starts_at)

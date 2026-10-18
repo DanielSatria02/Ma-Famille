@@ -6,7 +6,13 @@ from sqlalchemy.orm import Session
 from app.core.security import require_manager
 from app.db.session import get_db
 from app.schemas.venue import VenueCreate, VenueResponse, VenueUpdate
+from app.schemas.venue_closure import (
+    VenueClosureCreate,
+    VenueClosureCreated,
+    VenueClosureResponse,
+)
 from app.schemas.venue_hours import VenueHoursResponse, VenueHoursUpdate
+from app.services import closures as closure_service
 from app.services import hours as hours_service
 from app.services import venues as venue_service
 
@@ -124,3 +130,46 @@ def update_venue_hours(
     return VenueHoursResponse(
         **hours_service.upsert_hours(db, venue, day_of_week, body)
     )
+
+
+@router.get(
+    "/{public_id}/closures",
+    summary="Closure dates (holidays) of a venue",
+    response_model=list[VenueClosureResponse],
+)
+def list_venue_closures(
+    public_id: UUID, db: Session = Depends(get_db)
+) -> list[VenueClosureResponse]:
+    venue = _venue_or_404(db, public_id)
+    return [
+        VenueClosureResponse(**entry)
+        for entry in closure_service.list_closures(db, venue)
+    ]
+
+
+@router.post(
+    "/{public_id}/closures",
+    summary="Close a date range (manager)",
+    status_code=201,
+    response_model=VenueClosureCreated,
+    dependencies=[Depends(require_manager)],
+)
+def create_venue_closure(
+    body: VenueClosureCreate, public_id: UUID, db: Session = Depends(get_db)
+) -> VenueClosureCreated:
+    venue = _venue_or_404(db, public_id)
+    return VenueClosureCreated(**closure_service.create_closure(db, venue, body))
+
+
+@router.delete(
+    "/{public_id}/closures/{closure_public_id}",
+    summary="Reopen a closed date range (manager)",
+    status_code=204,
+    dependencies=[Depends(require_manager)],
+)
+def delete_venue_closure(
+    public_id: UUID, closure_public_id: UUID, db: Session = Depends(get_db)
+) -> None:
+    venue = _venue_or_404(db, public_id)
+    if not closure_service.delete_closure(db, venue, closure_public_id):
+        raise HTTPException(status_code=404, detail="closure not found")

@@ -118,5 +118,7 @@ class SlotGenerateResponse(BaseModel):
     created: int
     skipped_existing: int
     skipped_closed_days: int
+    # Court-days left alone because of a closure (holiday) on the venue.
+    skipped_closure_days: int = 0
     # Court-days left alone because the manager has not priced them.
     skipped_unpriced: int = 0
