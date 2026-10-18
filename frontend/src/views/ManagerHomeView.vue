@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import BookingCalendar from '../components/BookingCalendar.vue'
 import OpeningSchedule from '../components/OpeningSchedule.vue'
@@ -9,8 +9,12 @@ import TodaysVisitors from '../components/TodaysVisitors.vue'
 import UnavailableNotice from '../components/UnavailableNotice.vue'
 import UpcomingBookings from '../components/UpcomingBookings.vue'
 import VenueStatus from '../components/VenueStatus.vue'
+import { generateSlots, errorDetail, fetchVenueHours, updateVenueHours } from '../services/api.js'
 import { useBookingsStore } from '../stores/bookings.js'
 import { useVenuesStore } from '../stores/venues.js'
+import { addDays, toIsoDate } from '../utils/date.js'
+
+const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 
 const bookingsStore = useBookingsStore()
 const { todaysBookings, upcomingBookings, bookedDates, weeklyVisitors, canceledCount: canceledBookings } =
@@ -19,22 +23,88 @@ const { todaysBookings, upcomingBookings, bookedDates, weeklyVisitors, canceledC
 const venuesStore = useVenuesStore()
 const { venues, pricing, venueStatusItems } = storeToRefs(venuesStore)
 
-// Default hours; to be loaded from and saved to the API later.
-const openingSchedule = ref(
-  ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'].map((day) => ({
-    day,
-    start: '04:00',
-    end: '23:00',
-  })),
-)
+const openingSchedule = ref([])
+const notice = ref('')
+const syncing = ref(false)
+const venuesError = computed(() => venuesStore.error)
+
+const activeVenue = computed(() => venuesStore.activeVenue)
+const activeVenueId = computed(() => activeVenue.value?.venue?.public_id ?? '')
+
+async function loadSchedule() {
+  if (!activeVenueId.value) return
+  const days = await fetchVenueHours(activeVenueId.value)
+  openingSchedule.value = days.map((entry) => ({
+    day: DAY_NAMES[entry.day_of_week] ?? entry.day,
+    dayOfWeek: entry.day_of_week,
+    start: entry.opens_at,
+    end: entry.closes_at,
+    isClosed: entry.is_closed,
+  }))
+}
+
+onMounted(async () => {
+  await venuesStore.loadForManager()
+  await bookingsStore.load({
+    fromDay: toIsoDate(new Date()),
+    toDay: toIsoDate(addDays(new Date(), 7)),
+  })
+  try {
+    notice.value = ''
+    await loadSchedule()
+  } catch (err) {
+    notice.value = errorDetail(err, 'Could not load the opening schedule.')
+  }
+})
 
 function cancelBooking(booking) {
   bookingsStore.cancelBooking(booking.id)
 }
 
-function updateSchedule({ day, start, end }) {
+async function updateSchedule({ day, start, end }) {
   const entry = openingSchedule.value.find((item) => item.day === day)
-  if (entry) Object.assign(entry, { start, end })
+  if (!entry || !activeVenueId.value) return
+  try {
+    await updateVenueHours(activeVenueId.value, entry.dayOfWeek, {
+      opensAt: start,
+      closesAt: end,
+      isClosed: false,
+    })
+    Object.assign(entry, { start, end, isClosed: false })
+    notice.value = 'Opening hours saved. Generate slots so clients can book them.'
+  } catch (err) {
+    notice.value = errorDetail(err, 'Could not save the opening hours.')
+  }
+}
+
+// Hours only become bookable once slots exist for them.
+async function generateMonth() {
+  if (syncing.value) return
+  syncing.value = true
+  notice.value = ''
+  try {
+    const from = toIsoDate(new Date())
+    const to = toIsoDate(addDays(new Date(), 30))
+    const results = []
+    for (const facility of venuesStore.facilities) {
+      if (!facility.is_bookable) continue
+      results.push(
+        await generateSlots({ courtPublicId: facility.public_id, fromDay: from, toDay: to }),
+      )
+    }
+    const created = results.reduce((sum, result) => sum + result.created, 0)
+    const unpriced = results.reduce((sum, result) => sum + (result.skipped_unpriced ?? 0), 0)
+    notice.value = `Generated ${created} slot(s) for the next 30 days.`
+    if (unpriced) notice.value += ` ${unpriced} facility-day(s) skipped: no price set.`
+    await bookingsStore.load({
+      fromDay: from,
+      toDay: toIsoDate(addDays(new Date(), 7)),
+    })
+  } catch (err) {
+    notice.value = errorDetail(err, 'Could not generate the slots.')
+  } finally {
+    syncing.value = false
+  }
 }
 </script>
 
@@ -45,10 +115,21 @@ function updateSchedule({ day, start, end }) {
       :todays-bookings="todaysBookings.length"
       :canceled-bookings="canceledBookings"
     />
+    <p v-if="venuesError" class="text-sm text-red-600" role="alert">{{ venuesError }}</p>
+    <p v-if="bookingsStore.error" class="text-sm text-red-600" role="alert">{{ bookingsStore.error }}</p>
     <UnavailableNotice :venues="venues" />
     <BookingCalendar allow-past-months :booked-dates="bookedDates" />
     <TodaysVisitors :bookings="todaysBookings" />
     <UpcomingBookings :bookings="upcomingBookings" @cancel="cancelBooking" />
+    <p v-if="notice" class="text-sm text-gray-600" role="status">{{ notice }}</p>
+    <button
+      type="button"
+      class="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold disabled:opacity-50"
+      :disabled="syncing"
+      @click="generateMonth"
+    >
+      Generate slots for 30 days
+    </button>
     <OpeningSchedule :schedule="openingSchedule" @update="updateSchedule" />
     <PricingSettings :items="pricing" @update="venuesStore.updatePricing" />
     <VenueStatus :venues="venueStatusItems" @toggle="venuesStore.toggleVenue" />

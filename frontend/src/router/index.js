@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
 import { PREMIERE_FRANCHISE } from '../config/franchise.js'
+import { useAuthStore } from '../stores/auth.js'
 import BookingView from '../views/BookingView.vue'
 import HealthView from '../views/HealthView.vue'
 import HomeView from '../views/HomeView.vue'
@@ -20,6 +21,8 @@ const router = createRouter({
       name: 'manager-home',
       component: ManagerHomeView,
       meta: { franchise: PREMIERE_FRANCHISE },
+      // The dashboard writes with the manager token, so ask for the login first.
+      beforeEnter: () => (useAuthStore().isLoggedIn ? true : { name: 'login' }),
     },
     {
       path: '/booking',

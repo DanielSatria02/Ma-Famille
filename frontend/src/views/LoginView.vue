@@ -1,15 +1,24 @@
 <script setup>
 import { ref } from 'vue'
+import { useRouter } from 'vue-router'
 import loginBackground from '../assets/loginbg.avif'
+import { useAuthStore } from '../stores/auth.js'
 import '../styles/login.css'
+
+const router = useRouter()
+const auth = useAuthStore()
 
 const email = ref('')
 const password = ref('')
 const rememberMe = ref(false)
-const submitted = ref(false)
 
-function handleSubmit() {
-  submitted.value = true
+async function handleSubmit() {
+  const ok = await auth.login({ email: email.value, password: password.value })
+  if (ok) {
+    await router.push({ name: 'manager-home' })
+    return
+  }
+  password.value = ''
 }
 </script>
 
@@ -68,13 +77,14 @@ function handleSubmit() {
 
         <button
           type="submit"
-          class="login-button w-full rounded-lg px-4 py-2.5 font-semibold transition"
+          class="login-button w-full rounded-lg px-4 py-2.5 font-semibold transition disabled:opacity-50"
+          :disabled="auth.loading"
         >
-          Sign in
+          {{ auth.loading ? 'Signing in…' : 'Sign in' }}
         </button>
 
-        <p v-if="submitted" class="login-body-text text-center text-sm" role="status">
-          Login connection is ready for backend integration.
+        <p v-if="auth.error" class="login-body-text text-center text-sm" role="alert">
+          {{ auth.error }}
         </p>
       </form>
 

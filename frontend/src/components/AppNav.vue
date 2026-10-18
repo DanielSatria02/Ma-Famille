@@ -1,12 +1,15 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { DEFAULT_FRANCHISE } from '../config/franchise.js'
 import { useAppStore } from '../stores/app.js'
+import { useAuthStore } from '../stores/auth.js'
 import '../styles/header.css'
 
 const store = useAppStore()
+const auth = useAuthStore()
 const route = useRoute()
+const router = useRouter()
 const isSidebarOpen = ref(false)
 
 const isManagerArea = computed(() => route.path.startsWith('/manager'))
@@ -38,6 +41,13 @@ function closeSidebar() {
 
 function handleKeydown(event) {
   if (event.key === 'Escape') closeSidebar()
+}
+
+// Log out: drop the manager token and go back to the login page.
+function logOut() {
+  auth.logout()
+  closeSidebar()
+  router.push({ name: 'login' })
 }
 </script>
 
@@ -93,7 +103,9 @@ function handleKeydown(event) {
       <nav class="flex flex-col gap-2">
         <RouterLink :to="homePath" class="app-sidebar-link rounded-lg px-3 py-2 no-underline" @click="closeSidebar">Home</RouterLink>
         <RouterLink to="/health" class="app-sidebar-link rounded-lg px-3 py-2 no-underline" @click="closeSidebar">Health</RouterLink>
-        <button type="button" class="app-sidebar-link rounded-lg px-3 py-2 text-left">Log out</button>
+        <RouterLink v-if="!isManagerArea" to="/login" class="app-sidebar-link rounded-lg px-3 py-2 no-underline" @click="closeSidebar">Manager login</RouterLink>
+        <RouterLink v-if="isManagerArea" :to="homePath" class="app-sidebar-link rounded-lg px-3 py-2 no-underline" @click="closeSidebar">Dashboard</RouterLink>
+        <button type="button" class="app-sidebar-link rounded-lg px-3 py-2 text-left" @click="logOut">Log out</button>
       </nav>
     </aside>
   </header>
