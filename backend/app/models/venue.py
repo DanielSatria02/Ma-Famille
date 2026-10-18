@@ -18,3 +18,6 @@ class Venue(Base, PKMixin, PublicIdMixin, TimestampMixin):
     tags: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
     lat: Mapped[float | None] = mapped_column(Float, nullable=True)
     lng: Mapped[float | None] = mapped_column(Float, nullable=True)
+    # Public URL of the cover photo: an upload under /media, or a link the manager
+    # pasted. Null means the client draws its own placeholder.
+    image_url: Mapped[str | None] = mapped_column(String(300), nullable=True)

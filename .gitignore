@@ -37,6 +37,9 @@ coverage.xml
 htmlcov/
 .mypy_cache/
 
+# Uploaded venue/court photos (media_root); the folder is created on boot.
+backend/media/
+
 # Env files (keep examples)
 .env
 backend/.env

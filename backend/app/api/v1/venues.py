@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Path
+from fastapi import APIRouter, Depends, HTTPException, Path, Request
 from sqlalchemy.orm import Session
 
 from app.core.security import require_manager
@@ -14,6 +14,7 @@ from app.schemas.venue_closure import (
 from app.schemas.venue_hours import VenueHoursResponse, VenueHoursUpdate
 from app.services import closures as closure_service
 from app.services import hours as hours_service
+from app.services import photos as photo_service
 from app.services import venues as venue_service
 
 router = APIRouter(prefix="/venues", tags=["venues"])
@@ -27,6 +28,7 @@ def _to_response(venue) -> VenueResponse:
         tags=venue.tags or [],
         lat=venue.lat,
         lng=venue.lng,
+        image_url=venue.image_url,
         created_at=venue.created_at,
     )
 
@@ -91,6 +93,55 @@ def delete_venue(public_id: UUID, db: Session = Depends(get_db)) -> None:
     if venue is None:
         raise HTTPException(status_code=404, detail="venue not found")
     venue_service.delete_venue(db, venue)
+
+
+@router.put(
+    "/{public_id}/photo",
+    summary="Upload a venue photo (manager, raw image body)",
+    response_model=VenueResponse,
+    responses={
+        413: {"description": "Photo larger than the cap"},
+        415: {"description": "Not a PNG/JPEG/GIF/WebP"},
+    },
+    dependencies=[Depends(require_manager)],
+)
+async def upload_venue_photo(
+    public_id: UUID, request: Request, db: Session = Depends(get_db)
+) -> VenueResponse:
+    venue = venue_service.get_by_public_id(db, public_id)
+    if venue is None:
+        raise HTTPException(status_code=404, detail="venue not found")
+    return _to_response(await _store_photo(db, "venues", venue, request))
+
+
+@router.delete(
+    "/{public_id}/photo",
+    summary="Remove a venue photo (manager)",
+    status_code=204,
+    dependencies=[Depends(require_manager)],
+)
+def delete_venue_photo(public_id: UUID, db: Session = Depends(get_db)) -> None:
+    venue = venue_service.get_by_public_id(db, public_id)
+    if venue is None:
+        raise HTTPException(status_code=404, detail="venue not found")
+    photo_service.clear("venues", venue.public_id)
+    venue.image_url = None
+    db.commit()
+
+
+async def _store_photo(db: Session, kind: str, row, request: Request):
+    """Shared upload path for venues and courts: bytes in, URL on the row."""
+    data = await request.body()
+    try:
+        row.image_url = photo_service.store(kind, row.public_id, data)
+    except photo_service.PhotoError as exc:
+        raise HTTPException(
+            status_code=413 if "larger than" in str(exc) else 415,
+            detail=str(exc),
+        ) from exc
+    db.commit()
+    db.refresh(row)
+    return row
 
 
 def _venue_or_404(db: Session, public_id: UUID):

@@ -1,4 +1,10 @@
+from pathlib import Path
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# backend/ — so uploads land in the same place whether the server is started from
+# the repo root or from backend/, and whether tests run from either.
+BACKEND_ROOT = Path(__file__).resolve().parents[2]
 
 
 class Settings(BaseSettings):
@@ -29,6 +35,10 @@ class Settings(BaseSettings):
     # Opening window used for days a venue has no stored hours for.
     default_opens_at: str = "08:00"
     default_closes_at: str = "22:00"
+    # Where uploaded venue/court photos live, and the URL they are served from.
+    media_root: str = str(BACKEND_ROOT / "media")
+    media_url: str = "/media"
+    max_photo_bytes: int = 500_000
     # Guest notifications. `notify_transport` picks how a queued message leaves
     # the building: "log" (default: recorded in the DB + server log, nothing is
     # delivered), "smtp" for email, "whatsapp" for the Cloud API.

@@ -1,5 +1,8 @@
+from pathlib import Path
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from app.api.v1.router import router as v1_router
 from app.core.config import settings
@@ -50,6 +53,12 @@ def create_app() -> FastAPI:
         return RootResponse(service=settings.app_name, env=settings.app_env)
 
     app.include_router(v1_router, prefix=settings.api_v1_prefix)
+
+    # Uploaded venue/court photos. The directory is created on boot so a fresh
+    # checkout (and the test client) can serve them without a manual mkdir.
+    media_root = Path(settings.media_root)
+    media_root.mkdir(parents=True, exist_ok=True)
+    app.mount(settings.media_url, StaticFiles(directory=media_root), name="media")
 
     return app
 

@@ -32,7 +32,7 @@ Base: `/v1`. All domain routes are wired to the store; the only
 
 ### Venue
 ```json
-{ "public_id": "uuidv7", "name": "GOR Senayan", "address": "...", "tags": ["indoors", "event"], "lat": -6.2185, "lng": 106.8022 }
+{ "public_id": "uuidv7", "name": "GOR Senayan", "address": "...", "tags": ["indoors", "event"], "lat": -6.2185, "lng": 106.8022, "image_url": "/media/venues/<public_id>.png | null" }
 ```
 `tags` are lower-cased and de-duplicated on write and power the client filters
 (`GET /venues?tag=outdoors&q=depok`); `GET /venues/tags` lists the vocabulary in
@@ -40,7 +40,7 @@ use, so the filter panel needs no hardcoded options.
 
 ### Court
 ```json
-{ "public_id": "uuidv7", "venue_public_id": "uuidv7", "name": "Court A", "sport": "futsal|badminton", "kind": "court|office|cafe", "price_weekday": 100000, "price_weekend": 150000, "is_price_set": true, "is_active": true }
+{ "public_id": "uuidv7", "venue_public_id": "uuidv7", "name": "Court A", "sport": "futsal|badminton", "kind": "court|office|cafe", "price_weekday": 100000, "price_weekend": 150000, "is_price_set": true, "is_active": true, "image_url": "/media/courts/<public_id>.jpg | null" }
 ```
 `price_*: null` (and `is_price_set: false`) means the manager has not priced the
 facility: it is listed to clients but cannot be booked. `PATCH` writes only the
@@ -110,6 +110,9 @@ PATCH  /venues/{public_id} (manager)          DELETE /venues/{public_id} (manage
 GET    /venues/{public_id}/hours (7 days)     PUT /venues/{public_id}/hours/{day} (manager, 0=Mon)
 GET    /venues/{public_id}/closures            POST /venues/{public_id}/closures (manager, 201)
 DELETE /venues/{public_id}/closures/{public_id} (manager, 204)
+PUT    /venues/{public_id}/photo      (manager, raw image body)   DELETE …/photo (manager, 204)
+PUT    /courts/{public_id}/photo      (manager, raw image body)   DELETE …/photo (manager, 204)
+GET    /media/{venues|courts}/{public_id}.{png|jpg|gif|webp}  (static, no auth)
 GET    /courts?venue_public_id=...            POST /courts (manager)
 GET    /facilities?venue_public_id=&kind= (client picker: bookable + reason)
 GET    /manager/facilities (rates, locked until priced)
@@ -139,6 +142,25 @@ Every manager booking row carries `payment_public_id`, `payment_invoice_number`,
 `payment_status` and `payment_failure_reason` so the dashboard can show (and refund)
 the money side of a visit without a second request. Rows are also served with
 `expires_in_seconds` while a booking is still held.
+
+### Photos (venues and courts)
+
+Each row carries `image_url`: null (the client draws its own placeholder), an upload
+path under `/media`, or a link the manager pasted (`PATCH` accepts only `http(s)` or
+`/media/…`). Uploading is a **raw body**, not multipart — no extra dependency:
+
+```bash
+curl -X PUT --data-binary @court.png -H 'Content-Type: image/png' \
+     http://localhost:8000/v1/venues/<public_id>/photo     # → 200 with the updated row
+```
+
+- Type is sniffed from magic bytes (PNG, JPEG, GIF, WebP) → anything else is `415`.
+- Bigger than `MAX_PHOTO_BYTES` (500 kB default) → `413`.
+- One photo per venue/court: a second upload replaces the first and deletes the old file.
+- `DELETE …/photo` → `204` and the file is gone. Unknown id → `404`.
+- Files live in `backend/media/<venues|courts>/<public_id>.<ext>` (gitignored) and are served
+  at `/media/…` with no auth, which is what the frontend's `<img>` needs. Uploading is the
+  only way to get a URL under `/media`; nothing else can write there.
 
 Booking also flips `slot.status` (`available`→`booked` on create,
 back to `available` on cancel), so the availability calendar never shows

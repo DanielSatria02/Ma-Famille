@@ -1,12 +1,14 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
+from app.api.v1.venues import _store_photo
 from app.core.security import require_manager
 from app.db.session import get_db
 from app.schemas.court import CourtCreate, CourtResponse, CourtUpdate
 from app.services import courts as court_service
+from app.services import photos as photo_service
 
 router = APIRouter(prefix="/courts", tags=["courts"])
 
@@ -22,6 +24,7 @@ def _to_response(db: Session, court) -> CourtResponse:
         price_weekend=court.price_weekend,
         is_price_set=court_service.is_price_set(court),
         is_active=court.is_active,
+        image_url=court.image_url,
         created_at=court.created_at,
     )
 
@@ -80,3 +83,36 @@ def delete_court(public_id: UUID, db: Session = Depends(get_db)) -> None:
     if court is None:
         raise HTTPException(status_code=404, detail="court not found")
     court_service.deactivate_court(db, court)
+
+
+@router.put(
+    "/{public_id}/photo",
+    summary="Upload a court photo (manager, raw image body)",
+    responses={
+        413: {"description": "Photo larger than the cap"},
+        415: {"description": "Not a PNG/JPEG/GIF/WebP"},
+    },
+    dependencies=[Depends(require_manager)],
+)
+async def upload_court_photo(
+    public_id: UUID, request: Request, db: Session = Depends(get_db)
+) -> CourtResponse:
+    court = court_service.get_by_public_id(db, public_id)
+    if court is None:
+        raise HTTPException(status_code=404, detail="court not found")
+    return _to_response(db, await _store_photo(db, "courts", court, request))
+
+
+@router.delete(
+    "/{public_id}/photo",
+    summary="Remove a court photo (manager)",
+    status_code=204,
+    dependencies=[Depends(require_manager)],
+)
+def delete_court_photo(public_id: UUID, db: Session = Depends(get_db)) -> None:
+    court = court_service.get_by_public_id(db, public_id)
+    if court is None:
+        raise HTTPException(status_code=404, detail="court not found")
+    photo_service.clear("courts", court.public_id)
+    court.image_url = None
+    db.commit()

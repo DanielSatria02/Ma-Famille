@@ -69,6 +69,8 @@ def update_court(db: Session, court: Court, data: CourtUpdate) -> Court:
         court.price_weekend = data.price_weekend
     if data.is_active is not None and "is_active" in provided:
         court.is_active = data.is_active
+    if "image_url" in provided:
+        court.image_url = data.image_url
     db.commit()
     db.refresh(court)
     return court

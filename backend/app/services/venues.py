@@ -67,6 +67,8 @@ def update_venue(db: Session, venue: Venue, data: VenueUpdate) -> Venue:
         venue.lat = data.lat
     if "lng" in provided:
         venue.lng = data.lng
+    if "image_url" in provided:
+        venue.image_url = data.image_url
     db.commit()
     db.refresh(venue)
     return venue

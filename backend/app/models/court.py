@@ -21,3 +21,5 @@ class Court(Base, PKMixin, PublicIdMixin, TimestampMixin):
     price_weekday: Mapped[int | None] = mapped_column(Integer, nullable=True)
     price_weekend: Mapped[int | None] = mapped_column(Integer, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    # Photo of the facility itself (upload under /media or a pasted link).
+    image_url: Mapped[str | None] = mapped_column(String(300), nullable=True)
