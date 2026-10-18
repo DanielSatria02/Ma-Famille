@@ -1,4 +1,4 @@
-from datetime import date, datetime, time
+from datetime import date, datetime, time, timedelta
 from uuid import UUID
 
 from sqlalchemy import select
@@ -7,8 +7,10 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.models.court import Court
 from app.models.slot import Slot
-from app.schemas.slot import SlotCreate, SlotUpdate
+from app.models.venue import Venue
+from app.schemas.slot import SlotCreate, SlotGenerateRequest, SlotUpdate
 from app.services import bookings as booking_service
+from app.services import hours as hours_service
 
 
 def _court_id(db: Session, court_public_id: UUID) -> int | None:
@@ -68,6 +70,87 @@ def update_slot(db: Session, slot: Slot, data: SlotUpdate) -> Slot:
     db.commit()
     db.refresh(slot)
     return slot
+
+
+def _naive(value: datetime) -> datetime:
+    """Postgres hands back tz-aware stamps; slot rows are stored as wall time."""
+    return value.replace(tzinfo=None) if value.tzinfo is not None else value
+
+
+def _target_courts(db: Session, data: SlotGenerateRequest) -> list[Court] | None:
+    if data.court_public_id is not None:
+        court = db.scalars(
+            select(Court).where(Court.public_id == data.court_public_id)
+        ).first()
+        return [court] if court is not None else None
+    venue = db.scalars(
+        select(Venue).where(Venue.public_id == data.venue_public_id)
+    ).first()
+    if venue is None:
+        return None
+    stmt = (
+        select(Court)
+        .where(Court.venue_id == venue.id, Court.is_active.is_(True))
+        .order_by(Court.id)
+    )
+    return list(db.scalars(stmt).all())
+
+
+def generate_slots(db: Session, data: SlotGenerateRequest) -> dict | None:
+    """Create one slot per opening hour, per court, per day. Returns None when
+    the court/venue id is unknown."""
+    courts = _target_courts(db, data)
+    if courts is None:
+        return None
+    booking_service.expire_stale_bookings(db, settings.booking_ttl_minutes)
+
+    created = skipped_existing = skipped_closed_days = 0
+    day = data.from_day
+    while day <= data.to_day:
+        day_start = datetime.combine(day, time.min)
+        day_end = datetime.combine(day, time.max)
+        for court in courts:
+            venue = db.get(Venue, court.venue_id)
+            window = hours_service.window(db, venue, day.weekday())
+            if window is None:
+                skipped_closed_days += 1
+                continue
+            opens_at, closes_at = window
+            taken = {
+                _naive(start)
+                for start in db.scalars(
+                    select(Slot.starts_at)
+                    .where(Slot.court_id == court.id)
+                    .where(Slot.starts_at >= day_start, Slot.starts_at <= day_end)
+                ).all()
+            }
+            price = court.price_weekend if day.weekday() >= 5 else court.price_weekday
+            for hour in range(opens_at.hour, closes_at.hour):
+                starts_at = datetime.combine(day, time(hour))
+                if starts_at in taken:
+                    skipped_existing += 1
+                    continue
+                db.add(
+                    Slot(
+                        court_id=court.id,
+                        starts_at=starts_at,
+                        ends_at=datetime.combine(day, time(hour + 1)),
+                        price=price,
+                    )
+                )
+                created += 1
+        day += timedelta(days=1)
+
+    if created:
+        db.commit()
+    return {
+        "from_day": data.from_day,
+        "to_day": data.to_day,
+        "courts": len(courts),
+        "created": created,
+        "skipped_existing": skipped_existing,
+        "skipped_closed_days": skipped_closed_days,
+    }
 
 
 def court_public_id(db: Session, slot: Slot) -> UUID:

@@ -6,7 +6,13 @@ from sqlalchemy.orm import Session
 
 from app.core.security import require_manager
 from app.db.session import get_db
-from app.schemas.slot import SlotCreate, SlotResponse, SlotUpdate
+from app.schemas.slot import (
+    SlotCreate,
+    SlotGenerateRequest,
+    SlotGenerateResponse,
+    SlotResponse,
+    SlotUpdate,
+)
 from app.services import slots as slot_service
 
 router = APIRouter(prefix="/slots", tags=["slots"])
@@ -46,6 +52,22 @@ def create_slots(
     if slots is None:
         raise HTTPException(status_code=404, detail="court not found")
     return [_to_response(db, s) for s in slots]
+
+
+@router.post(
+    "/generate",
+    summary="Generate hourly slots from opening hours (manager, idempotent)",
+    status_code=201,
+    response_model=SlotGenerateResponse,
+    dependencies=[Depends(require_manager)],
+)
+def generate_slots(
+    body: SlotGenerateRequest, db: Session = Depends(get_db)
+) -> SlotGenerateResponse:
+    result = slot_service.generate_slots(db, body)
+    if result is None:
+        raise HTTPException(status_code=404, detail="court or venue not found")
+    return SlotGenerateResponse(**result)
 
 
 @router.get("/{public_id}", summary="Get slot")

@@ -37,3 +37,38 @@ class SlotResponse(BaseModel):
 class AvailabilityQuery(BaseModel):
     court_public_id: UUID
     day: date
+
+
+class SlotGenerateRequest(BaseModel):
+    """Materialise hourly slots from a venue's opening hours.
+
+    Exactly one target: `court_public_id` (single court) or `venue_public_id`
+    (every active court of that venue). Re-running is safe — slots that already
+    exist for a start time are skipped instead of duplicated.
+    """
+
+    from_day: date
+    to_day: date
+    court_public_id: UUID | None = None
+    venue_public_id: UUID | None = None
+
+    @model_validator(mode="after")
+    def _check(self):
+        if (self.court_public_id is None) == (self.venue_public_id is None):
+            raise ValueError(
+                "provide exactly one of court_public_id or venue_public_id"
+            )
+        if self.to_day < self.from_day:
+            raise ValueError("to_day before from_day")
+        if (self.to_day - self.from_day).days > 60:
+            raise ValueError("range too wide (max 60 days)")
+        return self
+
+
+class SlotGenerateResponse(BaseModel):
+    from_day: date
+    to_day: date
+    courts: int
+    created: int
+    skipped_existing: int
+    skipped_closed_days: int
