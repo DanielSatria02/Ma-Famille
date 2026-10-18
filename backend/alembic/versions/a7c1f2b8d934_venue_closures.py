@@ -27,8 +27,18 @@ def upgrade() -> None:
         sa.Column("starts_on", sa.Date(), nullable=False),
         sa.Column("ends_on", sa.Date(), nullable=False),
         sa.Column("reason", sa.String(length=120), nullable=False, server_default=""),
-        sa.Column("created_at", sa.DateTime(), nullable=False),
-        sa.Column("updated_at", sa.DateTime(), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
         sa.UniqueConstraint("public_id", name="uq_venue_closures_public_id"),
     )
     op.create_index(
