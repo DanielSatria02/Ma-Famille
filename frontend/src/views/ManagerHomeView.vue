@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import BookingCalendar from '../components/BookingCalendar.vue'
+import ManageHours from '../components/ManageHours.vue'
 import OpeningSchedule from '../components/OpeningSchedule.vue'
 import PricingSettings from '../components/PricingSettings.vue'
 import StatsOverview from '../components/StatsOverview.vue'
@@ -148,6 +149,7 @@ async function generateMonth() {
       Generate slots for 30 days
     </button>
     <OpeningSchedule :schedule="openingSchedule" @update="updateSchedule" />
+    <ManageHours :facilities="venuesStore.facilities" :venue-public-id="activeVenueId" />
     <PricingSettings :items="pricing" @update="venuesStore.updatePricing" />
     <VenueStatus :venues="venueStatusItems" @toggle="venuesStore.toggleVenue" />
   </section>

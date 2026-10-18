@@ -126,6 +126,48 @@ export async function generateSlots({ courtPublicId, fromDay, toDay }) {
   return res.data
 }
 
+// Close or reopen a window of hours ("facility shut 09:00-12:00 on Saturday").
+// Booked hours are never touched; the response counts what was skipped.
+export async function blockSlots({
+  facilityPublicId,
+  venuePublicId,
+  fromDay,
+  toDay,
+  fromHour,
+  toHour,
+  status = 'blocked',
+}) {
+  const res = await api.post('/v1/slots/block', {
+    court_public_id: facilityPublicId ?? null,
+    venue_public_id: venuePublicId ?? null,
+    from_day: fromDay,
+    to_day: toDay,
+    from_hour: fromHour,
+    to_hour: toHour,
+    status,
+  })
+  return res.data
+}
+
+export async function fetchVenueClosures(venuePublicId) {
+  const res = await api.get(`/v1/venues/${venuePublicId}/closures`)
+  return res.data
+}
+
+export async function createVenueClosure(venuePublicId, { startsOn, endsOn, reason = '' }) {
+  const res = await api.post(`/v1/venues/${venuePublicId}/closures`, {
+    starts_on: startsOn,
+    ends_on: endsOn,
+    reason,
+  })
+  return res.data
+}
+
+export async function deleteVenueClosure(venuePublicId, closurePublicId) {
+  const res = await api.delete(`/v1/venues/${venuePublicId}/closures/${closurePublicId}`)
+  return res.data
+}
+
 // --- Bookings -----------------------------------------------------------
 
 export async function createRangeBooking(payload) {
