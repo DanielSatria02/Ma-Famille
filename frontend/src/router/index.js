@@ -9,6 +9,7 @@ import HealthView from '../views/HealthView.vue'
 import LoginView from '../views/LoginView.vue'
 import ManagerHomeView from '../views/ManagerHomeView.vue'
 import MyBookingsView from '../views/MyBookingsView.vue'
+import NotFoundView from '../views/NotFoundView.vue'
 import PaymentView from '../views/PaymentView.vue'
 
 // Everything past the door needs an account: a booking belongs to somebody, and
@@ -17,7 +18,7 @@ import PaymentView from '../views/PaymentView.vue'
 // customer here. Two routes stay open on purpose — the front page is what tells
 // a visitor what this is before we ask them for anything, and /health is how
 // anyone finds out whether the thing is working at all.
-const PUBLIC_ROUTES = new Set(['home', 'health', 'login'])
+const PUBLIC_ROUTES = new Set(['home', 'health', 'login', 'not-found'])
 
 // meta.franchise sets the brand name shown in the header.
 const router = createRouter({
@@ -48,6 +49,9 @@ const router = createRouter({
       component: PaymentView,
       meta: { franchise: PREMIERE_FRANCHISE, gradient: true },
     },
+    // Anything else. Named so the guard can recognise it — an unnamed route
+    // arrives with to.name undefined and reads as one that needs an account.
+    { path: '/:pathMatch(.*)*', name: 'not-found', component: NotFoundView },
   ],
 })
 
