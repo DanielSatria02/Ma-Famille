@@ -10,6 +10,7 @@ from app.models.slot import Slot
 from app.models.venue import Venue
 from app.schemas.slot import SlotCreate, SlotGenerateRequest, SlotUpdate
 from app.services import bookings as booking_service
+from app.services import courts as court_service
 from app.services import hours as hours_service
 
 
@@ -104,7 +105,7 @@ def generate_slots(db: Session, data: SlotGenerateRequest) -> dict | None:
         return None
     booking_service.expire_stale_bookings(db, settings.booking_ttl_minutes)
 
-    created = skipped_existing = skipped_closed_days = 0
+    created = skipped_existing = skipped_closed_days = skipped_unpriced = 0
     day = data.from_day
     while day <= data.to_day:
         day_start = datetime.combine(day, time.min)
@@ -115,6 +116,10 @@ def generate_slots(db: Session, data: SlotGenerateRequest) -> dict | None:
             if window is None:
                 skipped_closed_days += 1
                 continue
+            price = court_service.rate_for(court, day)
+            if price is None:
+                skipped_unpriced += 1
+                continue
             opens_at, closes_at = window
             taken = {
                 _naive(start)
@@ -124,7 +129,6 @@ def generate_slots(db: Session, data: SlotGenerateRequest) -> dict | None:
                     .where(Slot.starts_at >= day_start, Slot.starts_at <= day_end)
                 ).all()
             }
-            price = court.price_weekend if day.weekday() >= 5 else court.price_weekday
             for hour in range(opens_at.hour, closes_at.hour):
                 starts_at = datetime.combine(day, time(hour))
                 if starts_at in taken:
@@ -150,6 +154,7 @@ def generate_slots(db: Session, data: SlotGenerateRequest) -> dict | None:
         "created": created,
         "skipped_existing": skipped_existing,
         "skipped_closed_days": skipped_closed_days,
+        "skipped_unpriced": skipped_unpriced,
     }
 
 

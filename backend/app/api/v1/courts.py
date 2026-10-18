@@ -17,8 +17,10 @@ def _to_response(db: Session, court) -> CourtResponse:
         venue_public_id=court_service.venue_public_id(db, court),
         name=court.name,
         sport=court.sport,
+        kind=court.kind,
         price_weekday=court.price_weekday,
         price_weekend=court.price_weekend,
+        is_price_set=court_service.is_price_set(court),
         is_active=court.is_active,
         created_at=court.created_at,
     )

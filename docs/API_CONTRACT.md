@@ -29,8 +29,11 @@ Base: `/v1`. All domain routes are wired to the store; the only
 
 ### Court
 ```json
-{ "public_id": "uuidv7", "venue_public_id": "uuidv7", "name": "Court A", "sport": "futsal|badminton", "price_weekday": 100000, "price_weekend": 150000, "is_active": true }
+{ "public_id": "uuidv7", "venue_public_id": "uuidv7", "name": "Court A", "sport": "futsal|badminton", "kind": "court|office|cafe", "price_weekday": 100000, "price_weekend": 150000, "is_price_set": true, "is_active": true }
 ```
+`price_*: null` (and `is_price_set: false`) means the manager has not priced the
+facility: it is listed to clients but cannot be booked. `PATCH` writes only the
+fields present in the body, so `"price_weekday": null` clears that rate.
 
 ### Slot (Schedule)
 ```json

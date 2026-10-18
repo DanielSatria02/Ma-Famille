@@ -13,6 +13,7 @@ from app.models.payment import Payment
 from app.models.slot import Slot
 from app.models.venue import Venue
 from app.schemas.booking import BookingCreate, BookingRangeCreate
+from app.services import courts as court_service
 
 
 class SlotUnavailable(RuntimeError):
@@ -133,6 +134,10 @@ def create_range_booking(db: Session, data: BookingRangeCreate) -> dict | None:
     ).first()
     if court is None:
         return None
+    if not court.is_active:
+        raise SlotUnavailable("court is not active")
+    if court_service.rate_for(court, data.starts_at.date()) is None:
+        raise SlotUnavailable("court has no rate set for that day")
     _check_lead_time(data.starts_at)
     expire_stale_bookings(db, settings.booking_ttl_minutes)
 

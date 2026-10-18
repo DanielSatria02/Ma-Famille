@@ -1,3 +1,4 @@
+from datetime import date
 from uuid import UUID
 
 from sqlalchemy import select
@@ -11,6 +12,16 @@ from app.schemas.court import CourtCreate, CourtUpdate
 def _venue_id(db: Session, venue_public_id: UUID) -> int | None:
     venue = db.scalars(select(Venue).where(Venue.public_id == venue_public_id)).first()
     return venue.id if venue else None
+
+
+def is_price_set(court: Court) -> bool:
+    """Both rates present. An unpriced facility is listed but not bookable."""
+    return court.price_weekday is not None and court.price_weekend is not None
+
+
+def rate_for(court: Court, day: date) -> int | None:
+    """Rate for a calendar day: weekend (Sat/Sun) is priced separately."""
+    return court.price_weekend if day.weekday() >= 5 else court.price_weekday
 
 
 def list_courts(db: Session, venue_public_id: UUID | None = None) -> list[Court]:
@@ -35,6 +46,7 @@ def create_court(db: Session, data: CourtCreate) -> Court | None:
         venue_id=venue_id,
         name=data.name,
         sport=data.sport,
+        kind=data.kind,
         price_weekday=data.price_weekday,
         price_weekend=data.price_weekend,
     )
@@ -45,13 +57,17 @@ def create_court(db: Session, data: CourtCreate) -> Court | None:
 
 
 def update_court(db: Session, court: Court, data: CourtUpdate) -> Court:
-    if data.name is not None:
+    """Write only the fields the client sent, so an explicit null clears a rate."""
+    provided = data.model_fields_set
+    if data.name is not None and "name" in provided:
         court.name = data.name
-    if data.price_weekday is not None:
+    if data.kind is not None and "kind" in provided:
+        court.kind = data.kind
+    if "price_weekday" in provided:
         court.price_weekday = data.price_weekday
-    if data.price_weekend is not None:
+    if "price_weekend" in provided:
         court.price_weekend = data.price_weekend
-    if data.is_active is not None:
+    if data.is_active is not None and "is_active" in provided:
         court.is_active = data.is_active
     db.commit()
     db.refresh(court)

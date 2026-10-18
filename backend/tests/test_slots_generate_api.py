@@ -60,6 +60,7 @@ def test_generate_fills_open_hours_and_is_idempotent():
             "created": 28,
             "skipped_existing": 0,
             "skipped_closed_days": 0,
+            "skipped_unpriced": 0,
         }
 
         again = client.post("/v1/slots/generate", json=body).json()

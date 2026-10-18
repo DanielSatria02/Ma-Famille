@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 
 from app.models.court import Court
 from app.models.slot import Slot
+from app.services import courts as court_service
 
 
 def _naive(value: datetime) -> datetime:
@@ -36,14 +37,20 @@ def _rows_of_day(db: Session, court: Court, day: date) -> dict[datetime, Slot]:
 
 
 def quote(db: Session, court: Court, starts_at: datetime, ends_at: datetime) -> dict:
-    weekend = starts_at.weekday() >= 5
-    fallback_rate = court.price_weekend if weekend else court.price_weekday
+    fallback_rate = court_service.rate_for(court, starts_at.date())
     rows = _rows_of_day(db, court, starts_at.date())
 
+    unpriced = False
     breakdown: list[dict] = []
     for hour in range_hours(starts_at, ends_at):
         slot = rows.get(hour)
-        price = slot.price if slot is not None else fallback_rate
+        if slot is not None:
+            price = slot.price
+        elif fallback_rate is not None:
+            price = fallback_rate
+        else:
+            price = 0
+            unpriced = True
         breakdown.append(
             {
                 "hour": hour.hour,
@@ -63,6 +70,6 @@ def quote(db: Session, court: Court, starts_at: datetime, ends_at: datetime) -> 
         "hours": len(breakdown),
         "hourly_rate": breakdown[0]["price"] if breakdown else 0,
         "total": sum(entry["price"] for entry in breakdown),
-        "is_bookable": court.is_active and free,
+        "is_bookable": court.is_active and free and not unpriced,
         "breakdown": breakdown,
     }
