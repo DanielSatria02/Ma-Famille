@@ -41,11 +41,15 @@ backend-venv:
 backend-install: backend-venv
 	@if command -v uv >/dev/null; then uv pip install --python $(PY) -r backend/requirements-dev.txt; else $(PY) -m pip install -r backend/requirements-dev.txt; fi
 
+# Run from backend/, like the db-* targets already do. Settings reads .env
+# relative to the working directory, so started from the repo root it finds no
+# file and comes up with every key blank -- no manager password, no payment
+# gateway -- without saying so. $(PY) is absolute, so it still finds the venv.
 backend-dev:
-	$(PY) -m uvicorn app.main:app --reload --app-dir backend --port 8000
+	cd backend && $(PY) -m uvicorn app.main:app --reload --port 8000
 
 backend-test:
-	$(PY) -m pytest backend/tests -v
+	cd backend && $(PY) -m pytest tests -v
 
 backend-lint:
 	$(PY) -m ruff check backend
