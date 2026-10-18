@@ -60,6 +60,13 @@ export const useVenuesStore = defineStore('venues', () => {
         key: facility.public_id,
         label: facility.name,
         price: facility.is_price_set ? facility.price_weekday ?? facility.price_weekend : null,
+        // The optional premium window. Backend needs all three or none, so they
+        // travel together; `price: null` means no peak rate is configured.
+        peak: {
+          price: facility.price_peak ?? null,
+          start: facility.peak_start_hour ?? null,
+          end: facility.peak_end_hour ?? null,
+        },
       })),
   )
 
@@ -110,7 +117,7 @@ export const useVenuesStore = defineStore('venues', () => {
     }
   }
 
-  async function updatePricing({ key, price }) {
+  async function updatePricing({ key, price, peak }) {
     const facility = byKey(key)
     if (!facility) return
     error.value = ''
@@ -124,6 +131,14 @@ export const useVenuesStore = defineStore('venues', () => {
               // Setting a rate after a reset brings the facility back.
               ...(facility.is_price_set ? {} : { is_active: true }),
             }
+      // The peak window rides along in the same save so one button writes one
+      // patch. Sent even when cleared (all nulls) — backend validates only the
+      // peak fields actually present, and three nulls mean "no peak rate".
+      if (peak) {
+        patch.price_peak = peak.price
+        patch.peak_start_hour = peak.start
+        patch.peak_end_hour = peak.end
+      }
       const updated = await updateCourt(key, patch)
       facilities.value = facilities.value.map((entry) => (entry.public_id === key ? applyCourt(entry, updated) : entry))
     } catch (err) {

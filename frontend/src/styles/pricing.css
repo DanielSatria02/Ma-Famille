@@ -142,6 +142,39 @@
   outline-offset: 1px;
 }
 
+.pricing-peak {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  border: 1px dashed #d1d5db;
+  border-radius: 12px;
+  background: #ffffff;
+  padding: 0.75rem 1rem 1rem;
+}
+
+.pricing-peak-hint {
+  margin: 0;
+  color: #80796b;
+  font-size: 0.8125rem;
+}
+
+.pricing-peak-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+}
+
+.pricing-peak-error {
+  margin: 0;
+  color: #dc2626;
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+
+.pricing-peak .pricing-input {
+  max-width: none;
+}
+
 @media (min-width: 640px) {
   .pricing {
     padding: 1.5rem;
@@ -159,5 +192,13 @@
 
   .pricing-input {
     max-width: 20rem;
+  }
+
+  .pricing-peak-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .pricing-peak .pricing-input {
+    max-width: none;
   }
 }
