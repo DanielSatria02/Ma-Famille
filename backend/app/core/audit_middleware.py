@@ -13,6 +13,7 @@ import logging
 import re
 from collections.abc import Awaitable, Callable
 
+from sqlalchemy.orm import Session
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
@@ -120,8 +121,7 @@ class AuditMiddleware(BaseHTTPMiddleware):
             # the time this runs, and the trail must survive the caller's
             # rollback. Honour a get_db override so tests (and any future
             # multi-tenant setup) log to the same database they read from.
-            factory = self._session_factory(request)
-            db = next(factory())
+            db = self._session_factory(request)
             try:
                 audit_service.record(
                     db,
@@ -138,14 +138,21 @@ class AuditMiddleware(BaseHTTPMiddleware):
         return response
 
     @staticmethod
-    def _session_factory(request: Request) -> Callable[[], object]:
-        """The generator that yields a DB session, override-aware.
+    def _session_factory(request: Request) -> Session:
+        """A DB session for this request, override-aware.
 
         `get_db` is the app-wide session dependency; when it is overridden
         (FastAPI dependency_overrides), the audit row must go to that same
         database or it would land somewhere the caller cannot read it back.
+
+        The two sources hand back different things: FastAPI dependencies
+        *yield* their session, while `SessionLocal` *returns* one. Both are
+        accepted — calling `next()` on the latter raised
+        `'Session' object is not an iterator`, which the caller swallowed, so
+        without an override nothing was ever written to the trail.
         """
         override = request.app.dependency_overrides.get(get_db)
         if override is not None:
-            return override
-        return SessionLocal
+            produced = override()
+            return produced if isinstance(produced, Session) else next(produced)
+        return SessionLocal()
