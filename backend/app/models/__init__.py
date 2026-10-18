@@ -12,6 +12,7 @@ from app.models.customer_session import CustomerSession
 from app.models.notification import Notification
 from app.models.payment import Payment
 from app.models.promotion import Promotion
+from app.models.review import Review
 from app.models.revoked_token import RevokedToken
 from app.models.slot import Slot
 from app.models.venue import Venue
@@ -29,6 +30,7 @@ __all__ = [
     "Payment",
     "Promotion",
     "RevokedToken",
+    "Review",
     "Slot",
     "Venue",
     "VenueClosure",
