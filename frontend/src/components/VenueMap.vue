@@ -47,23 +47,45 @@ const placed = computed(() =>
   })),
 )
 
-// Zoom depends on how spread out the venues are: one venue reads fine at street
-// level, several within a kilometre need to pull back or the markers land on top
-// of each other.
+// Where the map opens.
+//
+// Fitting the bounds to every venue is what the obvious version does, and it is
+// useless here: the seeded venues are in six cities, so fitting them all zooms
+// out until Indonesia is a grey square with eighteen dots and no streets. A map
+// that shows nothing you can act on is worse than no map.
+//
+// So the map opens on the densest cluster — the city with the most venues — and
+// the other cities are one drag away. Everything is still pinned, so nothing is
+// hidden; this only decides where the viewport starts.
 const view = computed(() => {
   const points = placed.value
   if (!points.length) return null
   if (points.length === 1) return { center: [points[0].lat, points[0].lng], zoom: 15 }
 
-  const lats = points.map((point) => point.lat)
-  const lngs = points.map((point) => point.lng)
-  return {
-    center: [
-      (Math.min(...lats) + Math.max(...lats)) / 2,
-      (Math.min(...lngs) + Math.max(...lngs)) / 2,
-    ],
-    zoom: 13,
+  // Half a degree is about 55km, which is small enough to keep one city's
+  // venues together and large enough not to split Jakarta across four buckets.
+  // Finer than this and the densest cluster is a single venue, so the map opens
+  // on one address and never shows the other seventeen.
+  const buckets = new Map()
+  for (const point of points) {
+    const key = `${Math.round(point.lat * 2)}:${Math.round(point.lng * 2)}`
+    const bucket = buckets.get(key) ?? []
+    bucket.push(point)
+    buckets.set(key, bucket)
   }
+  const densest = [...buckets.values()].sort((a, b) => b.length - a.length)[0]
+
+  const lats = densest.map((point) => point.lat)
+  const lngs = densest.map((point) => point.lng)
+  const center = [
+    (Math.min(...lats) + Math.max(...lats)) / 2,
+    (Math.min(...lngs) + Math.max(...lngs)) / 2,
+  ]
+  // One venue, or several in a line, gets street level. A spread-out cluster
+  // pulls back rather than putting four markers on top of each other.
+  const span = Math.max(Math.max(...lats) - Math.min(...lats), Math.max(...lngs) - Math.min(...lngs))
+  const zoom = span < 0.02 ? 14 : 12
+  return { center, zoom }
 })
 
 const ESCAPES = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }
@@ -122,17 +144,27 @@ function drawMarkers() {
   })
 }
 
+// Leaflet measures its container once, when the map is created, and never asks
+// again. This panel sits below the venue grid and the venues arrive after it, so
+// on a first visit the map is built against a box that has not been laid out
+// yet — and a box Leaflet measured as empty gets one tile, whatever the viewport
+// is.
+function measure() {
+  if (!map.value) return
+  map.value.invalidateSize({ animate: false, pan: false })
+  fitToVenues()
+}
+
 function fitToVenues() {
   if (!leaflet || !map.value || !markers.length) return
-  if (markers.length === 1) {
-    const only = view.value
-    map.value.setView(only.center, only.zoom)
-    return
-  }
-  map.value.fitBounds(
-    leaflet.latLngBounds(markers.map((marker) => marker.getLatLng())),
-    { padding: [28, 28], maxZoom: 15 },
-  )
+  // The same view the map opens at. fitBounds here would undo the clustering
+  // above and zoom out to fit a venue in Medan with one in Surabaya.
+  const target = view.value
+  if (!target) return
+  // No animation. The map has nothing to animate from — it is being told where
+  // to be, not moved — and a panned setView leaves the old tiles up until it
+  // finishes, which on a slow connection is a second of the wrong city.
+  map.value.setView(target.center, target.zoom, { animate: false })
 }
 
 onMounted(async () => {
@@ -162,21 +194,18 @@ onMounted(async () => {
 
   markersLayer = leaflet.layerGroup().addTo(map.value)
   drawMarkers()
-  fitToVenues()
 
-  // Leaflet works out which tiles to draw from whatever size its container had
-  // at the moment of the call, and it never asks again on its own. This panel
-  // sits below the venue grid, so on a first visit it has not been laid out
-  // when the map is made, and the map sizes itself against an empty box: one
-  // tile, pinned over the middle of the Atlantic.
+  // Leaflet reads its container once, at the moment the map is made, and never
+  // asks again. This panel is below the venue grid and starts empty — the
+  // container is hidden until venues arrive — so at that moment it has no box
+  // at all, and a map sized against nothing draws exactly one tile however wide
+  // the window is.
   //
-  // Guessing when that happens is a losing game — the panel can be laid out
-  // after a font loads, after the venue list arrives, after a scrollbar appears.
-  // So the box is watched, and every time it changes Leaflet is told to measure
-  // itself again.
-  observer = new ResizeObserver(() => {
-    map.value?.invalidateSize({ animate: false })
-  })
+  // The container can stay at nothing for a while: the stylesheet arrives, the
+  // venues come back, the element stops being hidden. None of those are visible
+  // from here, so the box is watched for the life of the component and every
+  // change re-measures and re-fits.
+  observer = new ResizeObserver(measure)
   observer.observe(container.value)
 })
 
@@ -190,8 +219,7 @@ watch(
     // on screen; a redraw on its own leaves both off.
     if (!map.value) return
     drawMarkers()
-    map.value.invalidateSize({ animate: false })
-    fitToVenues()
+    measure()
   },
   { deep: true },
 )
