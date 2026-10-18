@@ -53,14 +53,32 @@ export function useBookingForm(initialDate = '') {
     () => Boolean(facility.value) && venuesStore.isBookable(facility.value.key),
   )
 
-  // Hours the client cannot start a booking in: booked, held, blocked, or no
-  // slot generated for that hour yet.
-  const taken = computed(
-    () => new Set(dayHours.value.filter((entry) => entry.status !== 'available').map((entry) => entry.hour)),
-  )
+  // Hours the client cannot start a booking in. The API only lists the hours
+  // inside the opening window and flags the taken ones, so everything else is
+  // blocked too — a booking needs a free slot row on the hour it starts.
+  const taken = computed(() => {
+    const blocked = new Set()
+    if (availabilityError.value) return blocked
+    const free = new Set(
+      dayHours.value.filter((entry) => entry.status === 'available').map((entry) => entry.hour),
+    )
+    for (let hour = 0; hour < 23; hour += 1) {
+      if (!free.has(hour)) blocked.add(hour)
+    }
+    return blocked
+  })
 
   const hasTime = computed(() => startHour.value !== null && endHour.value !== null)
   const hours = computed(() => (hasTime.value ? endHour.value - startHour.value : 0))
+  // Opening window of the chosen day, shown as a hint next to the time picker.
+  const openWindow = computed(() => {
+    if (isClosed.value) return 'Closed on that date'
+    const free = dayHours.value.filter((entry) => entry.status === 'available')
+    if (!free.length) return 'No hours left on that date'
+    const first = free[0].hour
+    const last = free[free.length - 1].hour + 1
+    return `Bookable ${pad(first)}:00 - ${pad(last)}:00`
+  })
   const hourlyRate = computed(() =>
     facility.value ? venuesStore.hourlyRate(facility.value.key, date.value) : 0,
   )
@@ -204,6 +222,7 @@ export function useBookingForm(initialDate = '') {
     taken,
     hasTime,
     hours,
+    openWindow,
     hourlyRate,
     total,
     quote,

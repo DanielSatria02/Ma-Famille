@@ -232,6 +232,12 @@
   outline-offset: 1px;
 }
 
+.booking-hint {
+  margin: 0.75rem 0 0;
+  color: #80796b;
+  font-size: 0.8125rem;
+}
+
 .booking-error {
   margin: 0.75rem 0 0;
   color: #dc2626;

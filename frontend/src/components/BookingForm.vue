@@ -108,6 +108,7 @@ onUnmounted(() => {
       </label>
     </div>
 
+    <p v-if="form.openWindow.value" class="booking-hint" role="status">{{ form.openWindow.value }}</p>
     <p v-if="form.facility.value && !form.isFacilityBookable.value" class="booking-error" role="alert">
       {{ form.facility.value.label }} is currently unavailable.
     </p>
