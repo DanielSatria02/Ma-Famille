@@ -314,11 +314,26 @@ export async function fetchPayments(bookingPublicId) {
   return res.data
 }
 
+// Lists that page keep the plain JSON array; the total rides in
+// `X-Total-Count` (exposed through CORS) so the client can offer next/prev
+// without the payload changing shape.
+async function getPaged(url, params) {
+  const res = await api.get(url, { params })
+  const total = Number(res.headers?.['x-total-count'])
+  return { rows: res.data, total: Number.isFinite(total) ? total : res.data.length }
+}
+
 // --- Manager ------------------------------------------------------------
 
 export async function fetchManagerBookings(params = {}) {
   const res = await api.get('/v1/manager/bookings', { params })
   return res.data
+}
+
+// Who changed what, newest first. Narrow it with entity_type (venue, court,
+// booking…), action (payment.refund…) or actor.
+export async function fetchAuditEvents(params = {}) {
+  return getPaged('/v1/manager/audit', params)
 }
 
 export async function fetchManagerStats(params = {}) {

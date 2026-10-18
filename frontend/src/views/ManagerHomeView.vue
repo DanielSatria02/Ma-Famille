@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import { storeToRefs } from 'pinia'
+import AuditTrail from '../components/AuditTrail.vue'
 import BookingCalendar from '../components/BookingCalendar.vue'
 import GuestMessages from '../components/GuestMessages.vue'
 import ManageHours from '../components/ManageHours.vue'
@@ -168,6 +169,7 @@ async function generateMonth() {
     <GuestMessages />
     <PricingSettings :items="pricing" @update="venuesStore.updatePricing" />
     <PromoSettings />
+    <AuditTrail />
     <VenueStatus :venues="venueStatusItems" @toggle="venuesStore.toggleVenue" />
   </section>
 </template>
