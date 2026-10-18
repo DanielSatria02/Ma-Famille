@@ -135,6 +135,10 @@ GET    /manager/stats?day=&week_start= (dashboard counters, one visit = one book
 GET    /manager/notifications?status=&limit= (outbox: queued/sent/logged/failed)
 POST   /manager/notifications/dispatch?limit= (send the queue once, reports the tally)
 ```
+Every manager booking row carries `payment_public_id`, `payment_invoice_number`,
+`payment_status` and `payment_failure_reason` so the dashboard can show (and refund)
+the money side of a visit without a second request. Rows are also served with
+`expires_in_seconds` while a booking is still held.
 
 Booking also flips `slot.status` (`available`→`booked` on create,
 back to `available` on cancel), so the availability calendar never shows

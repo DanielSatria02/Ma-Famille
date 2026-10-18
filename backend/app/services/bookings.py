@@ -349,6 +349,9 @@ def detail(db: Session, booking: Booking) -> dict:
         "payment_public_id": payment.public_id if payment is not None else None,
         "payment_invoice_number": payment.invoice_number if payment is not None else None,
         "payment_status": payment.status if payment is not None else "unpaid",
+        # Why a payment is not going through ("paid after the visit was cancelled —
+        # refund it" is the one a manager must not miss).
+        "payment_failure_reason": payment.failure_reason if payment is not None else None,
         # Null once the booking is no longer held (confirmed, paid or cancelled).
         "expires_in_seconds": hold_seconds_left(booking, settings.booking_ttl_minutes),
     }
