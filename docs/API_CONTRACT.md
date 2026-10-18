@@ -14,6 +14,10 @@ Base: `/v1`. All domain routes are wired to the store; the only
   header `X-Manager-Token` must match `MANAGER_TOKEN` or be a valid session
   token (empty `MANAGER_TOKEN` + empty `MANAGER_PASSWORD` = open, local dev).
   Wrong/missing → `401`.
+- A customer cancels their own visit with `?customer_contact=` on the booking
+  cancel routes; the contact is compared digit-wise, so `0812…` and `+62 812…`
+  are the same person. A wrong or missing contact → `403` (never `401`: the
+  route is not manager-only).
 
 ## Identifiers
 
@@ -83,8 +87,9 @@ GET    /pricing/quote?court_public_id=&starts_at=&ends_at= (rate, total, bookabi
 PATCH  /slots/{public_id} (manager, open/close)
 POST   /bookings  (409 on conflict)           GET /bookings?customer_contact= (history)
 POST   /bookings/range (whole-hour range on one court → one group, 409 on conflict)
-POST   /bookings/groups/{group_public_id}/cancel (cancels the whole range)
-POST   /bookings/{public_id}/confirm (manager)  POST /bookings/{public_id}/cancel
+POST   /bookings/groups/{group_public_id}/confirm (manager, every hour of the visit)
+POST   /bookings/groups/{group_public_id}/cancel (manager, or the customer with `customer_contact`)
+POST   /bookings/{public_id}/confirm (manager)  POST /bookings/{public_id}/cancel (same rule)
 POST   /payments  → {invoice_number, checkout_url}   GET /payments?booking_public_id=
 POST   /payments/{public_id}/mark-paid (manager, auto-confirms booking)
 POST   /payments/webhook/doku (DOKU signed notification → paid + auto-confirm)

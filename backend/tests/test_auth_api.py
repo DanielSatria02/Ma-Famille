@@ -131,11 +131,13 @@ def test_cancelling_a_booking_requires_a_manager(monkeypatch):
         ).json()
         booking_id = booked["bookings"][0]["public_id"]
 
-        monkeypatch.setattr(settings, "manager_password", "rapat-rahasia")
-        assert client.post(f"/v1/bookings/{booking_id}/cancel").status_code == 401
+        monkeypatch.setattr(settings, "manager_password", "rahasia")
+        # Manager writes are locked, but a customer may still cancel their own
+        # visit by proving the contact it was booked with.
+        assert client.post(f"/v1/bookings/{booking_id}/cancel").status_code == 403
 
         token = client.post(
-            "/v1/auth/login", json={"password": "rapat-rahasia"}
+            "/v1/auth/login", json={"password": "rahasia"}
         ).json()["token"]
         allowed = client.post(
             f"/v1/bookings/{booking_id}/cancel", headers={"X-Manager-Token": token}

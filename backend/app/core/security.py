@@ -19,7 +19,7 @@ from fastapi.security import APIKeyHeader
 
 from app.core.config import settings
 
-_scheme = APIKeyHeader(name="X-Manager-Token", auto_error=False)
+_scheme = manager_token_header = APIKeyHeader(name="X-Manager-Token", auto_error=False)
 
 
 def _b64(raw: bytes) -> str:
@@ -58,12 +58,22 @@ def verify_session_token(token: str) -> bool:
     return int(expires_at) > int(time.time())
 
 
-def require_manager(token: str | None = Security(_scheme)) -> None:
+def is_manager(token: str | None) -> bool:
+    """May this caller act as the manager?
+
+    True when nothing is configured (local dev), when the token matches the
+    static `MANAGER_TOKEN`, or when it is a valid session token.
+    """
     if not settings.manager_token and not settings.manager_password:
+        return True
+    if not token:
+        return False
+    if settings.manager_token and hmac.compare_digest(token, settings.manager_token):
+        return True
+    return verify_session_token(token)
+
+
+def require_manager(token: str | None = Security(_scheme)) -> None:
+    if is_manager(token):
         return
-    if token:
-        if settings.manager_token and hmac.compare_digest(token, settings.manager_token):
-            return
-        if verify_session_token(token):
-            return
     raise HTTPException(status_code=401, detail="manager token required")

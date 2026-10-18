@@ -1,10 +1,10 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query, Security
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.core.security import require_manager
+from app.core.security import is_manager, manager_token_header, require_manager
 from app.db.session import get_db
 from app.schemas.booking import (
     BookingCreate,
@@ -87,16 +87,43 @@ def create_range_booking(
 
 @router.post(
     "/groups/{group_public_id}/cancel",
-    summary="Cancel every booking of a group",
+    summary="Cancel every booking of a group (manager or the customer)",
     response_model=list[BookingResponse],
 )
 def cancel_group(
+    group_public_id: UUID,
+    customer_contact: str | None = Query(default=None, min_length=3),
+    token: str | None = Security(manager_token_header),
+    db: Session = Depends(get_db),
+) -> list[BookingResponse]:
+    existing = booking_service.list_group(db, group_public_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="booking group not found")
+    # A manager may cancel anything; a customer only their own visit, proven
+    # by the contact the booking was made with.
+    if not is_manager(token) and not booking_service.contact_matches(customer_contact, existing):
+        raise HTTPException(
+            status_code=403,
+            detail="manager token or the booking contact is required",
+        )
+    return [_to_response(db, b) for b in booking_service.cancel_group(db, group_public_id)]
+
+
+@router.post(
+    "/groups/{group_public_id}/confirm",
+    summary="Confirm every booking of a group (manager)",
+    response_model=list[BookingResponse],
+    dependencies=[Depends(require_manager)],
+)
+def confirm_group(
     group_public_id: UUID, db: Session = Depends(get_db)
 ) -> list[BookingResponse]:
-    bookings = booking_service.cancel_group(db, group_public_id)
-    if not bookings:
+    if not booking_service.list_group(db, group_public_id):
         raise HTTPException(status_code=404, detail="booking group not found")
-    return [_to_response(db, b) for b in bookings]
+    confirmed = booking_service.confirm_group(db, group_public_id)
+    if not confirmed:
+        raise HTTPException(status_code=409, detail="booking group is cancelled")
+    return [_to_response(db, b) for b in confirmed]
 
 
 @router.get("/{public_id}", summary="Get booking")
@@ -124,11 +151,22 @@ def confirm_booking(public_id: UUID, db: Session = Depends(get_db)) -> BookingRe
 
 @router.post(
     "/{public_id}/cancel",
-    summary="Cancel booking (manager)",
-    dependencies=[Depends(require_manager)],
+    summary="Cancel booking (manager or the customer)",
 )
-def cancel_booking(public_id: UUID, db: Session = Depends(get_db)) -> BookingResponse:
+def cancel_booking(
+    public_id: UUID,
+    customer_contact: str | None = Query(default=None, min_length=3),
+    token: str | None = Security(manager_token_header),
+    db: Session = Depends(get_db),
+) -> BookingResponse:
     booking = booking_service.get_by_public_id(db, public_id)
     if booking is None:
         raise HTTPException(status_code=404, detail="booking not found")
+    if not is_manager(token) and not booking_service.contact_matches(
+        customer_contact, [booking]
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail="manager token or the booking contact is required",
+        )
     return _to_response(db, booking_service.cancel_booking(db, booking))

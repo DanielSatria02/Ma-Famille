@@ -1,3 +1,5 @@
+import re
+from collections.abc import Iterable
 from datetime import UTC, datetime, time, timedelta
 from uuid import UUID
 
@@ -177,6 +179,45 @@ def list_group(db: Session, group_public_id: UUID) -> list[Booking]:
         .order_by(Booking.id)
     )
     return list(db.scalars(stmt).all())
+
+
+def contact_matches(contact: str | None, bookings: Iterable[Booking]) -> bool:
+    """Does this contact identify the customer of those bookings?
+
+    Phone numbers are compared by digits — `0812…`, `+62 812-…` and
+    `62812…` are the same customer — anything else by trimmed text.
+    """
+    if not contact:
+        return False
+    needle = normalise_contact(contact)
+    return any(normalise_contact(booking.customer_contact) == needle for booking in bookings)
+
+
+def normalise_contact(value: str) -> str:
+    """Digits for phone-like contacts, trimmed text otherwise.
+
+    `0812-3456-7890`, `812 3456 7890` and `+62 812 3456 7890` are one customer.
+    """
+    digits = re.sub(r"\D", "", value)
+    if not digits:
+        return value.strip().lower()
+    digits = digits.lstrip("0")
+    # 62 is the Indonesian country code; local numbers start with 8 instead.
+    if digits.startswith("62") and len(digits) >= 10:
+        digits = digits[2:]
+    return digits or value.strip().lower()
+
+
+def confirm_group(db: Session, group_public_id: UUID) -> list[Booking]:
+    """Confirm every live booking of a visit (one hour = one booking)."""
+    bookings = [b for b in list_group(db, group_public_id) if b.status != "cancelled"]
+    for booking in bookings:
+        booking.status = "confirmed"
+    if bookings:
+        db.commit()
+        for booking in bookings:
+            db.refresh(booking)
+    return bookings
 
 
 def cancel_group(db: Session, group_public_id: UUID) -> list[Booking]:
