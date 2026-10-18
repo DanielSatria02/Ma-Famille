@@ -79,13 +79,30 @@ def get_by_public_id(db: Session, public_id: UUID) -> Booking | None:
     return db.scalars(select(Booking).where(Booking.public_id == public_id)).first()
 
 
-def list_by_contact(db: Session, customer_contact: str) -> list[Booking]:
+def list_by_contact(
+    db: Session, customer_contact: str, limit: int | None = None, offset: int = 0
+) -> list[Booking]:
     """Every booking made with that contact.
 
     A phone comes back written any way the customer typed it (`0812…`, `+62 812…`),
     so rows are compared phone-digit-wise instead of by an exact string match.
     The table is small and this is not a hot path.
     """
+    rows = sorted(
+        (b for b in _by_contact(db, customer_contact)), key=lambda b: b.id, reverse=True
+    )
+    if offset:
+        rows = rows[offset:]
+    if limit is not None:
+        rows = rows[:limit]
+    return rows
+
+
+def count_by_contact(db: Session, customer_contact: str) -> int:
+    return len(_by_contact(db, customer_contact))
+
+
+def _by_contact(db: Session, customer_contact: str) -> list[Booking]:
     needle = normalise_contact(customer_contact)
     rows = db.scalars(select(Booking).order_by(Booking.id)).all()
     return [b for b in rows if normalise_contact(b.customer_contact) == needle]

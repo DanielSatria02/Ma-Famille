@@ -1,9 +1,10 @@
 from datetime import date
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy.orm import Session
 
+from app.api.paging import Page, set_total
 from app.core.security import require_manager
 from app.db.session import get_db
 from app.schemas.booking import BookingResponse
@@ -23,12 +24,14 @@ router = APIRouter(
 MAX_RANGE_DAYS = 93
 
 
-@router.get("/bookings", summary="Incoming bookings by start time (manager)")
+@router.get("/bookings", summary="Incoming bookings by start time (manager, paged)")
 def incoming_bookings(
     booking_status: str | None = None,
     day: date | None = None,
     from_day: date | None = None,
     to_day: date | None = None,
+    page: Page = Depends(),
+    response: Response = None,
     db: Session = Depends(get_db),
 ):
     if from_day is not None and to_day is not None:
@@ -38,13 +41,16 @@ def incoming_bookings(
             raise HTTPException(
                 status_code=422, detail=f"range too wide (max {MAX_RANGE_DAYS} days)"
             )
+    filters = {
+        "booking_status": booking_status,
+        "day": day,
+        "from_day": from_day,
+        "to_day": to_day,
+    }
     bookings = manager_service.incoming_bookings(
-        db,
-        booking_status=booking_status,
-        day=day,
-        from_day=from_day,
-        to_day=to_day,
+        db, **filters, limit=page.limit, offset=page.offset
     )
+    set_total(response, manager_service.count_incoming(db, **filters))
     return [
         BookingResponse(
             public_id=b.public_id,
@@ -110,11 +116,14 @@ def facilities(
 
 @router.get(
     "/notifications",
-    summary="Guest messages queued for this venue (manager)",
+    summary="Guest messages queued for this venue (manager, paged)",
     response_model=list[NotificationResponse],
 )
 def notifications(
-    status: str | None = None, limit: int = 50, db: Session = Depends(get_db)
+    status: str | None = None,
+    page: Page = Depends(),
+    response: Response = None,
+    db: Session = Depends(get_db),
 ) -> list[NotificationResponse]:
     """The outbox: what the venue has told (or still owes) its guests.
 
@@ -122,7 +131,10 @@ def notifications(
     """
     if status is not None and status not in ("queued", "sent", "logged", "failed"):
         raise HTTPException(status_code=422, detail="unknown status")
-    rows = notification_service.list_notifications(db, status, max(min(limit, 200), 1))
+    rows = notification_service.list_notifications(
+        db, status, limit=page.limit, offset=page.offset
+    )
+    set_total(response, notification_service.count_notifications(db, status))
     return [
         NotificationResponse(
             public_id=row.public_id,

@@ -133,15 +133,24 @@ POST   /payments  → {invoice_number, checkout_url}   GET /payments?booking_pub
 POST   /payments/{public_id}/mark-paid (manager, auto-confirms a pending booking)
 POST   /payments/{public_id}/refund    (manager, paid only: DOKU refund, or local note)
 POST   /payments/webhook/doku (DOKU signed notification → paid + auto-confirm)
-GET    /manager/bookings?booking_status=&day=&from_day=&to_day=   GET /manager/occupancy?from_day=&to_day=
+GET    /manager/bookings?booking_status=&day=&from_day=&to_day=&limit=&offset=   GET /manager/occupancy?from_day=&to_day=
 GET    /manager/stats?day=&week_start= (dashboard counters, one visit = one booking group)
-GET    /manager/notifications?status=&limit= (outbox: queued/sent/logged/failed)
+GET    /manager/notifications?status=&limit=&offset= (outbox: queued/sent/logged/failed)
 POST   /manager/notifications/dispatch?limit= (send the queue once, reports the tally)
 ```
 Every manager booking row carries `payment_public_id`, `payment_invoice_number`,
 `payment_status` and `payment_failure_reason` so the dashboard can show (and refund)
 the money side of a visit without a second request. Rows are also served with
 `expires_in_seconds` while a booking is still held.
+
+### Paging
+
+List endpoints that grow without bound (`/bookings` history, `/manager/bookings`,
+`/manager/notifications`) take `limit` (default 50, max 200) and `offset` (default 0).
+They return a slice of the same JSON array — the body never changes shape — and put
+the un-sliced row count in an `X-Total-Count` response header (exposed through CORS),
+so the client can render "load more" or a page count without a second call. Out-of-range
+`limit`/`offset` is a `422`, not a silent clamp.
 
 ### Photos (venues and courts)
 

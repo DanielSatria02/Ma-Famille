@@ -18,7 +18,7 @@ from datetime import UTC, datetime
 from email.message import EmailMessage
 
 import httpx
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -115,13 +115,26 @@ def queue_event(db: Session, bookings: list[Booking], event: str) -> Notificatio
 
 
 def list_notifications(
-    db: Session, status: str | None = None, limit: int = 50
+    db: Session, status: str | None = None, limit: int = 50, offset: int = 0
 ) -> list[Notification]:
+    stmt = _notification_stmt(status).order_by(Notification.id.desc())
+    if offset:
+        stmt = stmt.offset(offset)
+    return list(db.scalars(stmt.limit(limit)).all())
+
+
+def count_notifications(db: Session, status: str | None = None) -> int:
+    stmt = select(func.count()).select_from(Notification)
+    if status:
+        stmt = stmt.where(Notification.status == status)
+    return int(db.scalar(stmt) or 0)
+
+
+def _notification_stmt(status: str | None):
     stmt = select(Notification)
     if status:
         stmt = stmt.where(Notification.status == status)
-    stmt = stmt.order_by(Notification.id.desc()).limit(limit)
-    return list(db.scalars(stmt).all())
+    return stmt
 
 
 def counts_by_status(db: Session) -> dict[str, int]:

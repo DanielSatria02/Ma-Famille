@@ -46,6 +46,9 @@ def create_app() -> FastAPI:
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
+        # Paged list endpoints put their row count here so the client can
+        # render "load more" without changing the response body shape.
+        expose_headers=["X-Total-Count"],
     )
 
     @app.get("/", summary="Root info", response_model=RootResponse, tags=["health"])

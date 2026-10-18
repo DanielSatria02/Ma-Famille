@@ -1,9 +1,10 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Security
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, Security
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.api.paging import Page, set_total
 from app.core.config import settings
 from app.core.security import is_manager, manager_token_header, require_manager
 from app.db.session import get_db
@@ -49,9 +50,17 @@ def create_booking(body: BookingCreate, db: Session = Depends(get_db)) -> Bookin
     return _to_response(db, booking)
 
 
-@router.get("", summary="Customer booking history")
-def list_my_bookings(customer_contact: str, db: Session = Depends(get_db)):
-    bookings = booking_service.list_by_contact(db, customer_contact)
+@router.get("", summary="Customer booking history (paged, newest first)")
+def list_my_bookings(
+    customer_contact: str,
+    page: Page = Depends(),
+    response: Response = None,
+    db: Session = Depends(get_db),
+):
+    bookings = booking_service.list_by_contact(
+        db, customer_contact, limit=page.limit, offset=page.offset
+    )
+    set_total(response, booking_service.count_by_contact(db, customer_contact))
     return [_to_response(db, b) for b in bookings]
 
 
