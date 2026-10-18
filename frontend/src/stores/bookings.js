@@ -3,9 +3,11 @@ import { computed, ref } from 'vue'
 
 import {
   cancelBookingGroup,
+  confirmBookingGroup,
   errorDetail,
   fetchManagerBookings,
   fetchManagerStats,
+  markPaymentPaid,
 } from '../services/api.js'
 import { addDays, toIsoDate } from '../utils/date.js'
 
@@ -14,7 +16,8 @@ const timeOf = (value) => String(value ?? '').slice(11, 16)
 
 // Manager booking rows, straight from `/manager/bookings` (one row per booked
 // hour, with slot/court/venue embedded by the API).
-// booking: { id, groupId, date, startTime, endTime, visitorName, venueName, status, total }
+// booking: { id, groupId, date, startTime, endTime, visitorName, venueName, status, total,
+//            paymentStatus: 'unpaid'|'paid'|'refunded', paymentIds: [], invoice }
 export const useBookingsStore = defineStore('bookings', () => {
   const bookings = ref([])
   const stats = ref({ todays_bookings: 0, weekly_visitors: 0, cancelled_bookings: 0 })
@@ -31,13 +34,17 @@ export const useBookingsStore = defineStore('bookings', () => {
       const key = row.groupId ?? row.id
       const visit = byGroup.get(key)
       if (!visit) {
-        byGroup.set(key, { ...row, id: key, hours: 1 })
+        byGroup.set(key, { ...row, id: key, hours: 1, paymentIds: [...row.paymentIds] })
         continue
       }
       visit.startTime = visit.startTime < row.startTime ? visit.startTime : row.startTime
       visit.endTime = visit.endTime > row.endTime ? visit.endTime : row.endTime
       visit.hours += 1
       visit.total += row.total
+      // A visit counts as paid only when every hour of it is paid.
+      visit.paymentIds = [...new Set([...visit.paymentIds, ...row.paymentIds])]
+      if (visit.paymentStatus !== row.paymentStatus) visit.paymentStatus = 'partial'
+      if (!visit.invoice && row.invoice) visit.invoice = row.invoice
     }
     return [...byGroup.values()].sort((a, b) =>
       `${a.date}${a.startTime}`.localeCompare(`${b.date}${b.startTime}`),
@@ -77,6 +84,9 @@ export const useBookingsStore = defineStore('bookings', () => {
         place: row.venue?.name ?? '',
         status: row.status,
         total: row.total ?? 0,
+        paymentStatus: row.payment_status ?? 'unpaid',
+        paymentIds: row.payment_public_id ? [row.payment_public_id] : [],
+        invoice: row.payment_invoice_number ?? '',
       }))
       stats.value = counters
       error.value = ''
@@ -89,10 +99,12 @@ export const useBookingsStore = defineStore('bookings', () => {
 
   // Cancels the whole visit (every hour of the group) and reloads the window.
   // Lists show visits keyed by the group id, single rows by their booking id.
+  function findVisit(id) {
+    return bookings.value.find((booking) => booking.id === id || booking.groupId === id)
+  }
+
   async function cancelBooking(id) {
-    const row = bookings.value.find(
-      (booking) => booking.id === id || booking.groupId === id,
-    )
+    const row = findVisit(id)
     if (!row) return
     error.value = ''
     try {
@@ -100,6 +112,38 @@ export const useBookingsStore = defineStore('bookings', () => {
       await load({ fromDay: window.value.fromDay, toDay: window.value.toDay })
     } catch (err) {
       error.value = errorDetail(err, 'Could not cancel the booking.')
+    }
+  }
+
+  // Confirms every hour of a visit (the deposit/offline payment arrived).
+  async function confirmVisit(id) {
+    const row = findVisit(id)
+    if (!row) return
+    error.value = ''
+    try {
+      await confirmBookingGroup(row.groupId)
+      await load({ fromDay: window.value.fromDay, toDay: window.value.toDay })
+    } catch (err) {
+      error.value = errorDetail(err, 'Could not confirm the visit.')
+    }
+  }
+
+  // Marks the invoices of a visit as paid; the backend confirms the booking too.
+  async function markVisitPaid(id) {
+    const row = findVisit(id)
+    if (!row) return
+    error.value = ''
+    if (!row.paymentIds.length) {
+      error.value = 'That visit has no invoice yet, so there is nothing to mark as paid.'
+      return
+    }
+    try {
+      for (const paymentId of row.paymentIds) {
+        await markPaymentPaid(paymentId)
+      }
+      await load({ fromDay: window.value.fromDay, toDay: window.value.toDay })
+    } catch (err) {
+      error.value = errorDetail(err, 'Could not mark the payment as paid.')
     }
   }
 
@@ -115,5 +159,7 @@ export const useBookingsStore = defineStore('bookings', () => {
     canceledCount,
     load,
     cancelBooking,
+    confirmVisit,
+    markVisitPaid,
   }
 })

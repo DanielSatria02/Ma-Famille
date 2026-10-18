@@ -61,6 +61,14 @@ function cancelBooking(booking) {
   bookingsStore.cancelBooking(booking.id)
 }
 
+function confirmVisit(booking) {
+  bookingsStore.confirmVisit(booking.id)
+}
+
+function markVisitPaid(booking) {
+  bookingsStore.markVisitPaid(booking.id)
+}
+
 async function updateSchedule({ day, start, end }) {
   const entry = openingSchedule.value.find((item) => item.day === day)
   if (!entry || !activeVenueId.value) return
@@ -119,8 +127,17 @@ async function generateMonth() {
     <p v-if="bookingsStore.error" class="text-sm text-red-600" role="alert">{{ bookingsStore.error }}</p>
     <UnavailableNotice :venues="venues" />
     <BookingCalendar allow-past-months :booked-dates="bookedDates" />
-    <TodaysVisitors :bookings="todaysBookings" />
-    <UpcomingBookings :bookings="upcomingBookings" @cancel="cancelBooking" />
+    <TodaysVisitors
+      :bookings="todaysBookings"
+      @confirm="confirmVisit"
+      @mark-paid="markVisitPaid"
+    />
+    <UpcomingBookings
+      :bookings="upcomingBookings"
+      @cancel="cancelBooking"
+      @confirm="confirmVisit"
+      @mark-paid="markVisitPaid"
+    />
     <p v-if="notice" class="text-sm text-gray-600" role="status">{{ notice }}</p>
     <button
       type="button"
