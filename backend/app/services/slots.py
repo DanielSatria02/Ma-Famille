@@ -8,7 +8,7 @@ from app.core.config import settings
 from app.models.court import Court
 from app.models.slot import Slot
 from app.models.venue import Venue
-from app.schemas.slot import SlotCreate, SlotGenerateRequest, SlotUpdate
+from app.schemas.slot import SlotBlockRequest, SlotCreate, SlotGenerateRequest, SlotUpdate
 from app.services import bookings as booking_service
 from app.services import courts as court_service
 from app.services import hours as hours_service
@@ -155,6 +155,64 @@ def generate_slots(db: Session, data: SlotGenerateRequest) -> dict | None:
         "skipped_existing": skipped_existing,
         "skipped_closed_days": skipped_closed_days,
         "skipped_unpriced": skipped_unpriced,
+    }
+
+
+def block_window(db: Session, data: SlotBlockRequest) -> dict | None:
+    """Close or reopen every hour of a window, per court. Returns None when the
+    court/venue id is unknown.
+
+    Booked and held hours are skipped: a manager cannot cancel somebody's game
+    by closing the hours around it.
+    """
+    courts = _target_courts(db, data)
+    if courts is None:
+        return None
+    booking_service.expire_stale_bookings(db, settings.booking_ttl_minutes)
+
+    updated = unchanged = skipped_booked = skipped_missing = 0
+    days = 0
+    day = data.from_day
+    while day <= data.to_day:
+        days += 1
+        day_start = datetime.combine(day, time.min)
+        day_end = datetime.combine(day, time.max)
+        for court in courts:
+            rows = {
+                _naive(slot.starts_at).hour: slot
+                for slot in db.scalars(
+                    select(Slot)
+                    .where(Slot.court_id == court.id)
+                    .where(Slot.starts_at >= day_start, Slot.starts_at <= day_end)
+                ).all()
+            }
+            for hour in range(data.from_hour, data.to_hour):
+                slot = rows.get(hour)
+                if slot is None:
+                    skipped_missing += 1
+                elif slot.status in ("booked", "held"):
+                    skipped_booked += 1
+                elif slot.status == data.status:
+                    unchanged += 1
+                else:
+                    slot.status = data.status
+                    updated += 1
+        day += timedelta(days=1)
+
+    if updated:
+        db.commit()
+    return {
+        "from_day": data.from_day,
+        "to_day": data.to_day,
+        "from_hour": data.from_hour,
+        "to_hour": data.to_hour,
+        "status": data.status,
+        "courts": len(courts),
+        "days": days,
+        "updated": updated,
+        "unchanged": unchanged,
+        "skipped_booked": skipped_booked,
+        "skipped_missing": skipped_missing,
     }
 
 

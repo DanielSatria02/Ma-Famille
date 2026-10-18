@@ -7,6 +7,8 @@ from sqlalchemy.orm import Session
 from app.core.security import require_manager
 from app.db.session import get_db
 from app.schemas.slot import (
+    SlotBlockRequest,
+    SlotBlockResponse,
     SlotCreate,
     SlotGenerateRequest,
     SlotGenerateResponse,
@@ -68,6 +70,21 @@ def generate_slots(
     if result is None:
         raise HTTPException(status_code=404, detail="court or venue not found")
     return SlotGenerateResponse(**result)
+
+
+@router.post(
+    "/block",
+    summary="Close or reopen a window of hours (manager)",
+    response_model=SlotBlockResponse,
+    dependencies=[Depends(require_manager)],
+)
+def block_slots(
+    body: SlotBlockRequest, db: Session = Depends(get_db)
+) -> SlotBlockResponse:
+    result = slot_service.block_window(db, body)
+    if result is None:
+        raise HTTPException(status_code=404, detail="court or venue not found")
+    return SlotBlockResponse(**result)
 
 
 @router.get("/{public_id}", summary="Get slot")

@@ -85,6 +85,7 @@ PATCH  /courts/{public_id} (manager)          DELETE /courts/{public_id} (manage
 GET    /slots?court_public_id=&day=           POST /slots (manager, bulk)
 POST   /auth/login {password} → {token}       (token replaces MANAGER_TOKEN)
 POST   /slots/generate (manager, from venue hours, idempotent)
+POST   /slots/block (manager, close/reopen a window of hours; booked hours untouched)
 GET    /availability/hours?court_public_id=&day=  GET /availability/dates?court_public_id=&from_day=&to_day=
 GET    /pricing/quote?court_public_id=&starts_at=&ends_at= (rate, total, bookability)
 PATCH  /slots/{public_id} (manager, open/close)
