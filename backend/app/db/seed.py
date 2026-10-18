@@ -15,6 +15,9 @@ from app.models.slot import Slot
 from app.models.venue import Venue
 
 VENUE_NAME = "GOR Ma-Famille Demo"
+# Cinere, next to the map art on the home page.
+VENUE_COORDS = (-6.2615, 106.8106)
+VENUE_TAGS = ["indoors", "event", "birthdays"]
 
 
 def main() -> None:
@@ -24,7 +27,13 @@ def main() -> None:
             print("already seeded")
             return
 
-        venue = Venue(name=VENUE_NAME, address="Jl. Demo No. 1")
+        venue = Venue(
+            name=VENUE_NAME,
+            address="Jl. Demo No. 1",
+            tags=list(VENUE_TAGS),
+            lat=VENUE_COORDS[0],
+            lng=VENUE_COORDS[1],
+        )
         db.add(venue)
         db.flush()
 
