@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
-# Deploy backend via SSH — dipakai lokal DAN GitHub Actions (deploy.yml).
-# Di CI, DEPLOY_HOST=prod (ssh alias via cloudflared) + TUNNEL_* env.
+# Deploy the backend over SSH. Used both locally and by GitHub Actions
+# (deploy.yml).
+# In CI, DEPLOY_HOST=prod is an ssh alias via cloudflared, plus TUNNEL_* env.
 #
 # Usage:
 #   DEPLOY_HOST=be-ssh.rzidinc.com DEPLOY_USER=deploy DEPLOY_APP_DIR=/home/deploy/ma-famille \
 #     bash scripts/deploy-backend.sh
-# Env yang didukung: DEPLOY_HOST, DEPLOY_USER, DEPLOY_APP_DIR, SSH_OPTS
+# Env: DEPLOY_HOST, DEPLOY_USER, DEPLOY_APP_DIR, SSH_OPTS
 set -euo pipefail
 
 DEPLOY_HOST="${DEPLOY_HOST:-be-ssh.rzidinc.com}"

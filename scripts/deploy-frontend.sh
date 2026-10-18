@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Deploy frontend via SSH ke edge static server — dipakai lokal DAN CI.
+# Deploy the frontend over SSH to the edge static server. Used both locally and
+# in CI.
 #
 # Usage:
 #   DEPLOY_HOST=be-ssh.rzidinc.com DEPLOY_USER=deploy DEPLOY_APP_DIR=/home/deploy/ma-famille \
