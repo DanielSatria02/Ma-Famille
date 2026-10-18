@@ -7,6 +7,8 @@ from app.db.base import Base
 from app.models.audit import AuditEvent
 from app.models.booking import Booking
 from app.models.court import Court
+from app.models.customer import Customer
+from app.models.customer_session import CustomerSession
 from app.models.notification import Notification
 from app.models.payment import Payment
 from app.models.promotion import Promotion
@@ -21,6 +23,8 @@ __all__ = [
     "Base",
     "Booking",
     "Court",
+    "Customer",
+    "CustomerSession",
     "Notification",
     "Payment",
     "Promotion",

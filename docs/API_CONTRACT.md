@@ -29,6 +29,33 @@ Base: `/v1`. All domain routes are wired to the store; the only
   are the same person. A wrong or missing contact → `403` (never `401`: the
   route is not manager-only).
 
+### Customer accounts
+
+A customer used to be only the contact string typed into the booking form, so
+"My bookings" trusted whatever was entered — the same person with a typo owned
+a different history, and anyone who guessed a number could read that contact's
+visits. An account replaces that with a signed-in identity.
+
+- `POST /customers/register` `{email, password, display_name, phone?}` → `201`
+  `{token, token_type, customer}`. The token is also returned in the
+  `X-Customer-Token` header.
+- `POST /customers/login` `{email, password}` → `200` with the same shape.
+- `GET /customers/me` (header `X-Customer-Token`) → the signed-in customer.
+- `POST /customers/logout` (same header) → `204`. Ends that session only.
+- **Email** is the login, stored lower-case, unique — `Ana@x.test` and
+  `ana@x.test` are one account. `phone` is where a venue reaches them, kept
+  separate because it is usually a WhatsApp number, not the login address.
+- **Password** is stored as PBKDF2-HMAC-SHA256 (stdlib, no extra dependency)
+  with a per-account salt and the iteration count embedded in the hash, so the
+  cost can be raised later without invalidating existing accounts.
+- **Sessions** are opaque random tokens; only their SHA-256 is stored, so a
+  leaked table cannot be replayed as a live login. Held in `customer_sessions`
+  for 14 days. Logout deletes the row, so it takes effect immediately.
+- **Refusals:** a duplicate email answers `409` (so a form can offer "sign in"
+  instead of retrying); other input problems answer `422`. A wrong password
+  and an unknown email both answer `401` with the *same* message — telling
+  them apart is what makes credential stuffing cheap.
+
 ## Identifiers
 
 - `id` (integer, autoincrement): system-level PK, FKs and joins only. Never
