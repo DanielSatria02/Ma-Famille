@@ -16,3 +16,10 @@ class ManagerLoginResponse(BaseModel):
     token_type: str = "manager"
     role: str = "manager"
     expires_at: datetime
+
+
+class ManagerLogoutResponse(BaseModel):
+    """`revoked` is False when the token was already invalid, expired, or
+    logged out before — logout is idempotent, not an error."""
+
+    revoked: bool

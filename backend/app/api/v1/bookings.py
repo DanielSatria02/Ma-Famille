@@ -111,7 +111,9 @@ def cancel_group(
         raise HTTPException(status_code=404, detail="booking group not found")
     # A manager may cancel anything; a customer only their own visit, proven
     # by the contact the booking was made with.
-    if not is_manager(token) and not booking_service.contact_matches(customer_contact, existing):
+    if not is_manager(token, db=db) and not booking_service.contact_matches(
+        customer_contact, existing
+    ):
         raise HTTPException(
             status_code=403,
             detail="manager token or the booking contact is required",
@@ -175,7 +177,7 @@ def cancel_booking(
     booking = booking_service.get_by_public_id(db, public_id)
     if booking is None:
         raise HTTPException(status_code=404, detail="booking not found")
-    if not is_manager(token) and not booking_service.contact_matches(
+    if not is_manager(token, db=db) and not booking_service.contact_matches(
         customer_contact, [booking]
     ):
         raise HTTPException(

@@ -28,6 +28,10 @@ class Settings(BaseSettings):
     manager_password: str = ""
     # Lifetime of a session token issued by POST /auth/login.
     manager_session_minutes: int = 480
+    # Wrong passwords allowed from one caller before the login is locked out.
+    manager_lockout_attempts: int = 5
+    # How long that lockout lasts, and how far back failures are counted.
+    manager_lockout_minutes: int = 15
     # Pending bookings older than this are auto-cancelled on next read/write.
     booking_ttl_minutes: int = 30
     # Minimum days ahead a client may book (0 = today allowed, prod sets 1).

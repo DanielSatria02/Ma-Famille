@@ -8,12 +8,22 @@ Base: `/v1`. All domain routes are wired to the store; the only
 - Customer reads + booking flow: open.
 - `POST /auth/login` `{password}` → `{token, role, expires_at}` (501 when
   `MANAGER_PASSWORD` is unset). The token goes in the same header as the static
-  token below; both are accepted until it expires.
+  token below; both are accepted until it expires. Each login mints a **distinct**
+  token (random nonce), so logging out one device leaves the others signed in.
+- **Lockout:** `MANAGER_LOCKOUT_ATTEMPTS` (default 5) wrong passwords from one
+  caller inside `MANAGER_LOCKOUT_MINUTES` (default 15) → `429` with a
+  `Retry-After` header. A correct password wipes that caller's streak. Counted
+  in-process per client IP, so a restart clears it — a speed bump, not a wall.
+- `POST /auth/logout` (header `X-Manager-Token`) → `{revoked}`. Session tokens
+  are stateless HMACs, so this writes the token's **hash** to a deny-list that
+  every manager check consults; the token stops working immediately. Idempotent
+  (`revoked: false` when it was already gone). The static `MANAGER_TOKEN` is a
+  shared secret, not a session, and is not revocable this way.
 - Manager writes (`POST/PATCH/DELETE` venues & courts, slot create/update,
   booking confirm/cancel, payment mark-paid, all of `/manager/*`):
-  header `X-Manager-Token` must match `MANAGER_TOKEN` or be a valid session
-  token (empty `MANAGER_TOKEN` + empty `MANAGER_PASSWORD` = open, local dev).
-  Wrong/missing → `401`.
+  header `X-Manager-Token` must match `MANAGER_TOKEN` or be a valid,
+  **non-revoked** session token (empty `MANAGER_TOKEN` + empty
+  `MANAGER_PASSWORD` = open, local dev). Wrong/missing/revoked → `401`.
 - A customer cancels their own visit with `?customer_contact=` on the booking
   cancel routes; the contact is compared digit-wise, so `0812…` and `+62 812…`
   are the same person. A wrong or missing contact → `403` (never `401`: the
@@ -119,6 +129,7 @@ GET    /manager/facilities (rates, locked until priced)
 PATCH  /courts/{public_id} (manager)          DELETE /courts/{public_id} (manager, deactivates)
 GET    /slots?court_public_id=&day=           POST /slots (manager, bulk)
 POST   /auth/login {password} → {token}       (token replaces MANAGER_TOKEN)
+POST   /auth/logout                            (deny-list the session token)
 POST   /slots/generate (manager, from venue hours, idempotent)
 POST   /slots/block (manager, close/reopen a window of hours; booked hours untouched)
 GET    /availability/hours?court_public_id=&day=  GET /availability/dates?court_public_id=&from_day=&to_day=
