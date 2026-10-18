@@ -52,6 +52,15 @@ class BookingRangeCreate(BaseModel):
 
     @model_validator(mode="after")
     def _check_range(self):
+        # A client may put `Z` on one end and not the other. Comparing an
+        # aware datetime with a naive one raises TypeError, which surfaces as
+        # a 500 rather than the 422 a bad range deserves. Court times are wall
+        # times (see the class docstring), so drop any offset before comparing.
+        if (self.starts_at.tzinfo is None) != (self.ends_at.tzinfo is None):
+            if self.ends_at.tzinfo is not None:
+                self.ends_at = self.ends_at.replace(tzinfo=None)
+            else:
+                self.starts_at = self.starts_at.replace(tzinfo=None)
         if self.ends_at <= self.starts_at:
             raise ValueError("ends_at must be after starts_at")
         if self.starts_at.date() != self.ends_at.date():
