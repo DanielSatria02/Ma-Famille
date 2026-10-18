@@ -40,8 +40,11 @@ Rule: `ends_at > starts_at`. No overlap for same court unless `status=blocked` r
 
 ### Booking
 ```json
-{ "public_id": "uuidv7", "slot_public_id": "uuidv7", "customer_name": "...", "customer_contact": "...", "status": "pending|confirmed|cancelled", "created_at": "..." }
+{ "public_id": "uuidv7", "slot_public_id": "uuidv7", "group_public_id": "uuidv7", "customer_name": "...", "customer_contact": "...", "status": "pending|confirmed|cancelled", "created_at": "..." }
 ```
+Every booking response also embeds `slot` (`starts_at`, `ends_at`, `price`, `status`),
+`court` (`name`, `sport`), `venue` (`name`), `total` and `payment_status`, so list
+views render without a follow-up request per row.
 Rules:
 - One active booking per slot (overlap/conflict guard backend-side, `409`).
 - `pending` expires after TTL unless confirmed + deposit.

@@ -24,10 +24,12 @@ def incoming_bookings(
         BookingResponse(
             public_id=b.public_id,
             slot_public_id=booking_service.slot_public_id(db, b),
+            group_public_id=b.group_public_id,
             customer_name=b.customer_name,
             customer_contact=b.customer_contact,
             status=b.status,
             created_at=b.created_at,
+            **booking_service.detail(db, b),
         )
         for b in bookings
     ]

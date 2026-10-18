@@ -9,7 +9,9 @@ from app.core.config import settings
 from app.core.ids import uuid7
 from app.models.booking import Booking
 from app.models.court import Court
+from app.models.payment import Payment
 from app.models.slot import Slot
+from app.models.venue import Venue
 from app.schemas.booking import BookingCreate, BookingRangeCreate
 
 
@@ -209,3 +211,48 @@ def _release(db: Session, booking: Booking) -> None:
 
 def slot_public_id(db: Session, booking: Booking) -> UUID:
     return db.get(Slot, booking.slot_id).public_id
+
+
+def detail(db: Session, booking: Booking) -> dict:
+    """Slot, court, venue, total and payment state for one booking.
+
+    List endpoints (manager dashboard, customer history) render straight from
+    this instead of one request per row.
+    """
+    slot = db.get(Slot, booking.slot_id)
+    court = db.get(Court, slot.court_id) if slot is not None else None
+    venue = db.get(Venue, court.venue_id) if court is not None else None
+    payment = db.scalars(
+        select(Payment)
+        .where(Payment.booking_id == booking.id)
+        .order_by(Payment.id.desc())
+    ).first()
+    return {
+        "slot": (
+            None
+            if slot is None
+            else {
+                "public_id": slot.public_id,
+                "starts_at": slot.starts_at,
+                "ends_at": slot.ends_at,
+                "price": slot.price,
+                "status": slot.status,
+            }
+        ),
+        "court": (
+            None
+            if court is None
+            else {
+                "public_id": court.public_id,
+                "name": court.name,
+                "sport": court.sport,
+            }
+        ),
+        "venue": (
+            None
+            if venue is None
+            else {"public_id": venue.public_id, "name": venue.name}
+        ),
+        "total": slot.price if slot is not None else 0,
+        "payment_status": payment.status if payment is not None else "unpaid",
+    }

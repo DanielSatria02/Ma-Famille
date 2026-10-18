@@ -26,6 +26,7 @@ def _to_response(db: Session, booking) -> BookingResponse:
         customer_contact=booking.customer_contact,
         status=booking.status,
         created_at=booking.created_at,
+        **booking_service.detail(db, booking),
     )
 
 

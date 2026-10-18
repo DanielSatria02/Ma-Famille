@@ -4,7 +4,28 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field, model_validator
 
+from app.schemas.payment import PaymentStatus
+
 BookingStatus = Literal["pending", "confirmed", "cancelled"]
+
+
+class BookingSlotInfo(BaseModel):
+    public_id: UUID
+    starts_at: datetime
+    ends_at: datetime
+    price: int
+    status: str
+
+
+class BookingCourtInfo(BaseModel):
+    public_id: UUID
+    name: str
+    sport: str
+
+
+class BookingVenueInfo(BaseModel):
+    public_id: UUID
+    name: str
 
 
 class BookingCreate(BaseModel):
@@ -46,6 +67,13 @@ class BookingResponse(BaseModel):
     customer_contact: str
     status: BookingStatus
     created_at: datetime
+    # Joined detail so list views (manager dashboard, booking history) render
+    # without a second round trip per row.
+    slot: BookingSlotInfo | None = None
+    court: BookingCourtInfo | None = None
+    venue: BookingVenueInfo | None = None
+    total: int = 0
+    payment_status: PaymentStatus = "unpaid"
 
 
 class BookingRangeResponse(BaseModel):
