@@ -57,6 +57,7 @@ Rules:
 ```text
 GET    /venues /venues/{public_id}            POST /venues (manager)
 PATCH  /venues/{public_id} (manager)          DELETE /venues/{public_id} (manager)
+GET    /venues/{public_id}/hours (7 days)     PUT /venues/{public_id}/hours/{day} (manager, 0=Mon)
 GET    /courts?venue_public_id=...            POST /courts (manager)
 PATCH  /courts/{public_id} (manager)          DELETE /courts/{public_id} (manager, deactivates)
 GET    /slots?court_public_id=&day=           POST /slots (manager, bulk)

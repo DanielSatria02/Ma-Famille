@@ -9,5 +9,6 @@ from app.models.court import Court
 from app.models.payment import Payment
 from app.models.slot import Slot
 from app.models.venue import Venue
+from app.models.venue_hours import VenueHours
 
-__all__ = ["Base", "Booking", "Court", "Payment", "Slot", "Venue"]
+__all__ = ["Base", "Booking", "Court", "Payment", "Slot", "Venue", "VenueHours"]

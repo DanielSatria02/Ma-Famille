@@ -1,11 +1,13 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Path
 from sqlalchemy.orm import Session
 
 from app.core.security import require_manager
 from app.db.session import get_db
 from app.schemas.venue import VenueCreate, VenueResponse, VenueUpdate
+from app.schemas.venue_hours import VenueHoursResponse, VenueHoursUpdate
+from app.services import hours as hours_service
 from app.services import venues as venue_service
 
 router = APIRouter(prefix="/venues", tags=["venues"])
@@ -67,3 +69,42 @@ def delete_venue(public_id: UUID, db: Session = Depends(get_db)) -> None:
     if venue is None:
         raise HTTPException(status_code=404, detail="venue not found")
     venue_service.delete_venue(db, venue)
+
+
+def _venue_or_404(db: Session, public_id: UUID):
+    venue = venue_service.get_by_public_id(db, public_id)
+    if venue is None:
+        raise HTTPException(status_code=404, detail="venue not found")
+    return venue
+
+
+@router.get(
+    "/{public_id}/hours",
+    summary="Opening hours (7 days, unset days fall back to defaults)",
+    response_model=list[VenueHoursResponse],
+)
+def list_venue_hours(
+    public_id: UUID, db: Session = Depends(get_db)
+) -> list[VenueHoursResponse]:
+    return [
+        VenueHoursResponse(**entry)
+        for entry in hours_service.list_hours(db, _venue_or_404(db, public_id))
+    ]
+
+
+@router.put(
+    "/{public_id}/hours/{day_of_week}",
+    summary="Set opening hours for one weekday (manager)",
+    response_model=VenueHoursResponse,
+    dependencies=[Depends(require_manager)],
+)
+def update_venue_hours(
+    body: VenueHoursUpdate,
+    public_id: UUID,
+    day_of_week: int = Path(ge=0, le=6, description="0 = Monday ... 6 = Sunday"),
+    db: Session = Depends(get_db),
+) -> VenueHoursResponse:
+    venue = _venue_or_404(db, public_id)
+    return VenueHoursResponse(
+        **hours_service.upsert_hours(db, venue, day_of_week, body)
+    )

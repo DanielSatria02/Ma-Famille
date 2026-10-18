@@ -20,6 +20,9 @@ class Settings(BaseSettings):
     manager_token: str = ""
     # Pending bookings older than this are auto-cancelled on next read/write.
     booking_ttl_minutes: int = 30
+    # Opening window used for days a venue has no stored hours for.
+    default_opens_at: str = "08:00"
+    default_closes_at: str = "22:00"
 
     @property
     def cors_origins(self) -> list[str]:
