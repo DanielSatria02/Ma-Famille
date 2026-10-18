@@ -392,6 +392,37 @@ export async function fetchOccupancy(fromDay, toDay) {
   return res.data
 }
 
+// --- Reviews ------------------------------------------------------------
+
+// A rating is only accepted from someone whose visit has already happened, so
+// the UI asks for the contact when the visitor is not signed in — the same
+// proof they use to cancel a visit.
+export async function fetchRatingSummary(venuePublicId) {
+  const res = await api.get('/v1/reviews/summary', {
+    params: { venue_public_id: venuePublicId },
+  })
+  return res.data
+}
+
+export async function fetchReviews(venuePublicId, { limit, offset } = {}) {
+  return getPaged('/v1/reviews', {
+    venue_public_id: venuePublicId,
+    ...(limit ? { limit } : {}),
+    ...(offset ? { offset } : {}),
+  })
+}
+
+export async function writeReview(venuePublicId, { rating, comment, customerContact }) {
+  const res = await api.post('/v1/reviews', {
+    venue_public_id: venuePublicId,
+    rating,
+    comment: comment || null,
+  }, {
+    params: customerContact ? { customer_contact: customerContact } : {},
+  })
+  return res.data
+}
+
 // --- Client settings ----------------------------------------------------
 
 export async function fetchClientConfig() {

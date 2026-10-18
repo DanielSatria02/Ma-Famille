@@ -3,6 +3,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import BookingCalendar from '../components/BookingCalendar.vue'
 import LocationPanel from '../components/LocationPanel.vue'
+import ReviewsPanel from '../components/ReviewsPanel.vue'
 import VenueCard from '../components/VenueCard.vue'
 import { addDays, toIsoDate } from '../utils/date.js'
 import { resolveImage } from '../utils/image.js'
@@ -28,6 +29,10 @@ const facilities = computed(() => venuesStore.facilities)
 const venueOf = (facility) =>
   venues.value.find((venue) => venue.public_id === facility?.venue?.public_id) ?? null
 const tagsOf = (facility) => venueOf(facility)?.tags ?? []
+
+// Reviews are per venue, so this is what decides whose reputation is on
+// screen: the venue of whichever facility is currently in focus.
+const selectedVenue = computed(() => venueOf(selected.value))
 
 // Only the kinds and tags actually in use are offered as filters.
 const filterGroups = computed(() => {
@@ -167,5 +172,18 @@ function goToBooking(date) {
     <p v-if="!visibleFacilities.length && !loading" class="text-sm text-gray-600">
       No venue matches those filters.
     </p>
+
+    <!--
+      One panel, for the venue currently in focus: a list of every venue's
+      reviews would bury the one the visitor is actually looking at. It follows
+      the selection, so picking a different facility brings that venue's
+      reputation with it.
+    -->
+    <ReviewsPanel
+      v-if="selectedVenue"
+      :key="selectedVenue.public_id"
+      :venue-public-id="selectedVenue.public_id"
+      :venue-name="selectedVenue.name"
+    />
   </section>
 </template>

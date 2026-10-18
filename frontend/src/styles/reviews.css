@@ -1,0 +1,72 @@
+.reviews-bar-row {
+  display: grid;
+  grid-template-columns: 2.5rem 1fr 1.5rem;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.reviews-bar-label {
+  font-size: 0.75rem;
+  color: var(--muted-text, #6b7280);
+}
+
+.reviews-bar-track {
+  display: block;
+  height: 0.5rem;
+  border-radius: 9999px;
+  background: #f3f4f6;
+  overflow: hidden;
+}
+
+/* Grows from nothing, so the shape of the answers is readable at a glance
+   rather than having to be counted. */
+.reviews-bar-fill {
+  display: block;
+  height: 100%;
+  border-radius: 9999px;
+  background: #f59e0b;
+  transition: width var(--motion-slow, 400ms) cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.reviews-bar-count {
+  font-size: 0.75rem;
+  color: #6b7280;
+  text-align: right;
+}
+
+.reviews-star {
+  line-height: 1;
+  padding: 0 0.125rem;
+}
+
+.reviews-input {
+  transition:
+    border-color var(--motion-fast, 150ms) cubic-bezier(0.4, 0, 0.2, 1),
+    box-shadow var(--motion-fast, 150ms) cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.reviews-input:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgb(37 99 235 / 12%);
+}
+
+.reviews-submit {
+  background: #111827;
+  transition: background-color var(--motion-fast, 150ms) cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.reviews-submit:hover:not(:disabled) {
+  background: #1f2937;
+}
+
+.reviews-more {
+  transition:
+    background-color var(--motion-fast, 150ms) cubic-bezier(0.4, 0, 0.2, 1),
+    transform var(--motion-fast, 150ms) cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.reviews-more:hover:not(:disabled) {
+  background: #f9fafb;
+  transform: translateY(-1px);
+}
