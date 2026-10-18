@@ -81,6 +81,35 @@ class DokuError(RuntimeError):
     pass
 
 
+def doku_error_detail(res: httpx.Response) -> str:
+    """A refusal, in words.
+
+    DOKU puts the reason in the body — which field was wrong, or that the
+    signature did not check out — and leaves the status code saying only that
+    something was. The body is worth having: it is the difference between "HTTP
+    400" and "invalid client id" when you are trying to work out why a
+    checkout will not open.
+    """
+    try:
+        error = res.json()["error"]
+    except (KeyError, TypeError, ValueError):
+        return f"HTTP {res.status_code}: {res.text[:200]}"
+
+    parts = [f"HTTP {res.status_code}"]
+    if isinstance(error, dict):
+        for key in ("type", "code", "message"):
+            value = error.get(key)
+            if value:
+                parts.append(f"{key}={value}")
+        # Validation refusals name the offending fields, which is the useful bit.
+        fields = error.get("fields") or error.get("field_errors")
+        if fields:
+            parts.append(f"fields={fields}")
+    else:
+        parts.append(str(error))
+    return ", ".join(parts)
+
+
 @dataclass
 class CheckoutResult:
     invoice_number: str
@@ -102,6 +131,8 @@ def create_checkout(
     """
     if not settings.doku_configured:
         raise DokuError("DOKU keys not configured (see docs/PAYMENTS.md)")
+    if settings.doku_config_problem:
+        raise DokuError(settings.doku_config_problem)
     body = {
         "order": {"invoice_number": invoice_number, "amount": amount},
         "payment": {"payment_due_date": 60},
@@ -136,7 +167,10 @@ def create_checkout(
     except httpx.HTTPError as exc:
         raise DokuError(f"DOKU request failed: {exc}") from exc
     if res.status_code != 200:
-        raise DokuError(f"DOKU rejected checkout: HTTP {res.status_code}")
+        # DOKU answers a refusal with the reason in the body: which field was
+        # wrong, or that the signature did not match. The status code alone says
+        # only that something was, which is no help at three in the morning.
+        raise DokuError(f"DOKU rejected checkout: {doku_error_detail(res)}") from None
     try:
         payment = res.json()["response"]["payment"]
         return CheckoutResult(
@@ -172,6 +206,8 @@ def request_refund(
     """
     if not settings.doku_configured:
         raise DokuError("DOKU keys not configured (see docs/PAYMENTS.md)")
+    if settings.doku_config_problem:
+        raise DokuError(settings.doku_config_problem)
     if not original_request_id:
         raise DokuError("the payment has no provider request id to refund against")
     body = {
@@ -206,7 +242,7 @@ def request_refund(
     except httpx.HTTPError as exc:
         raise DokuError(f"DOKU request failed: {exc}") from exc
     if res.status_code != 200:
-        raise DokuError(f"DOKU rejected the refund: HTTP {res.status_code}")
+        raise DokuError(f"DOKU rejected the refund: {doku_error_detail(res)}") from None
     try:
         refund = res.json()["response"]["refund"]
         return RefundResult(

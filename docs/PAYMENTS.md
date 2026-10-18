@@ -15,6 +15,25 @@ No real money moves anywhere in this project. All calls default to
 3. Without keys, `POST /payments` answers `501` and a refund stays local
    bookkeeping (see below) — nothing pretends money moved.
 
+### Which key this wants
+
+DOKU issues two kinds of credential and they are not interchangeable. The
+checkout API used here is **non-SNAP**: it signs each request with
+`HMACSHA256` computed from the **Secret Key** in DOKU Back Office
+(*Settings → Keys*).
+
+The `doku_key_...` value and the account **public key** that come with it are
+the **SNAP** credential. SNAP signs with RSA using the key pair rather than with
+HMAC, and DOKU answers a non-SNAP request signed with a SNAP key with
+`invalid_signature` — the same refusal you would get from a mistyped secret,
+which is why it is worth being sure which one you are holding.
+
+The config detects this: a `DOKU_SECRET_KEY` starting with `doku_key_` leaves
+`GET /v1/config` reporting `payment_configured: false` with a `payment_problem`
+saying so, and `create_checkout` refuses before making the request rather than
+after. So the tell for "wrong kind of key" is not a failure at checkout, it is
+`payment_configured: false` on a config that plainly has keys in it.
+
 ## Test flow (no real payment)
 
 1. `POST /v1/payments` with `booking_public_id` + `amount` → returns

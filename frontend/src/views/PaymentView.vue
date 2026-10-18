@@ -85,6 +85,15 @@ const countdown = computed(() => {
   return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`
 })
 
+// Shown when this server cannot take a payment. The reason on the server
+// ("payment_problem") names the setting that is wrong, which is for whoever is
+// deploying, not for a visitor who only needs to know their booking is safe and
+// someone will confirm it.
+const paymentOff = computed(() => {
+  if (!clientConfig.value || clientConfig.value.payment_configured) return ''
+  return 'Online payment is not available on this server right now. Your booking is held and the venue will confirm it.'
+})
+
 const notice = computed(() => {
   if (!order.value || settled.value) return ''
   switch (gateway.value?.status) {
@@ -278,8 +287,8 @@ onBeforeUnmount(() => {
 
     <p v-if="lookUpError" class="payment-note" role="alert">{{ lookUpError }}</p>
     <p v-if="notice" class="payment-note">{{ notice }}</p>
-    <p v-if="clientConfig && !clientConfig.payment_configured" class="payment-note">
-      Online payment is switched off on this server.
+    <p v-if="paymentOff" class="payment-off" role="status">
+      {{ paymentOff }}
     </p>
 
     <!--
