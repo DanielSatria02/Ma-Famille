@@ -14,12 +14,31 @@ router = APIRouter(
     prefix="/manager", tags=["manager"], dependencies=[Depends(require_manager)]
 )
 
+MAX_RANGE_DAYS = 93
 
-@router.get("/bookings", summary="Incoming bookings (manager)")
+
+@router.get("/bookings", summary="Incoming bookings by start time (manager)")
 def incoming_bookings(
-    booking_status: str | None = None, db: Session = Depends(get_db)
+    booking_status: str | None = None,
+    day: date | None = None,
+    from_day: date | None = None,
+    to_day: date | None = None,
+    db: Session = Depends(get_db),
 ):
-    bookings = manager_service.incoming_bookings(db, booking_status)
+    if from_day is not None and to_day is not None:
+        if to_day < from_day:
+            raise HTTPException(status_code=422, detail="to_day before from_day")
+        if (to_day - from_day).days > MAX_RANGE_DAYS:
+            raise HTTPException(
+                status_code=422, detail=f"range too wide (max {MAX_RANGE_DAYS} days)"
+            )
+    bookings = manager_service.incoming_bookings(
+        db,
+        booking_status=booking_status,
+        day=day,
+        from_day=from_day,
+        to_day=to_day,
+    )
     return [
         BookingResponse(
             public_id=b.public_id,
