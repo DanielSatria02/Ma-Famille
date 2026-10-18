@@ -1,6 +1,9 @@
 .venue-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+  /* `auto-fill` leaves the empty tracks in place, so two courts on a wide
+     screen sat in the left half with a page of white beside them. `auto-fit`
+     collapses the unused tracks and lets the cards take the width. */
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
   gap: 1rem;
 }
 
@@ -13,11 +16,33 @@
   display: flex;
   flex-direction: column;
   width: 100%;
-  max-width: 280px;
   overflow: hidden;
+  padding: 0;
   border: 1px solid var(--card-border);
   border-radius: 0.75rem;
   background: #ffffff;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.venue-card:hover {
+  border-color: var(--card-accent);
+  box-shadow: 0 6px 18px rgb(17 24 39 / 8%);
+}
+
+.venue-card:focus-visible {
+  outline: 2px solid var(--card-accent);
+  outline-offset: 3px;
+}
+
+/* The chosen one is the only card that matters from here on, and saying so in
+   words as well as in a ring means it does not rely on colour alone. */
+.venue-card.is-chosen {
+  border-color: var(--card-accent);
+  box-shadow: 0 0 0 1px var(--card-accent);
 }
 
 .venue-card-image {
@@ -48,11 +73,14 @@
 }
 
 .venue-card-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
   padding: 0.9rem 1rem 1rem;
 }
 
 .venue-card-title {
-  margin: 0;
+  display: block;
   color: var(--card-heading);
   font-size: 1.05rem;
   font-weight: 700;
@@ -60,6 +88,7 @@
 }
 
 .venue-card-location {
+  display: block;
   margin: 0.2rem 0 0;
   color: var(--card-text);
   font-size: 0.875rem;
@@ -108,37 +137,162 @@
 .venue-card-action {
   display: flex;
   justify-content: center;
-  margin-top: 1rem;
+  margin-top: auto;
+  padding-top: 1rem;
 }
 
 .venue-card-button {
+  display: block;
+  width: 100%;
   border: 0;
   border-radius: 0.5rem;
   background: var(--card-accent);
   color: #ffffff;
-  cursor: pointer;
   font: inherit;
   font-size: 0.875rem;
   font-weight: 700;
-  padding: 0.6rem 1.5rem;
-  transition: background-color 160ms ease, transform 160ms ease;
+  padding: 0.6rem 1rem;
+  transition: background-color 160ms ease;
 }
 
-.venue-card-button:hover {
-  background: #c2620f;
-}
-
-.venue-card-button:active {
-  transform: translateY(1px);
-}
-
-.venue-card-button:focus-visible {
-  outline: 2px solid var(--card-accent);
-  outline-offset: 3px;
+.venue-card.is-chosen .venue-card-button {
+  background: #111827;
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .venue-card,
   .venue-card-button {
     transition: none;
+  }
+}
+
+/* --- The steps on the home page -------------------------------------------
+ *
+ * Numbered so the order is legible without a tutorial, and spaced so the eye
+ * can tell "this part is done" from "this is the next thing".
+ */
+
+.home {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.home-step {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.home-step-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.home-step-number {
+  display: grid;
+  flex: 0 0 auto;
+  width: 1.75rem;
+  height: 1.75rem;
+  margin: 0;
+  place-items: center;
+  border-radius: 999px;
+  background: #111827;
+  color: #ffffff;
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+.home-step-title {
+  margin: 0;
+  color: #111827;
+  font-size: 1.375rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.home-step-hint {
+  margin: 0.15rem 0 0;
+  color: #4b5563;
+  font-size: 0.875rem;
+}
+
+.home-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.home-filter {
+  display: flex;
+  min-width: 9rem;
+  flex: 1 1 9rem;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.home-filter-label {
+  color: #6b7280;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.home-filter-select {
+  min-height: 2.75rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.5rem;
+  background: #ffffff;
+  padding: 0 0.65rem;
+  color: #111827;
+  font: inherit;
+  font-size: 0.875rem;
+}
+
+.home-filter-select:focus-visible {
+  outline: 2px solid #b45309;
+  outline-offset: 1px;
+}
+
+/* The shortcut past the calendar: most visitors want the soonest free day, not
+   the first square on a grid they then have to read. */
+.home-jump {
+  display: inline;
+  margin-left: 0.35rem;
+  padding: 0.1rem 0.3rem;
+  border: 0;
+  border-radius: 0.25rem;
+  background: none;
+  color: #b45309;
+  font: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.home-jump:hover {
+  background: #f9fafb;
+}
+
+.home-jump:focus-visible {
+  outline: 2px solid #b45309;
+  outline-offset: 1px;
+}
+
+/* Two columns of cards stop being readable well before a phone is narrow; one
+   column is the only layout that survives a 320px screen. */
+@media (max-width: 640px) {
+  .home {
+    gap: 1.5rem;
+  }
+
+  .venue-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .home-step-title {
+    font-size: 1.25rem;
   }
 }
