@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from app.api.v1.router import router as v1_router
+from app.core.audit_middleware import AuditMiddleware
 from app.core.config import settings
 from app.schemas.health import RootResponse
 
@@ -56,6 +57,10 @@ def create_app() -> FastAPI:
         return RootResponse(service=settings.app_name, env=settings.app_env)
 
     app.include_router(v1_router, prefix=settings.api_v1_prefix)
+
+    # Records every successful write under /v1/ so the trail cannot drift out of
+    # date when a new endpoint is added. Added last so it wraps the whole stack.
+    app.add_middleware(AuditMiddleware)
 
     # Uploaded venue/court photos. The directory is created on boot so a fresh
     # checkout (and the test client) can serve them without a manual mkdir.

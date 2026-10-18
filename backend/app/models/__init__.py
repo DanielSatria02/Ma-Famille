@@ -4,6 +4,7 @@ Every model module must be imported here so Alembic autogenerate sees it.
 """
 
 from app.db.base import Base
+from app.models.audit import AuditEvent
 from app.models.booking import Booking
 from app.models.court import Court
 from app.models.notification import Notification
@@ -14,6 +15,7 @@ from app.models.venue_closure import VenueClosure
 from app.models.venue_hours import VenueHours
 
 __all__ = [
+    "AuditEvent",
     "Base",
     "Booking",
     "Court",

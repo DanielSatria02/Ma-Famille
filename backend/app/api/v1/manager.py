@@ -7,11 +7,13 @@ from sqlalchemy.orm import Session
 from app.api.paging import Page, set_total
 from app.core.security import require_manager
 from app.db.session import get_db
+from app.schemas.audit import AuditEventResponse
 from app.schemas.booking import BookingResponse
 from app.schemas.court import CourtKind
 from app.schemas.facility import ManagerFacilityResponse
 from app.schemas.manager import ManagerStats, OccupancyPoint
 from app.schemas.notification import NotificationDispatchResult, NotificationResponse
+from app.services import audit as audit_service
 from app.services import bookings as booking_service
 from app.services import facilities as facility_service
 from app.services import manager as manager_service
@@ -170,3 +172,45 @@ def dispatch_notifications(
     return NotificationDispatchResult(
         **notification_service.dispatch_pending(db, max(min(limit, 100), 1))
     )
+
+
+@router.get(
+    "/audit",
+    summary="Who changed what, newest first (manager, paged)",
+    response_model=list[AuditEventResponse],
+)
+def audit_trail(
+    entity_type: str | None = None,
+    entity_public_id: UUID | None = None,
+    action: str | None = None,
+    actor: str | None = None,
+    page: Page = Depends(),
+    response: Response = None,
+    db: Session = Depends(get_db),
+) -> list[AuditEventResponse]:
+    """The append-only change log, written by every successful write under /v1/.
+
+    Narrow it with `entity_type` (venue, court, booking, payment…),
+    `entity_public_id` (one row's whole history), `action` (payment.refund…) or
+    `actor` (a manager token's identity, or "customer").
+    """
+    filters = {
+        "entity_type": entity_type,
+        "entity_public_id": str(entity_public_id) if entity_public_id else None,
+        "action": action,
+        "actor": actor,
+    }
+    events = audit_service.list_events(db, **filters, limit=page.limit, offset=page.offset)
+    set_total(response, audit_service.count_events(db, **filters))
+    return [
+        AuditEventResponse(
+            public_id=event.public_id,
+            actor=event.actor,
+            action=event.action,
+            entity_type=event.entity_type,
+            entity_public_id=event.entity_public_id,
+            detail=event.detail,
+            created_at=event.created_at,
+        )
+        for event in events
+    ]

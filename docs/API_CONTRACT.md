@@ -137,6 +137,7 @@ GET    /manager/bookings?booking_status=&day=&from_day=&to_day=&limit=&offset=  
 GET    /manager/stats?day=&week_start= (dashboard counters, one visit = one booking group)
 GET    /manager/notifications?status=&limit=&offset= (outbox: queued/sent/logged/failed)
 POST   /manager/notifications/dispatch?limit= (send the queue once, reports the tally)
+GET    /manager/audit?entity_type=&entity_public_id=&action=&actor=&limit=&offset=
 ```
 Every manager booking row carries `payment_public_id`, `payment_invoice_number`,
 `payment_status` and `payment_failure_reason` so the dashboard can show (and refund)
@@ -151,6 +152,24 @@ They return a slice of the same JSON array — the body never changes shape — 
 the un-sliced row count in an `X-Total-Count` response header (exposed through CORS),
 so the client can render "load more" or a page count without a second call. Out-of-range
 `limit`/`offset` is a `422`, not a silent clamp.
+
+### Audit trail
+
+Every successful state-changing request under `/v1/` (POST/PUT/PATCH/DELETE that
+answers 2xx) appends a row to an **append-only** log, read back through
+`GET /manager/audit` (manager-only, paged like the lists above). Filters:
+`entity_type` (venue, court, slot, booking, payment…), `entity_public_id` (one
+row's whole history), `action` (`venue.update`, `payment.refund`, `booking.confirm`…),
+`actor` (`manager` or `customer`). Actions are derived from the path — a trailing
+sub-action (`/payments/{id}/refund`) beats the HTTP verb. Two honest limits:
+
+- **Creates** carry no row id in the request path (it exists only in the response),
+  so `entity_public_id` is `null` for them. Every later update/confirm/refund on
+  that row *is* logged against its id.
+- A **4xx** changed nothing, so it is never logged.
+
+Recording is best-effort: if the audit write fails, the business response still
+goes out (the trail must never turn a booking into a 500).
 
 ### Photos (venues and courts)
 
