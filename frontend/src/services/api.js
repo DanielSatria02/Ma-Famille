@@ -138,8 +138,22 @@ export async function fetchBookingHistory(customerContact) {
   return res.data
 }
 
-export async function cancelBookingGroup(groupPublicId) {
-  const res = await api.post(`/v1/bookings/groups/${groupPublicId}/cancel`)
+// A manager token cancels anything; a customer must send the contact the
+// booking was made with.
+export async function cancelBookingGroup(groupPublicId, customerContact = '') {
+  const res = await api.post(`/v1/bookings/groups/${groupPublicId}/cancel`, null, {
+    params: customerContact ? { customer_contact: customerContact } : {},
+  })
+  return res.data
+}
+
+export async function confirmBookingGroup(groupPublicId) {
+  const res = await api.post(`/v1/bookings/groups/${groupPublicId}/confirm`)
+  return res.data
+}
+
+export async function markPaymentPaid(paymentPublicId) {
+  const res = await api.post(`/v1/payments/${paymentPublicId}/mark-paid`)
   return res.data
 }
 
@@ -175,6 +189,13 @@ export async function fetchOccupancy(fromDay, toDay) {
   const res = await api.get('/v1/manager/occupancy', {
     params: { from_day: fromDay, to_day: toDay },
   })
+  return res.data
+}
+
+// --- Client settings ----------------------------------------------------
+
+export async function fetchClientConfig() {
+  const res = await api.get('/v1/config')
   return res.data
 }
 

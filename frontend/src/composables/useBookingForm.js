@@ -9,6 +9,7 @@ import {
   fetchQuote,
 } from '../services/api.js'
 import { startCheckout } from '../services/payment.js'
+import { setCustomerContact } from '../services/session.js'
 import { useVenuesStore } from '../stores/venues.js'
 import { hasConflict, isBookableDate } from '../utils/bookingRules.js'
 
@@ -203,6 +204,8 @@ export function useBookingForm(initialDate = '', initialFacilityKey = '') {
       }
       // The hours just booked are no longer free.
       await loadDay()
+      // Remember the contact: it is what lets the client find and cancel this visit.
+      setCustomerContact(customerContact.value.trim())
       startHour.value = null
       endHour.value = null
       const { redirect } = await startCheckout(order)

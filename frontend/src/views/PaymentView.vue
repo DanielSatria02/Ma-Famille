@@ -59,6 +59,14 @@ function openCheckout() {
     <button
       type="button"
       class="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold"
+      @click="router.push({ name: 'my-bookings' })"
+    >
+      My bookings
+    </button>
+
+    <button
+      type="button"
+      class="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold"
       @click="router.push({ name: 'booking' })"
     >
       Back to booking

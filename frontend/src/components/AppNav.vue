@@ -103,6 +103,7 @@ function logOut() {
       <nav class="flex flex-col gap-2">
         <RouterLink :to="homePath" class="app-sidebar-link rounded-lg px-3 py-2 no-underline" @click="closeSidebar">Home</RouterLink>
         <RouterLink to="/health" class="app-sidebar-link rounded-lg px-3 py-2 no-underline" @click="closeSidebar">Health</RouterLink>
+        <RouterLink v-if="!isManagerArea" to="/my-bookings" class="app-sidebar-link rounded-lg px-3 py-2 no-underline" @click="closeSidebar">My bookings</RouterLink>
         <RouterLink v-if="!isManagerArea" to="/login" class="app-sidebar-link rounded-lg px-3 py-2 no-underline" @click="closeSidebar">Manager login</RouterLink>
         <RouterLink v-if="isManagerArea" :to="homePath" class="app-sidebar-link rounded-lg px-3 py-2 no-underline" @click="closeSidebar">Dashboard</RouterLink>
         <button type="button" class="app-sidebar-link rounded-lg px-3 py-2 text-left" @click="logOut">Log out</button>
