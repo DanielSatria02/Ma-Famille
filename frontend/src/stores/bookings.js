@@ -88,8 +88,11 @@ export const useBookingsStore = defineStore('bookings', () => {
   }
 
   // Cancels the whole visit (every hour of the group) and reloads the window.
+  // Lists show visits keyed by the group id, single rows by their booking id.
   async function cancelBooking(id) {
-    const row = bookings.value.find((booking) => booking.id === id)
+    const row = bookings.value.find(
+      (booking) => booking.id === id || booking.groupId === id,
+    )
     if (!row) return
     error.value = ''
     try {

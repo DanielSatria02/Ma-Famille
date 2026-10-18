@@ -40,6 +40,21 @@ watch(selectedDay, () => {
   saved.value = false
   loadDay()
 }, { immediate: true })
+
+// The schedule arrives from the API after mount, so pick a day and fill the
+// editor once it is there (and after any external change).
+watch(
+  () => props.schedule,
+  (schedule) => {
+    if (!schedule.length) return
+    if (!schedule.some((entry) => entry.day === selectedDay.value)) {
+      selectedDay.value = schedule[0].day
+    }
+    saved.value = false
+    loadDay()
+  },
+  { deep: true },
+)
 </script>
 
 <template>
