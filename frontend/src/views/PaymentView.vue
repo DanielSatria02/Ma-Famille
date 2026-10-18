@@ -3,9 +3,13 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useCheckoutStore } from '../stores/checkout.js'
 import { errorDetail, fetchBooking, fetchClientConfig } from '../services/api.js'
+import { watchBooking } from '../services/live.js'
 import { formatHour, formatLongDate } from '../utils/date.js'
 
-const POLL_MS = 5000
+// The hold countdown is the one timer left in the app, and it is not polling:
+// it counts down a number the server already gave us, between two pushed
+// updates. The status itself arrives over a socket.
+const COUNTDOWN_MS = 1000
 
 const router = useRouter()
 const checkout = useCheckoutStore()
@@ -16,7 +20,10 @@ const booking = ref(null)
 const clientConfig = ref(null)
 const secondsLeft = ref(null)
 const lookUpError = ref('')
-let pollTimer = null
+// 'connecting' | 'live' | 'offline' — shown so a stale screen is never
+// mistaken for an unchanged booking.
+const connection = ref('connecting')
+let stopWatching = null
 let tickTimer = null
 
 const settled = computed(() => {
@@ -64,24 +71,25 @@ function openCheckout() {
   if (gateway.value?.checkout_url) window.open(gateway.value.checkout_url, '_blank', 'noopener')
 }
 
+function applySnapshot(payload) {
+  booking.value = payload
+  secondsLeft.value = payload.expires_in_seconds
+  // Nothing left to wait for once the booking can no longer change on its
+  // own, so the socket has done its job.
+  stopWatchingIfSettled()
+}
+
+// The first read is over HTTP: it renders immediately, before a socket has
+// finished opening, and it is the one call that can fail loudly.
 async function refresh() {
   const bookingId = order.value?.bookingId
   if (!bookingId) return
   try {
     booking.value = await fetchBooking(bookingId)
     secondsLeft.value = booking.value.expires_in_seconds
-    // Stop polling once the booking can no longer change on its own.
-    if (settled.value) stopPolling()
+    stopWatchingIfSettled()
   } catch (err) {
     lookUpError.value = errorDetail(err, 'Could not read the booking status.')
-    stopPolling()
-  }
-}
-
-function stopPolling() {
-  if (pollTimer) {
-    clearInterval(pollTimer)
-    pollTimer = null
   }
 }
 
@@ -91,9 +99,28 @@ function tick() {
 }
 
 function startWatching(bookingId) {
-  if (!bookingId || pollTimer) return
-  pollTimer = setInterval(refresh, POLL_MS)
-  tickTimer = setInterval(tick, 1000)
+  if (!bookingId || stopWatching) return
+  stopWatching = watchBooking(bookingId, {
+    onUpdate: applySnapshot,
+    onStatus: (state) => {
+      connection.value = state
+    },
+  })
+  if (!tickTimer) tickTimer = setInterval(tick, COUNTDOWN_MS)
+}
+
+function closeWatch() {
+  if (stopWatching) {
+    stopWatching()
+    stopWatching = null
+  }
+}
+
+// The socket stops itself once the booking settles, and the page stops it on
+// the way out — both routes named apart from the connection handle so neither
+// shadows the other.
+function stopWatchingIfSettled() {
+  if (settled.value) closeWatch()
 }
 
 onMounted(async () => {
@@ -107,7 +134,7 @@ onMounted(async () => {
 })
 
 // The order can arrive after the page did (the booking redirect lands here), so
-// the status watch starts whenever a booking id shows up, not only on mount.
+// the watch starts whenever a booking id shows up, not only on mount.
 watch(
   () => order.value?.bookingId,
   async (bookingId) => {
@@ -118,7 +145,7 @@ watch(
 )
 
 onBeforeUnmount(() => {
-  stopPolling()
+  closeWatch()
   if (tickTimer) clearInterval(tickTimer)
 })
 </script>
@@ -150,9 +177,31 @@ onBeforeUnmount(() => {
       </p>
     </div>
 
+    <!--
+      Only while the status can still change. A settled booking has nothing
+      left to hear about, so saying "live" there would be a claim, not a fact.
+    -->
+    <p
+      v-if="!settled && order?.bookingId"
+      class="flex items-center justify-center gap-2 text-xs text-gray-500"
+      role="status"
+    >
+      <span
+        class="h-2 w-2 rounded-full transition-colors duration-300"
+        :class="{
+          'bg-emerald-500': connection === 'live',
+          'animate-pulse bg-amber-400': connection === 'connecting',
+          'bg-red-400': connection === 'offline',
+        }"
+      />
+      <span v-if="connection === 'live'">Updating live</span>
+      <span v-else-if="connection === 'connecting'">Connecting…</span>
+      <span v-else>Reconnecting…</span>
+    </p>
+
     <p v-if="!settled && countdown" class="text-sm font-semibold text-gray-700">{{ countdown }}</p>
     <p v-if="!settled" class="text-xs text-gray-500">
-      This page checks the status by itself every {{ POLL_MS / 1000 }} seconds.
+      This page updates itself the moment the payment changes — nothing to refresh.
     </p>
     <p v-if="lookUpError" class="text-sm text-red-600" role="alert">{{ lookUpError }}</p>
 
