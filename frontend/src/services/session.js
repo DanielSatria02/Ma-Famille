@@ -2,6 +2,9 @@
 const TOKEN_KEY = 'ma-famille.manager-token'
 // The contact a client booked with: proves ownership of their bookings.
 const CONTACT_KEY = 'ma-famille.customer-contact'
+// A signed-in customer's session. Separate from the contact above on purpose:
+// the contact is whatever was typed, this is what the server vouched for.
+const CUSTOMER_TOKEN_KEY = 'ma-famille.customer-token'
 
 function read(key) {
   try {
@@ -39,4 +42,16 @@ export function getCustomerContact() {
 
 export function setCustomerContact(contact) {
   write(CONTACT_KEY, contact)
+}
+
+export function getCustomerToken() {
+  return read(CUSTOMER_TOKEN_KEY)
+}
+
+export function setCustomerToken(token) {
+  write(CUSTOMER_TOKEN_KEY, token)
+}
+
+export function clearCustomerToken() {
+  setCustomerToken('')
 }

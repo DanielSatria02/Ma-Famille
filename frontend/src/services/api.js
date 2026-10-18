@@ -1,6 +1,6 @@
 import axios from 'axios'
 
-import { getManagerToken } from './session.js'
+import { getCustomerToken, getManagerToken } from './session.js'
 
 // Where the API lives. Media URLs come back as paths (`/media/…`), so the client
 // needs the origin to turn them into something an <img> can load.
@@ -14,10 +14,13 @@ const api = axios.create({
   timeout: 8000,
 })
 
-// Manager routes want `X-Manager-Token`; one interceptor covers every call.
+// Manager routes want `X-Manager-Token`; customer routes want `X-Customer-Token`.
+// One interceptor covers every call, so no caller has to remember either.
 api.interceptors.request.use((config) => {
   const token = getManagerToken()
   if (token) config.headers['X-Manager-Token'] = token
+  const customerToken = getCustomerToken()
+  if (customerToken) config.headers['X-Customer-Token'] = customerToken
   return config
 })
 
@@ -55,6 +58,35 @@ export async function loginManager({ email, password }) {
 // token exists (local open-access dev has none) — see the auth store.
 export async function logoutManager() {
   const res = await api.post('/v1/auth/logout')
+  return res.data
+}
+
+// --- Customer accounts ----------------------------------------------------
+
+// Both answers carry the token in the body and in `X-Customer-Token`; the
+// body is what we read.
+export async function registerCustomer({ email, password, displayName, phone = '' }) {
+  const res = await api.post('/v1/customers/register', {
+    email,
+    password,
+    display_name: displayName,
+    phone,
+  })
+  return res.data
+}
+
+export async function loginCustomer({ email, password }) {
+  const res = await api.post('/v1/customers/login', { email, password })
+  return res.data
+}
+
+export async function logoutCustomer() {
+  const res = await api.post('/v1/customers/logout')
+  return res.data
+}
+
+export async function fetchMe() {
+  const res = await api.get('/v1/customers/me')
   return res.data
 }
 

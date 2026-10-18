@@ -4,10 +4,12 @@ import { useRoute, useRouter } from 'vue-router'
 import { DEFAULT_FRANCHISE } from '../config/franchise.js'
 import { useAppStore } from '../stores/app.js'
 import { useAuthStore } from '../stores/auth.js'
+import { useCustomerStore } from '../stores/customer.js'
 import '../styles/header.css'
 
 const store = useAppStore()
 const auth = useAuthStore()
+const customer = useCustomerStore()
 const route = useRoute()
 const router = useRouter()
 const isSidebarOpen = ref(false)
@@ -48,6 +50,14 @@ function logOut() {
   auth.logout()
   closeSidebar()
   router.push({ name: 'login' })
+}
+
+// Sign out of a customer account. The visit ends either way — a failed call
+// must not leave someone stuck signed in on a shared device.
+async function signOut() {
+  await customer.logout()
+  closeSidebar()
+  router.push({ name: 'account' })
 }
 </script>
 
@@ -107,6 +117,25 @@ function logOut() {
         <RouterLink v-if="!isManagerArea" to="/login" class="app-sidebar-link rounded-lg px-3 py-2 no-underline" @click="closeSidebar">Manager login</RouterLink>
         <RouterLink v-if="isManagerArea" :to="homePath" class="app-sidebar-link rounded-lg px-3 py-2 no-underline" @click="closeSidebar">Dashboard</RouterLink>
         <button type="button" class="app-sidebar-link rounded-lg px-3 py-2 text-left" @click="logOut">Log out</button>
+
+        <!-- A customer's account. The name is shown when signed in so it is
+             obvious whose bookings "My bookings" will list. -->
+        <RouterLink
+          v-if="!isManagerArea"
+          to="/account"
+          class="app-sidebar-link rounded-lg px-3 py-2 no-underline"
+          @click="closeSidebar"
+        >
+          {{ customer.isSignedIn ? customer.displayName || 'Account' : 'Sign in' }}
+        </RouterLink>
+        <button
+          v-if="!isManagerArea && customer.isSignedIn"
+          type="button"
+          class="app-sidebar-link rounded-lg px-3 py-2 text-left"
+          @click="signOut"
+        >
+          Sign out
+        </button>
       </nav>
     </aside>
   </header>

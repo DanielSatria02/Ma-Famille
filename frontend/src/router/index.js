@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 
 import { PREMIERE_FRANCHISE } from '../config/franchise.js'
 import { useAuthStore } from '../stores/auth.js'
+import AccountView from '../views/AccountView.vue'
 import BookingView from '../views/BookingView.vue'
 import HealthView from '../views/HealthView.vue'
 import HomeView from '../views/HomeView.vue'
@@ -18,6 +19,9 @@ const router = createRouter({
     { path: '/health', name: 'health', component: HealthView },
     { path: '/my-bookings', name: 'my-bookings', component: MyBookingsView },
     { path: '/login', name: 'login', component: LoginView },
+    // A customer's own account: sign in, or create one. Kept apart from
+    // /login, which is the manager dashboard's door.
+    { path: '/account', name: 'account', component: AccountView },
     {
       path: '/manager',
       name: 'manager-home',
