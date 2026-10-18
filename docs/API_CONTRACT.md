@@ -91,9 +91,15 @@ Rules:
 
 ### Payment
 ```json
-{ "public_id": "uuidv7", "booking_public_id": "uuidv7", "amount": 60000, "kind": "deposit|full", "status": "unpaid|paid|refunded", "invoice_number": "MAF-..." }
+{ "public_id": "uuidv7", "booking_public_id": "uuidv7", "amount": 60000, "kind": "deposit|full", "status": "unpaid|paid|failed|refunded", "invoice_number": "MAF-…", "provider_status": "SUCCESS|EXPIRED|…", "failure_reason": "gateway reported EXPIRED", "refunded_at": null }
 ```
 `invoice_number` links the row to the DOKU sandbox checkout (see `docs/PAYMENTS.md`).
+`provider_request_id` (not exposed) is the DOKU Request-Id of that checkout: a refund
+must quote it. `provider_status` keeps the raw gateway status even when it changes no
+state; `failure_reason` carries the human-readable why (a gateway failure, an expired
+hold, or *"paid after the visit was cancelled — refund it"*). A refund answers
+`{payment, provider: "doku"|"local", detail}` so the caller knows whether money actually
+moved (`local` = no DOKU keys, bookkeeping only).
 
 ## Endpoints
 
@@ -121,7 +127,8 @@ POST   /bookings/groups/{group_public_id}/confirm (manager, every hour of the vi
 POST   /bookings/groups/{group_public_id}/cancel (manager, or the customer with `customer_contact`)
 POST   /bookings/{public_id}/confirm (manager)  POST /bookings/{public_id}/cancel (same rule)
 POST   /payments  → {invoice_number, checkout_url}   GET /payments?booking_public_id=
-POST   /payments/{public_id}/mark-paid (manager, auto-confirms booking)
+POST   /payments/{public_id}/mark-paid (manager, auto-confirms a pending booking)
+POST   /payments/{public_id}/refund    (manager, paid only: DOKU refund, or local note)
 POST   /payments/webhook/doku (DOKU signed notification → paid + auto-confirm)
 GET    /manager/bookings?booking_status=&day=&from_day=&to_day=   GET /manager/occupancy?from_day=&to_day=
 GET    /manager/stats?day=&week_start= (dashboard counters, one visit = one booking group)

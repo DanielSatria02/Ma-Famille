@@ -12,6 +12,7 @@ from app.schemas.payment import (
     DokuWebhookAck,
     PaymentCreate,
     PaymentInitiateResponse,
+    PaymentRefundResponse,
     PaymentResponse,
 )
 from app.services import doku
@@ -29,6 +30,10 @@ def _to_response(db: Session, payment) -> PaymentResponse:
         amount=payment.amount,
         kind=payment.kind,
         status=payment.status,
+        invoice_number=payment.invoice_number,
+        provider_status=payment.provider_status,
+        failure_reason=payment.failure_reason,
+        refunded_at=payment.refunded_at,
         created_at=payment.created_at,
     )
 
@@ -62,6 +67,7 @@ def create_payment(body: PaymentCreate, db: Session = Depends(get_db)):
         amount=body.amount,
         kind=body.kind,
         invoice_number=invoice_number,
+        provider_request_id=getattr(result, "request_id", ""),
     )
     return PaymentInitiateResponse(
         invoice_number=result.invoice_number,
@@ -95,7 +101,66 @@ def mark_paid(public_id: UUID, db: Session = Depends(get_db)) -> PaymentResponse
     return _to_response(db, payment_service.mark_paid(db, payment))
 
 
-def _webhook_status(body: dict) -> tuple[str, str]:
+@router.post(
+    "/{public_id}/refund",
+    summary="Refund a paid payment (manager)",
+    response_model=PaymentRefundResponse,
+    dependencies=[Depends(require_manager)],
+    responses={
+        409: {"description": "Only a paid payment can be refunded"},
+        502: {"description": "The provider refused the refund"},
+    },
+)
+def refund(public_id: UUID, db: Session = Depends(get_db)) -> PaymentRefundResponse:
+    payment = payment_service.get_by_public_id(db, public_id)
+    if payment is None:
+        raise HTTPException(status_code=404, detail="payment not found")
+    if not payment_service.can_refund(payment):
+        raise HTTPException(
+            status_code=409,
+            detail=f"a {payment.status} payment cannot be refunded",
+        )
+    if not settings.doku_configured:
+        # No keys: never claim money moved. Book it and say who has to move it.
+        refunded = payment_service.mark_refunded(
+            db, payment, note="refunded without a gateway: no DOKU keys configured"
+        )
+        return PaymentRefundResponse(
+            payment=_to_response(db, refunded),
+            provider="local",
+            detail=(
+                "no DOKU keys configured — the payment is marked refunded here, "
+                "the money itself has to be returned by hand"
+            ),
+        )
+    try:
+        result = doku.request_refund(
+            invoice_number=payment.invoice_number or "",
+            original_request_id=payment.provider_request_id or "",
+            amount=payment.amount,
+        )
+    except doku.DokuError as exc:
+        # Nothing changed locally: the payment is still paid until DOKU says otherwise.
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
+    if result.status != "SUCCESS":
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"DOKU refused the refund ({result.status}): {result.message}",
+        )
+    refunded = payment_service.mark_refunded(
+        db, payment, note=f"{result.kind} {result.approval_code}".strip()
+    )
+    payment_service.record_provider_status(db, refunded, "REFUNDED")
+    return PaymentRefundResponse(
+        payment=_to_response(db, refunded),
+        provider="doku",
+        detail=result.message or f"DOKU {result.kind or 'refund'} accepted",
+        provider_status="REFUNDED",
+    )
+
+
+def _webhook_status(body: dict) -> tuple[str, str, str]:
+    """(invoice, mapped status, raw status)."""
     try:
         invoice = body["order"]["invoice_number"]
     except (KeyError, TypeError):
@@ -111,7 +176,7 @@ def _webhook_status(body: dict) -> tuple[str, str]:
         mapped = "failed"
     else:
         mapped = "pending"
-    return invoice, mapped
+    return invoice, mapped, raw_status
 
 
 @router.post(
@@ -140,12 +205,34 @@ async def doku_webhook(request: Request, db: Session = Depends(get_db)):
         body = dict(await request.json())
     except ValueError:
         raise HTTPException(status_code=422, detail="invalid JSON body")
-    invoice, mapped = _webhook_status(body)
+    invoice, mapped, raw_status = _webhook_status(body)
     payment = payment_service.get_by_invoice(db, invoice)
     if payment is None:
         raise HTTPException(status_code=404, detail="unknown invoice")
+    detail = "matched"
     if mapped == "paid":
-        payment_service.mark_paid(db, payment)
+        booking = _booking_of(db, payment)
+        if booking is not None and booking.status in ("cancelled", "expired"):
+            # Money arrived for a visit that no longer holds its hours: keep the
+            # truth (it is paid) and leave a note so a manager refunds it.
+            payment_service.record_provider_status(db, payment, raw_status)
+            payment_service.mark_paid(
+                db, payment, note="paid after the visit was cancelled — refund it"
+            )
+            detail = "paid after the visit was cancelled: a refund is needed"
+        else:
+            payment_service.record_provider_status(db, payment, raw_status)
+            payment_service.mark_paid(db, payment)
+    elif mapped == "failed":
+        payment_service.mark_failed(db, payment, f"gateway reported {raw_status}", raw_status)
+        detail = "recorded as failed"
+    else:
+        payment_service.record_provider_status(db, payment, raw_status)
+        detail = f"recorded as {raw_status or 'unknown'}"
     return DokuWebhookAck(
-        invoice_number=invoice, payment_status=mapped, detail="matched"
+        invoice_number=invoice, payment_status=payment.status, detail=detail
     )
+
+
+def _booking_of(db: Session, payment):
+    return db.get(Booking, payment.booking_id)

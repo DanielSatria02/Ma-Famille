@@ -86,6 +86,7 @@ class CheckoutResult:
     invoice_number: str
     checkout_url: str
     token_id: str
+    request_id: str = ""
 
 
 def new_invoice_number() -> str:
@@ -142,6 +143,77 @@ def create_checkout(
             invoice_number=invoice_number,
             checkout_url=payment["url"],
             token_id=payment.get("token_id", ""),
+            request_id=request_id,
         )
     except (KeyError, TypeError, ValueError) as exc:
         raise DokuError("DOKU returned an unexpected body") from exc
+
+
+REFUND_TARGET = "/cancellation/credit-card/refund"
+
+
+@dataclass
+class RefundResult:
+    status: str  # SUCCESS | FAILED (as reported by DOKU)
+    kind: str  # VOID | PARTIAL_REFUND | FULL_REFUND | MANUAL_* (may be empty)
+    message: str
+    approval_code: str = ""
+
+
+def request_refund(
+    *, invoice_number: str, original_request_id: str, amount: int
+) -> RefundResult:
+    """Ask DOKU to return money for a card payment.
+
+    `original_request_id` is the Request-Id of the checkout that was paid — DOKU
+    refuses a refund without it. Card channel only: the endpoint is documented for
+    cards aggregator/direct, so a transfer or e-wallet payment has to be refunded
+    from the DOKU dashboard instead (the service reports that as a failure).
+    """
+    if not settings.doku_configured:
+        raise DokuError("DOKU keys not configured (see docs/PAYMENTS.md)")
+    if not original_request_id:
+        raise DokuError("the payment has no provider request id to refund against")
+    body = {
+        "order": {"invoice_number": invoice_number},
+        "payment": {"original_request_id": original_request_id},
+        "refund": {"amount": amount},
+    }
+    raw = json.dumps(body, separators=(",", ":")).encode()
+    timestamp = utc_timestamp()
+    request_id = new_request_id()
+    headers = {
+        "Content-Type": "application/json",
+        "Client-Id": settings.doku_client_id,
+        "Request-Id": request_id,
+        "Request-Timestamp": timestamp,
+        "Signature": build_signature(
+            client_id=settings.doku_client_id,
+            request_id=request_id,
+            timestamp=timestamp,
+            request_target=REFUND_TARGET,
+            digest=build_digest(raw),
+            secret=settings.doku_secret_key,
+        ),
+    }
+    try:
+        res = httpx.post(
+            settings.doku_base_url + REFUND_TARGET,
+            content=raw,
+            headers=headers,
+            timeout=15,
+        )
+    except httpx.HTTPError as exc:
+        raise DokuError(f"DOKU request failed: {exc}") from exc
+    if res.status_code != 200:
+        raise DokuError(f"DOKU rejected the refund: HTTP {res.status_code}")
+    try:
+        refund = res.json()["response"]["refund"]
+        return RefundResult(
+            status=str(refund["status"]).upper(),
+            kind=str(refund.get("type", "")),
+            message=str(refund.get("message", "")),
+            approval_code=str(refund.get("approval_code", "")),
+        )
+    except (KeyError, TypeError, ValueError) as exc:
+        raise DokuError("DOKU returned an unexpected refund body") from exc

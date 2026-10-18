@@ -18,6 +18,7 @@ from app.schemas.booking import BookingCreate, BookingRangeCreate
 from app.services import closures as closure_service
 from app.services import courts as court_service
 from app.services import notifications as notification_service
+from app.services import payments as payment_service
 
 
 class SlotUnavailable(RuntimeError):
@@ -48,6 +49,9 @@ def expire_stale_bookings(db: Session, ttl_minutes: int) -> int:
 
     Runs lazily inside read/write paths (no cron needed). Compares in
     Python so SQLite and Postgres timestamp flavors both behave.
+
+    The unpaid payment of an expired booking dies with it: an invoice nobody can
+    pay any more must not sit in the books as money owed.
     """
     now = datetime.now(UTC).replace(tzinfo=None)
     stale = db.scalars(select(Booking).where(Booking.status == "pending")).all()
@@ -61,6 +65,10 @@ def expire_stale_bookings(db: Session, ttl_minutes: int) -> int:
             slot = db.get(Slot, booking.slot_id)
             if slot is not None and slot.status == "booked":
                 slot.status = "available"
+            notification_service.queue_event(db, [booking], "cancelled")
+            payment_service.expire_unpaid_for_booking(
+                db, booking.id, "the hold expired before the payment arrived"
+            )
             expired += 1
     if expired:
         db.commit()

@@ -5,7 +5,7 @@ from uuid import UUID
 from pydantic import BaseModel, Field
 
 PaymentKind = Literal["deposit", "full"]
-PaymentStatus = Literal["unpaid", "paid", "refunded"]
+PaymentStatus = Literal["unpaid", "paid", "failed", "refunded"]
 
 
 class PaymentCreate(BaseModel):
@@ -20,6 +20,10 @@ class PaymentResponse(BaseModel):
     amount: int
     kind: PaymentKind
     status: PaymentStatus
+    invoice_number: str | None = None
+    provider_status: str | None = None
+    failure_reason: str | None = None
+    refunded_at: datetime | None = None
     created_at: datetime
 
 
@@ -29,7 +33,16 @@ class PaymentInitiateResponse(BaseModel):
     token_id: str = ""
 
 
+class PaymentRefundResponse(BaseModel):
+    payment: PaymentResponse
+    # "doku" = the provider was asked and answered; "local" = bookkeeping only,
+    # because there are no keys to ask with (the money move stays manual).
+    provider: Literal["doku", "local"]
+    detail: str
+    provider_status: str = ""
+
+
 class DokuWebhookAck(BaseModel):
     invoice_number: str
     payment_status: str
-    detail: str = "TODO: match to payment store"
+    detail: str = "matched"
