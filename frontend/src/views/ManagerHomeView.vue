@@ -2,7 +2,9 @@
 import { computed, onMounted, ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import BookingCalendar from '../components/BookingCalendar.vue'
+import GuestMessages from '../components/GuestMessages.vue'
 import ManageHours from '../components/ManageHours.vue'
+import OccupancyChart from '../components/OccupancyChart.vue'
 import OpeningSchedule from '../components/OpeningSchedule.vue'
 import PricingSettings from '../components/PricingSettings.vue'
 import StatsOverview from '../components/StatsOverview.vue'
@@ -128,6 +130,7 @@ async function generateMonth() {
     <p v-if="bookingsStore.error" class="text-sm text-red-600" role="alert">{{ bookingsStore.error }}</p>
     <UnavailableNotice :venues="venues" />
     <BookingCalendar allow-past-months :booked-dates="bookedDates" />
+    <OccupancyChart />
     <TodaysVisitors
       :bookings="todaysBookings"
       @confirm="confirmVisit"
@@ -150,6 +153,7 @@ async function generateMonth() {
     </button>
     <OpeningSchedule :schedule="openingSchedule" @update="updateSchedule" />
     <ManageHours :facilities="venuesStore.facilities" :venue-public-id="activeVenueId" />
+    <GuestMessages />
     <PricingSettings :items="pricing" @update="venuesStore.updatePricing" />
     <VenueStatus :venues="venueStatusItems" @toggle="venuesStore.toggleVenue" />
   </section>

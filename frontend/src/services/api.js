@@ -232,6 +232,16 @@ export async function fetchManagerStats(params = {}) {
   return res.data
 }
 
+export async function fetchNotifications(params = {}) {
+  const res = await api.get('/v1/manager/notifications', { params })
+  return res.data
+}
+
+export async function dispatchNotifications(limit = 20) {
+  const res = await api.post('/v1/manager/notifications/dispatch', null, { params: { limit } })
+  return res.data
+}
+
 export async function fetchOccupancy(fromDay, toDay) {
   const res = await api.get('/v1/manager/occupancy', {
     params: { from_day: fromDay, to_day: toDay },
