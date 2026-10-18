@@ -33,19 +33,20 @@
  */
 
 @keyframes rise-in {
+  /* Travel only. An opacity keyframe start means the element is invisible for as
+   * long as the animation is pending, so anything that delays or drops it — a
+   * throttled background tab, a busy main thread — shows nothing at all. */
   from {
-    opacity: 0;
     transform: translate3d(0, 8px, 0);
   }
 
   to {
-    opacity: 1;
     transform: translate3d(0, 0, 0);
   }
 }
 
 .view-enter-active {
-  animation: rise-in var(--motion-slow) var(--motion-ease) both;
+  animation: rise-in var(--motion-slow) var(--motion-ease);
 }
 
 /* --- Lists ----------------------------------------------------------------
@@ -57,18 +58,23 @@
 
 @keyframes rise-in-staggered {
   from {
-    opacity: 0;
     transform: translate3d(0, 10px, 0);
   }
 
   to {
-    opacity: 1;
     transform: translate3d(0, 0, 0);
   }
 }
 
 .stagger-item {
-  animation: rise-in-staggered var(--motion-slow) var(--motion-ease) both;
+  /* No fill mode on purpose. A fill mode of any kind keeps the element at the
+     keyframe's starting opacity for as long as the animation is pending or
+     stalled, which means a browser that throttles the animation — a
+     backgrounded tab, a busy main thread, a headless run — leaves the content
+     invisible with nothing that will ever bring it back. Rising in is worth
+     less than being readable, so the animation runs and the element is simply
+     visible when it does not. */
+  animation: rise-in-staggered var(--motion-slow) var(--motion-ease);
 }
 
 /* --- List changes --------------------------------------------------------
@@ -89,7 +95,7 @@
 }
 
 .list-settle {
-  animation: settle var(--motion-base) var(--motion-ease) both;
+  animation: settle var(--motion-base) var(--motion-ease);
 }
 
 /* --- Feedback ------------------------------------------------------------- */
@@ -122,7 +128,7 @@
 }
 
 .value-changed {
-  animation: flash-changed 900ms var(--motion-ease) both;
+  animation: flash-changed 900ms var(--motion-ease);
 }
 
 /* --- Interactive affordances ----------------------------------------------- */
@@ -152,15 +158,17 @@
 
 .fade-enter-active,
 .fade-leave-active {
-  transition:
-    opacity var(--motion-base) var(--motion-ease),
-    transform var(--motion-base) var(--motion-ease);
+  transition: transform var(--motion-base) var(--motion-ease);
 }
 
 .fade-enter-from,
 .fade-leave-to {
-  opacity: 0;
-  transform: translate3d(0, 6px, 0);
+  /* Transform only, never opacity. A transition that stalls mid-flight leaves
+   * `fade-enter-from` on the element, and an opacity of 0 there is a blank
+   * page the visitor cannot recover from. Eight pixels of travel reads as the
+   * same kind of motion and degrades to "nothing happened" instead of
+   * "nothing is there". */
+  transform: translate3d(0, 8px, 0);
 }
 
 /* --- Reduced motion, for real --------------------------------------------- *

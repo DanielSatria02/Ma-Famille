@@ -66,12 +66,23 @@ router.beforeEach(async (to) => {
   // A token in storage is not yet a session: it may have been revoked, or it
   // may have expired overnight. Confirming it here means a guard that passed on
   // a stale token cannot walk into a page that will then show "not signed in".
-  if (customer.token && !customer.isSignedIn) await customer.restore()
+  //
+  // A failed call here (offline, a 500) must not block the navigation: the
+  // guard's job is to send someone to the door, and throwing out of it would
+  // leave the transition half-applied — the view mounted at zero opacity and
+  // never finished animating in, which is a blank page.
+  if (customer.token && !customer.isSignedIn) {
+    try {
+      await customer.restore()
+    } catch {
+      /* treated below as "not signed in" */
+    }
+  }
   if (customer.isSignedIn) return true
 
   // `from` is kept so signing in returns the visitor to where they were going,
   // instead of dropping them on the home page after trying to book.
-  return { name: 'login', query: to.name === 'login' ? to.query : { next: to.fullPath } }
+  return { name: 'login', query: { next: to.fullPath } }
 })
 
 export default router

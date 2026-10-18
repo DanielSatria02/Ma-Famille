@@ -20,9 +20,15 @@ const bare = computed(() => route.name === 'login')
         Keyed on the path so each view is its own transition. Without the key
         Vue reuses one element between routes and the animation would only
         ever play on the first page.
+
+        The duration is given explicitly. Left to itself Vue ends the
+        transition on the browser's `transitionend`, and if that event never
+        arrives — a throttled background tab, a busy main thread — the classes
+        stay on the element, which leaves it at zero opacity. That is a blank
+        page with no way back. A duration makes Vue finish on a timer it owns.
       -->
       <RouterView v-slot="{ Component, route: view }">
-        <Transition name="fade" mode="out-in">
+        <Transition name="fade" mode="out-in" :duration="250">
           <component :is="Component" :key="view.path" />
         </Transition>
       </RouterView>
