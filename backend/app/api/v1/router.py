@@ -13,6 +13,8 @@ from app.api.v1 import (
     payments,
     pricing,
     promotions,
+    realtime,
+    reviews,
     slots,
     venues,
 )
@@ -33,3 +35,5 @@ router.include_router(payments.router)
 router.include_router(manager.router)
 router.include_router(promotions.router)
 router.include_router(customers.router)
+router.include_router(reviews.router)
+router.include_router(realtime.router)

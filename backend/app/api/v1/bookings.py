@@ -5,6 +5,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.api.paging import Page, set_total
+from app.api.v1.realtime import notify_booking_changed
 from app.core.config import settings
 from app.core.security import is_manager, manager_token_header, require_manager
 from app.db.session import get_db
@@ -174,7 +175,10 @@ def cancel_group(
             status_code=403,
             detail="manager token or the booking contact is required",
         )
-    return [_to_response(db, b) for b in booking_service.cancel_group(db, group_public_id)]
+    cancelled = booking_service.cancel_group(db, group_public_id)
+    for booking in cancelled:
+        notify_booking_changed(booking)
+    return [_to_response(db, b) for b in cancelled]
 
 
 @router.post(
@@ -191,6 +195,8 @@ def confirm_group(
     confirmed = booking_service.confirm_group(db, group_public_id)
     if not confirmed:
         raise HTTPException(status_code=409, detail="booking group is cancelled")
+    for booking in confirmed:
+        notify_booking_changed(booking)
     return [_to_response(db, b) for b in confirmed]
 
 

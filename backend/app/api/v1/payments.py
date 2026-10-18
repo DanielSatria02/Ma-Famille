@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.api.v1.realtime import notify_booking_changed
 from app.core.config import settings
 from app.core.security import require_manager
 from app.db.session import get_db
@@ -98,7 +99,9 @@ def mark_paid(public_id: UUID, db: Session = Depends(get_db)) -> PaymentResponse
     payment = payment_service.get_by_public_id(db, public_id)
     if payment is None:
         raise HTTPException(status_code=404, detail="payment not found")
-    return _to_response(db, payment_service.mark_paid(db, payment))
+    paid = payment_service.mark_paid(db, payment)
+    notify_booking_changed(db.get(Booking, paid.booking_id))
+    return _to_response(db, paid)
 
 
 @router.post(
@@ -125,6 +128,7 @@ def refund(public_id: UUID, db: Session = Depends(get_db)) -> PaymentRefundRespo
         refunded = payment_service.mark_refunded(
             db, payment, note="refunded without a gateway: no DOKU keys configured"
         )
+        notify_booking_changed(db.get(Booking, refunded.booking_id))
         return PaymentRefundResponse(
             payment=_to_response(db, refunded),
             provider="local",
@@ -151,6 +155,7 @@ def refund(public_id: UUID, db: Session = Depends(get_db)) -> PaymentRefundRespo
         db, payment, note=f"{result.kind} {result.approval_code}".strip()
     )
     payment_service.record_provider_status(db, refunded, "REFUNDED")
+    notify_booking_changed(db.get(Booking, refunded.booking_id))
     return PaymentRefundResponse(
         payment=_to_response(db, refunded),
         provider="doku",
@@ -229,6 +234,9 @@ async def doku_webhook(request: Request, db: Session = Depends(get_db)):
     else:
         payment_service.record_provider_status(db, payment, raw_status)
         detail = f"recorded as {raw_status or 'unknown'}"
+    # Tell whoever is watching this booking, rather than making their page
+    # ask again in a few seconds to find out what this line already knows.
+    notify_booking_changed(_booking_of(db, payment))
     return DokuWebhookAck(
         invoice_number=invoice, payment_status=payment.status, detail=detail
     )

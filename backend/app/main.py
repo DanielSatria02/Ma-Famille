@@ -1,9 +1,11 @@
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
+from app.api.v1.realtime import close_open_sockets
 from app.api.v1.router import router as v1_router
 from app.core.audit_middleware import AuditMiddleware
 from app.core.config import settings
@@ -31,6 +33,14 @@ OPENAPI_TAGS = [
 
 
 def create_app() -> FastAPI:
+    # Long-lived WebSocket handlers must be dropped on the way down. Without
+    # this a handler parked on `queue.get()` looks like a request that never
+    # finishes, and a reload waits for it — the whole API goes unresponsive.
+    @asynccontextmanager
+    async def lifespan(_app: FastAPI):
+        yield
+        await close_open_sockets()
+
     app = FastAPI(
         title=settings.app_name,
         version="0.1.0",
@@ -39,6 +49,7 @@ def create_app() -> FastAPI:
         docs_url="/docs",
         redoc_url="/redoc",
         root_path=settings.root_path,
+        lifespan=lifespan,
     )
 
     app.add_middleware(
