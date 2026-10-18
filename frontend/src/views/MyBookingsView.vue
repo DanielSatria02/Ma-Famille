@@ -2,8 +2,10 @@
 import { computed, onMounted, ref } from 'vue'
 import { cancelBookingGroup, errorDetail, errorStatus, fetchBookingHistory } from '../services/api.js'
 import { getCustomerContact, setCustomerContact } from '../services/session.js'
+import { useCustomerStore } from '../stores/customer.js'
 import { formatHour, formatLongDate, toIsoDate } from '../utils/date.js'
 
+const customer = useCustomerStore()
 const contact = ref(getCustomerContact())
 const visits = ref([])
 const loading = ref(false)
@@ -71,7 +73,9 @@ function paymentLabel(status) {
 
 async function search() {
   const needle = contact.value.trim()
-  if (needle.length < 3) {
+  // Signed in, the token already says who is asking — the contact is for
+  // looking up visits made without an account.
+  if (!customer.isSignedIn && needle.length < 3) {
     error.value = 'Enter the WhatsApp number or email you booked with.'
     return
   }
@@ -79,11 +83,15 @@ async function search() {
   error.value = ''
   note.value = ''
   try {
-    const page = await fetchBookingHistory(needle, { limit: PAGE_SIZE, offset: 0 })
+    const page = await fetchBookingHistory(needle || null, { limit: PAGE_SIZE, offset: 0 })
     visits.value = page.rows
     total.value = page.total
-    setCustomerContact(needle)
-    if (!visits.value.length) note.value = 'No booking found for that contact.'
+    if (needle) setCustomerContact(needle)
+    if (!visits.value.length) {
+      note.value = customer.isSignedIn
+        ? 'No booking on this account yet.'
+        : 'No booking found for that contact.'
+    }
   } catch (err) {
     visits.value = []
     total.value = 0
@@ -97,11 +105,11 @@ async function search() {
 // row id.
 async function loadMore() {
   const needle = contact.value.trim()
-  if (!needle || loading.value || !hasMore.value) return
+  if ((!needle && !customer.isSignedIn) || loading.value || !hasMore.value) return
   loading.value = true
   error.value = ''
   try {
-    const page = await fetchBookingHistory(needle, {
+    const page = await fetchBookingHistory(needle || null, {
       limit: PAGE_SIZE,
       offset: visits.value.length,
     })
@@ -120,20 +128,28 @@ async function cancelVisit(visit) {
   error.value = ''
   note.value = ''
   try {
+    // Signed in, the token proves ownership; otherwise the contact does.
     await cancelBookingGroup(visit.id, contact.value.trim())
     note.value = 'Visit cancelled. The hours are free again.'
     await search()
   } catch (err) {
     error.value =
       errorStatus(err) === 403
-        ? 'That contact does not match this booking.'
+        ? customer.isSignedIn
+          ? 'That visit does not belong to this account.'
+          : 'That contact does not match this booking.'
         : errorDetail(err, 'Could not cancel the visit.')
   } finally {
     busyGroup.value = ''
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
+  // A signed-in customer's list needs nothing typed: the token is the query.
+  if (customer.isSignedIn) {
+    await search()
+    return
+  }
   if (contact.value.length >= 3) search()
 })
 </script>
@@ -141,9 +157,14 @@ onMounted(() => {
 <template>
   <section class="mx-auto max-w-2xl space-y-5">
     <h1 class="text-3xl font-bold tracking-tight text-gray-900">My bookings</h1>
-    <p class="text-sm text-gray-600">
+    <p v-if="customer.isSignedIn" class="text-sm text-gray-600">
+      Everything booked on your account. Cancel here too — no number to retype.
+    </p>
+    <p v-else class="text-sm text-gray-600">
       Look up the visits booked with your WhatsApp number or email. The same contact
-      is what lets you cancel a visit.
+      is what lets you cancel a visit. Have an account?
+      <RouterLink to="/account" class="font-semibold text-gray-900 underline">Sign in</RouterLink>
+      to skip this step.
     </p>
 
     <form class="flex flex-wrap items-end gap-2" @submit.prevent="search">
