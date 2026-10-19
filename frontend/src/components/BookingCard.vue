@@ -1,4 +1,5 @@
 <script setup>
+import { formatRupiah } from '../utils/money.js'
 import '../styles/todays-visitors.css'
 
 // booking: { id, date, startTime, endTime, visitorName, venueName, status,
@@ -47,7 +48,7 @@ const paymentLabels = {
         <span v-if="booking.hours > 1" class="visitor-hours">{{ booking.hours }} hours</span>
       </p>
       <p v-if="manageable && booking.invoice" class="visitor-invoice">
-        Invoice {{ booking.invoice }} · {{ booking.total }}
+        Invoice {{ booking.invoice }} · {{ formatRupiah(booking.total) }}
       </p>
       <p v-if="manageable && booking.paymentNote" class="visitor-note">
         {{ booking.paymentNote }}

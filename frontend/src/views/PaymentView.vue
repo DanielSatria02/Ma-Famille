@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { BRAND_NAME } from '../config/brand.js'
 import { useCheckoutStore } from '../stores/checkout.js'
 import {
   createPayment,
@@ -12,6 +13,7 @@ import {
 } from '../services/api.js'
 import { watchBooking } from '../services/live.js'
 import { formatHour, formatLongDate } from '../utils/date.js'
+import { formatRupiah } from '../utils/money.js'
 import '../styles/payment.css'
 
 // The hold countdown is the one timer left in the app, and it is not polling:
@@ -19,6 +21,7 @@ import '../styles/payment.css'
 // updates. The status itself arrives over a socket.
 const COUNTDOWN_MS = 1000
 
+const brandName = BRAND_NAME
 const router = useRouter()
 const route = useRoute()
 const checkout = useCheckoutStore()
@@ -148,7 +151,10 @@ const paymentOff = computed(() => {
 })
 
 const notice = computed(() => {
-  if (!order.value || settled.value) return ''
+  // The booking, not the order: the order only exists on the device that made
+  // it, so keying this off it hid the notice on a page that was reopened from
+  // a link — exactly the case where the visitor needs telling to go and pay.
+  if (!bookingId.value || settled.value) return ''
   switch (gateway.value?.status) {
     case 'ready':
       return 'Your booking is held. Finish the payment to confirm it.'
@@ -287,13 +293,14 @@ onBeforeUnmount(() => {
       the page is opened the next morning.
     -->
     <div v-if="summary" class="payment-card">
-      <span class="payment-card-name">{{ summary.facility }}</span>
-      <span v-if="summary.venue" class="payment-card-line">{{ summary.venue }}</span>
+      <span class="payment-card-brand">{{ brandName }}</span>
+      <span v-if="summary.venue" class="payment-card-name">{{ summary.venue }}</span>
+      <span class="payment-card-line">{{ summary.facility }}</span>
       <span class="payment-card-line">{{ formatLongDate(summary.date) }}</span>
       <span class="payment-card-line"
         >{{ formatHour(summary.startHour) }} - {{ formatHour(summary.endHour) }}</span
       >
-      <span class="payment-card-total">Total: {{ summary.total }}</span>
+      <span class="payment-card-total">Total: {{ formatRupiah(summary.total) }}</span>
       <span v-if="booking?.payment_invoice_number" class="payment-card-ref">
         Invoice {{ booking.payment_invoice_number }}
       </span>
@@ -367,7 +374,7 @@ onBeforeUnmount(() => {
       Only while the status can still change. A settled booking has nothing
       left to hear about, so saying "live" there would be a claim, not a fact.
     -->
-    <p v-if="!settled && order?.bookingId" class="payment-connection" role="status">
+    <p v-if="!settled && bookingId" class="payment-connection" role="status">
       <span class="payment-connection-dot" :class="`is-${connection}`" />
       <span v-if="connection === 'live'">Updating live</span>
       <span v-else-if="connection === 'connecting'">Connecting...</span>
@@ -390,7 +397,7 @@ onBeforeUnmount(() => {
       class="payment-primary"
       @click="openCheckout"
     >
-      Pay {{ order?.total }}
+      Pay {{ formatRupiah(summary?.total) }}
     </button>
 
     <div class="payment-secondary">

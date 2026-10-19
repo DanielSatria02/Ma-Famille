@@ -29,8 +29,19 @@
   padding: 1rem;
 }
 
+/* The chain above the branch, the same two lines the club cards use. */
+.payment-card-brand {
+  display: block;
+  color: #b45309;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .payment-card-name {
   display: block;
+  margin-top: 0.15rem;
   color: #111827;
   font-size: 1.05rem;
   font-weight: 700;

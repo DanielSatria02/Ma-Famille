@@ -1,10 +1,15 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
+import { BRAND_NAME } from '../config/brand.js'
 import { cancelBookingGroup, errorDetail, errorStatus, fetchBookingHistory } from '../services/api.js'
 import { useCustomerStore } from '../stores/customer.js'
 import { formatHour, formatLongDate, toIsoDate } from '../utils/date.js'
+import { formatRupiah } from '../utils/money.js'
 
 const customer = useCustomerStore()
+// The chain the visit belongs to, above the branch. Same two lines the club
+// cards use, so a visit and the club it was played at look like one thing.
+const brandName = BRAND_NAME
 // The router guard means nobody reaches this page without a session, so the
 // token is the only query there is. The contact field used to sit here asking
 // for a phone number — on a signed-in page it asked the user to prove they
@@ -154,8 +159,11 @@ onMounted(search)
       >
         <div class="flex items-start justify-between gap-3">
           <div>
-            <p class="font-semibold text-gray-900">{{ visit.facility }}</p>
-            <p class="text-sm text-gray-600">{{ visit.venue }}</p>
+            <p class="text-xs font-semibold uppercase tracking-widest text-amber-700">
+              {{ brandName }}
+            </p>
+            <p class="font-semibold text-gray-900">{{ visit.venue }}</p>
+            <p class="text-sm text-gray-600">{{ visit.facility }}</p>
           </div>
           <div class="text-right text-xs">
             <p class="font-semibold text-gray-700">{{ statusLabel(visit.status) }}</p>
@@ -167,7 +175,7 @@ onMounted(search)
           {{ formatHour(visit.startHour) }} - {{ formatHour(visit.endHour) }}
           ({{ visit.hours }} {{ visit.hours === 1 ? 'hour' : 'hours' }})
         </p>
-        <p class="text-sm text-gray-600">Total: {{ visit.total }}</p>
+        <p class="text-sm text-gray-600">Total: {{ formatRupiah(visit.total) }}</p>
         <p v-if="visit.invoice" class="text-xs text-gray-500">Invoice {{ visit.invoice }}</p>
         <p v-if="visit.paymentStatus === 'failed'" class="text-xs text-amber-700">
           The payment did not go through. Ask the club what happens next — your hours are
