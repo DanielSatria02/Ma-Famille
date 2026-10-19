@@ -34,6 +34,8 @@ def create_payment(
     kind: PaymentKind,
     invoice_number: str,
     provider_request_id: str = "",
+    checkout_url: str = "",
+    provider_token_id: str = "",
 ) -> Payment:
     payment = Payment(
         booking_id=booking_id,
@@ -41,11 +43,28 @@ def create_payment(
         kind=kind,
         invoice_number=invoice_number,
         provider_request_id=provider_request_id or None,
+        checkout_url=checkout_url or None,
+        provider_token_id=provider_token_id or None,
     )
     db.add(payment)
     db.commit()
     db.refresh(payment)
     return payment
+
+
+def find_unpaid_for_booking(db: Session, booking_id: int) -> Payment | None:
+    """The payment still owed for this booking, if there is one.
+
+    One visit has one price. Opening a second invoice for a booking that already
+    has an unpaid one leaves the customer with two pages to pay and the venue
+    with two amounts to reconcile, and the second invoice is the one that
+    actually gets paid.
+    """
+    return db.scalars(
+        select(Payment)
+        .where(Payment.booking_id == booking_id, Payment.status == "unpaid")
+        .order_by(Payment.id)
+    ).first()
 
 
 def mark_paid(db: Session, payment: Payment, note: str = "") -> Payment:

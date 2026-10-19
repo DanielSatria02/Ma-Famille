@@ -34,6 +34,16 @@ saying so, and `create_checkout` refuses before making the request rather than
 after. So the tell for "wrong kind of key" is not a failure at checkout, it is
 `payment_configured: false` on a config that plainly has keys in it.
 
+## One booking, one invoice
+
+`POST /v1/payments` is idempotent while the payment is still unpaid: calling it
+again for the same booking returns the same `invoice_number` and the same
+`checkout_url` instead of opening a second one. DOKU hands out a fresh invoice
+on every call, and two invoices for one visit means two pages to pay and two
+amounts for the venue to reconcile — with the one nobody was looking at being
+the one that gets paid. The checkout page is stored on the payment row, so it
+survives a refresh of the payment page.
+
 ## Test flow (no real payment)
 
 1. `POST /v1/payments` with `booking_public_id` + `amount` → returns

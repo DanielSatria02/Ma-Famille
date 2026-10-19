@@ -35,6 +35,7 @@ def _to_response(db: Session, payment) -> PaymentResponse:
         provider_status=payment.provider_status,
         failure_reason=payment.failure_reason,
         refunded_at=payment.refunded_at,
+        checkout_url=payment.checkout_url,
         created_at=payment.created_at,
     )
 
@@ -51,6 +52,18 @@ def create_payment(body: PaymentCreate, db: Session = Depends(get_db)):
     ).first()
     if booking is None:
         raise HTTPException(status_code=404, detail="booking not found")
+    # A booking that already owes money keeps the invoice it has. Asking the
+    # gateway for another one leaves the customer with two pages to pay and the
+    # venue with two amounts to reconcile, and the one nobody was looking at is
+    # the one that gets paid.
+    existing = payment_service.find_unpaid_for_booking(db, booking.id)
+    if existing is not None and existing.checkout_url:
+        return PaymentInitiateResponse(
+            invoice_number=existing.invoice_number,
+            checkout_url=existing.checkout_url,
+            token_id=existing.provider_token_id or "",
+        )
+
     invoice_number = doku.new_invoice_number()
     try:
         result = doku.create_checkout(
@@ -62,18 +75,20 @@ def create_payment(body: PaymentCreate, db: Session = Depends(get_db)):
         raise HTTPException(
             status_code=status.HTTP_501_NOT_IMPLEMENTED, detail=str(exc)
         ) from exc
-    payment_service.create_payment(
+    payment = payment_service.create_payment(
         db,
         booking_id=booking.id,
         amount=body.amount,
         kind=body.kind,
         invoice_number=invoice_number,
         provider_request_id=getattr(result, "request_id", ""),
+        checkout_url=result.checkout_url,
+        provider_token_id=result.token_id,
     )
     return PaymentInitiateResponse(
-        invoice_number=result.invoice_number,
-        checkout_url=result.checkout_url,
-        token_id=result.token_id,
+        invoice_number=payment.invoice_number,
+        checkout_url=payment.checkout_url or "",
+        token_id=payment.provider_token_id or "",
     )
 
 

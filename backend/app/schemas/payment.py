@@ -24,6 +24,9 @@ class PaymentResponse(BaseModel):
     provider_status: str | None = None
     failure_reason: str | None = None
     refunded_at: datetime | None = None
+    # The hosted checkout page, so a customer who closed it can go back to it
+    # without a second invoice being opened.
+    checkout_url: str | None = None
     created_at: datetime
 
 

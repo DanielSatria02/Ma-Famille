@@ -132,6 +132,51 @@ def test_payment_checkout_and_mark_paid_auto_confirms(monkeypatch):
         app.dependency_overrides.pop(get_db, None)
 
 
+def test_one_booking_keeps_one_invoice(monkeypatch):
+    """Paying twice must not open a second page for the same visit.
+
+    Each call to DOKU hands back a fresh invoice, and two invoices for one
+    booking means two pages to pay and two amounts for the venue to reconcile —
+    with the second one being the one nobody was looking at.
+    """
+    client = _client()
+    try:
+        booking_id = _booking(client)
+        calls = []
+
+        def fake_checkout(**kwargs):
+            calls.append(kwargs["invoice_number"])
+            return CheckoutResult(
+                invoice_number=kwargs["invoice_number"],
+                checkout_url=f"https://pay.test/{kwargs['invoice_number']}",
+                token_id="tok",
+            )
+
+        monkeypatch.setattr(payments.doku, "create_checkout", fake_checkout)
+
+        first = client.post(
+            "/v1/payments",
+            json={"booking_public_id": booking_id, "amount": 50000, "kind": "deposit"},
+        )
+        second = client.post(
+            "/v1/payments",
+            json={"booking_public_id": booking_id, "amount": 50000, "kind": "deposit"},
+        )
+        assert first.status_code == 200, first.text
+        assert second.status_code == 200, second.text
+
+        assert first.json()["invoice_number"] == second.json()["invoice_number"]
+        assert first.json()["checkout_url"] == second.json()["checkout_url"]
+        # DOKU was only asked once.
+        assert len(calls) == 1
+
+        listed = client.get("/v1/payments", params={"booking_public_id": booking_id})
+        assert len(listed.json()) == 1
+        assert listed.json()[0]["checkout_url"] == first.json()["checkout_url"]
+    finally:
+        app.dependency_overrides.pop(get_db, None)
+
+
 def test_payment_without_keys_is_501():
     client = _client()
     try:

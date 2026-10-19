@@ -221,7 +221,14 @@ POST   /bookings/range (whole-hour range on one court → one group, 409 on conf
 POST   /bookings/groups/{group_public_id}/confirm (manager, every hour of the visit)
 POST   /bookings/groups/{group_public_id}/cancel (manager, or the customer with `customer_contact`)
 POST   /bookings/{public_id}/confirm (manager)  POST /bookings/{public_id}/cancel (same rule)
-POST   /payments  → {invoice_number, checkout_url}   GET /payments?booking_public_id=
+POST   /payments  → {invoice_number, checkout_url, token_id}   GET /payments?booking_public_id=
+
+     One payment per booking while it is still unpaid. Calling it twice for the
+     same booking returns the same invoice and the same checkout page instead of
+     opening a second one: an invoice is money owed, and two invoices for one
+     visit is a question somebody has to answer later. The checkout page is
+     stored with the payment, so it survives a reload of the payment page —
+     which is exactly when a customer reopens it.
 POST   /payments/{public_id}/mark-paid (manager, auto-confirms a pending booking)
 POST   /payments/{public_id}/refund    (manager, paid only: DOKU refund, or local note)
 POST   /payments/webhook/doku (DOKU signed notification → paid + auto-confirm)
