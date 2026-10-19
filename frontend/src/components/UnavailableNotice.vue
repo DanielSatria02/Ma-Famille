@@ -13,7 +13,7 @@ const unavailableNames = computed(() =>
 
 const message = computed(() => {
   const names = unavailableNames.value
-  if (names.length === props.venues.length) return 'All venues are currently unavailable.'
+  if (names.length === props.venues.length) return 'All clubs are currently unavailable.'
   if (names.length === 1) return `${names[0]} is currently unavailable.`
   return `${names.slice(0, -1).join(', ')} and ${names.at(-1)} are currently unavailable.`
 })

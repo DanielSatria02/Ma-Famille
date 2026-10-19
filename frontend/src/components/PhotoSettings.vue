@@ -14,7 +14,7 @@ import { initialOf, resolveImage } from '../utils/image.js'
 import '../styles/photo-settings.css'
 
 const props = defineProps({
-  // Bookable facilities (courts) of the active venue, from the venues store.
+  // Bookable courts of the active club, from the venues store.
   facilities: { type: Array, default: () => [] },
   venuePublicId: { type: String, default: '' },
 })
@@ -34,7 +34,7 @@ async function loadVenue() {
     venue.value = rows.find((row) => row.public_id === props.venuePublicId) ?? null
     links.value = { [props.venuePublicId]: venue.value?.image_url ?? '' }
   } catch (err) {
-    error.value = errorDetail(err, 'Could not load the venue.')
+    error.value = errorDetail(err, 'Could not load the club.')
   }
 }
 
@@ -137,7 +137,7 @@ watch(
   <section class="photos" aria-labelledby="photos-title">
     <h2 id="photos-title" class="photos-title">Photos</h2>
     <p class="photos-line">
-      PNG, JPEG, GIF or WebP up to 500 kB. One photo per venue and per facility: uploading
+      PNG, JPEG, GIF or WebP up to 500 kB. One photo per club and per court: uploading
       again replaces the old one. A pasted link works too.
     </p>
 

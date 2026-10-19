@@ -101,7 +101,7 @@ async function applyWindow(status) {
 
 async function addClosure() {
   if (!props.venuePublicId) {
-    error.value = 'Pick a venue first.'
+    error.value = 'Pick a club first.'
     return
   }
   busy.value = true

@@ -13,7 +13,7 @@ import '../styles/login.css'
 // finding the wrong link. A tab says plainly which account is wanted and keeps
 // the fields, the styling and the error in one place.
 //
-// A manager is a venue owner signing in to run a dashboard; a customer is
+// A manager is a club owner signing in to run a dashboard; a customer is
 // someone keeping their own bookings together. They are different accounts
 // with different doors, and nothing here pretends otherwise: signing in as one
 // does not sign you in as the other.
@@ -107,7 +107,7 @@ const headline = computed(() => {
 })
 
 const description = computed(() => {
-  if (isManager.value) return 'Sign in to run your venue dashboard'
+  if (isManager.value) return 'Sign in to run your club dashboard'
   if (registering.value) return 'One account keeps every booking and cancellation together'
   // Say why the door is here, or it reads as an arbitrary hurdle.
   return 'Your bookings, cancellations and receipts live behind this'
@@ -220,7 +220,7 @@ const submitLabel = computed(() => {
             class="login-input w-full rounded-lg border px-3 py-2.5 outline-none transition"
           />
           <p class="login-body-text text-xs">
-            The venue reaches you here. Leave it blank and we use your email.
+            The club reaches you here. Leave it blank and we use your email.
           </p>
         </div>
 

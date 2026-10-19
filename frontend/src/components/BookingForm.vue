@@ -173,7 +173,7 @@ onUnmounted(() => {
       {{ form.facility.value.label }} is currently unavailable.
     </p>
     <p v-if="form.isClosed.value" class="booking-error" role="alert">
-      The venue is closed on that date.
+      The club is closed on that date.
     </p>
     <p v-if="form.availabilityError.value" class="booking-error" role="alert">
       {{ form.availabilityError.value }}

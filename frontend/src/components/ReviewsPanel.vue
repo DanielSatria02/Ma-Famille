@@ -47,7 +47,7 @@ const hasMore = computed(() => rows.value.length < total.value)
 const starsOf = (value) => Math.round(value ?? 0)
 
 function distributionBar(count) {
-  // Not a percentage of the page: of the ratings this venue has, so a venue
+  // Not a percentage of the page: of the ratings this club has, so a club
   // with three reviews does not draw three full bars.
   const all = summary.value?.count ?? 0
   if (!all || !count) return '0%'

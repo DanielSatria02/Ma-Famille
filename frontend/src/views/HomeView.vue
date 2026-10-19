@@ -17,16 +17,16 @@ import { hasCoordinates } from '../utils/maps.js'
 import { resolveImage } from '../utils/image.js'
 
 // The map pulls in Leaflet, which is worth 145KB of JavaScript. Loading it here keeps
-// it out of the first screenful, where the venue grid is what matters.
+// it out of the first screenful, where the club grid is what matters.
 const LazyVenueMap = defineAsyncComponent(() => import('../components/VenueMap.vue'))
 
 // One page, three decisions, in the order they get made.
 //
 // This used to open on a calendar that could do nothing yet, then a map, then
-// a row of venue cards each with a "Check availability" button that only
-// fetched a date list without letting you book it. Choosing a venue took four
-// separate actions and ended in a second page where the venue had to be picked
-// again. So: pick a venue, pick a day on the calendar that just appeared, go
+// a row of club cards each with a "Check availability" button that only
+// fetched a date list without letting you book it. Choosing a club took four
+// separate actions and ended in a second page where the club had to be picked
+// again. So: pick a club, pick a day on the calendar that just appeared, go
 // book.
 
 const router = useRouter()
@@ -81,9 +81,9 @@ const availabilityChecked = computed(
   () => Boolean(checkedKey.value) && checkedKey.value === selectedKey.value,
 )
 
-// The map is per venue, not per facility: a venue with three courts has one
+// The map is per club, not per court: a club with three courts has one
 // address and one pin, and three markers on the same spot would be noise. The
-// venues without coordinates are dropped, and the map says so rather than
+// clubs without coordinates are dropped, and the map says so rather than
 // showing an empty grey box.
 const mapVenues = computed(() => venues.value.filter(hasCoordinates))
 const activeVenueOnMap = computed(() => selectedVenue.value?.public_id ?? '')
@@ -141,7 +141,7 @@ onMounted(async () => {
     hoursByVenue.value = Object.fromEntries(pairs)
     error.value = ''
   } catch (err) {
-    error.value = errorDetail(err, 'Could not load the venues.')
+    error.value = errorDetail(err, 'Could not load the clubs.')
   } finally {
     loading.value = false
   }
@@ -166,7 +166,7 @@ function selectVenueOnMap(venuePublicId) {
   }
 }
 
-// Picking a venue loads its calendar straight away. The old flow made this a
+// Picking a club loads its calendar straight away. The old flow made this a
 // separate button, so the visitor had to know that clicking a card was not
 // selecting it.
 watch(selectedKey, async (key) => {
@@ -229,7 +229,7 @@ const freeHoursTotal = computed(() =>
 <template>
   <div class="home">
     <!--
-      A visitor's first question is "what can I book here", so the venues come
+      A visitor's first question is "what can I book here", so the clubs come
       first. The map and the filters are tools for that question, so they sit
       with them rather than above them.
     -->

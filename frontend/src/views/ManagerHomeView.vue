@@ -224,7 +224,7 @@ async function generateMonth() {
       screen when it loads.
     -->
     <section v-if="tab === 'day'" class="manager-panels" role="tabpanel">
-      <UnavailableNotice :venues="venues" />
+      <UnavailableNotice :venues="venueStatusItems" />
       <StatsOverview
         :weekly-visitors="weeklyVisitors"
         :todays-bookings="todaysBookings.length"
