@@ -11,15 +11,39 @@ export const useVenuesStore = defineStore('venues', () => {
   const loading = ref(false)
   const error = ref('')
 
+  // The picker lists courts, but a court alone does not say where it is: the
+  // clubs all name their courts the same way. The club name rides along so the
+  // label can say which one this is.
   const venues = computed(() =>
     facilities.value.map((facility) => ({
       key: facility.public_id,
       label: facility.name,
+      clubName: facility.venue?.name ?? '',
       available: facility.is_bookable,
     })),
   )
 
-  const activeVenue = computed(() => facilities.value[0] ?? null)
+  // The club the manager is working on. A chain has many branches, so the
+  // dashboard cannot sit on the first one and hope.
+  const activeVenueKey = ref('')
+
+  const activeVenue = computed(() => {
+    const chosen = facilities.value.find(
+      (facility) => facility.venue?.public_id === activeVenueKey.value,
+    )
+    return chosen ?? facilities.value[0] ?? null
+  })
+
+  // The clubs, for the switcher.
+  const clubs = computed(() => {
+    const seen = new Map()
+    for (const facility of facilities.value) {
+      const id = facility.venue?.public_id
+      if (!id || seen.has(id)) continue
+      seen.set(id, { key: id, name: facility.venue.name, address: facility.venue.address ?? '' })
+    }
+    return [...seen.values()]
+  })
 
   function byKey(key) {
     return facilities.value.find((facility) => facility.public_id === key) ?? null
@@ -52,13 +76,26 @@ export const useVenuesStore = defineStore('venues', () => {
     return rate ?? facility.price_weekday ?? facility.price_weekend ?? 0
   }
 
+  // The courts of the club the manager is working on. Everything below is
+  // about one branch of the chain, so the panels follow the switch.
+  const activeFacilities = computed(() =>
+    facilities.value.filter(
+      (facility) => facility.venue?.public_id === activeVenue.value?.venue?.public_id,
+    ),
+  )
+
   // Manager pricing panel: facilities that sell hours (the cafe is not bookable time).
+  // Every club names its courts the same way, so the club name has to be in
+  // the label — otherwise the manager is pricing "Lapangan Padel 1" without
+  // knowing which of the twenty-five that is.
   const pricing = computed(() =>
-    facilities.value
+    activeFacilities.value
       .filter((facility) => facility.kind !== 'cafe')
       .map((facility) => ({
         key: facility.public_id,
-        label: facility.name,
+        label: facility.venue?.name
+          ? `${facility.venue.name} — ${facility.name}`
+          : facility.name,
         price: facility.is_price_set ? facility.price_weekday ?? facility.price_weekend : null,
         // The optional premium window. Backend needs all three or none, so they
         // travel together; `price: null` means no peak rate is configured.
@@ -72,9 +109,11 @@ export const useVenuesStore = defineStore('venues', () => {
 
   // Manager venue-status panel: `locked` = cannot be switched on until priced.
   const venueStatusItems = computed(() =>
-    facilities.value.map((facility) => ({
+    activeFacilities.value.map((facility) => ({
       key: facility.public_id,
-      label: facility.name,
+      label: facility.venue?.name
+        ? `${facility.venue.name} — ${facility.name}`
+        : facility.name,
       available: facility.is_active,
       locked: facility.locked ?? !facility.is_price_set,
     })),
@@ -161,7 +200,10 @@ export const useVenuesStore = defineStore('venues', () => {
     loading,
     error,
     venues,
+    clubs,
     activeVenue,
+    activeVenueKey,
+    activeFacilities,
     pricing,
     venueStatusItems,
     byKey,

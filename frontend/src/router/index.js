@@ -1,6 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
-import { PREMIERE_FRANCHISE } from '../config/franchise.js'
 import { useAuthStore } from '../stores/auth.js'
 import { useCustomerStore } from '../stores/customer.js'
 import HomeView from '../views/HomeView.vue'
@@ -20,7 +19,6 @@ import PaymentView from '../views/PaymentView.vue'
 // anyone finds out whether the thing is working at all.
 const PUBLIC_ROUTES = new Set(['home', 'health', 'login', 'not-found'])
 
-// meta.franchise sets the brand name shown in the header.
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
@@ -35,19 +33,19 @@ const router = createRouter({
       path: '/manager',
       name: 'manager-home',
       component: ManagerHomeView,
-      meta: { franchise: PREMIERE_FRANCHISE, requires: 'manager' },
+      meta: { requires: 'manager' },
     },
     {
       path: '/booking',
       name: 'booking',
       component: BookingView,
-      meta: { franchise: PREMIERE_FRANCHISE, gradient: true },
+      meta: { gradient: true },
     },
     {
       path: '/payment',
       name: 'payment',
       component: PaymentView,
-      meta: { franchise: PREMIERE_FRANCHISE, gradient: true },
+      meta: { gradient: true },
     },
     // Anything else. Named so the guard can recognise it — an unnamed route
     // arrives with to.name undefined and reads as one that needs an account.

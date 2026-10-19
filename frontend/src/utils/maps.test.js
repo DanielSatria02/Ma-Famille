@@ -23,7 +23,7 @@ describe('hasCoordinates', () => {
 })
 
 describe('directionsUrl', () => {
-  const jakarta = { lat: -6.2615, lng: 106.8106, name: 'GOR Ma-Famille Demo', address: 'Jl. Demo No. 1' }
+  const jakarta = { lat: -6.2615, lng: 106.8106, name: 'Agora Padel', address: 'Jalan Kota Bumi' }
 
   // The pin on our own map comes from these two numbers. Handing the navigation
   // app a street name instead can drop someone at a different number, or a

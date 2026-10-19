@@ -18,6 +18,47 @@
   font-size: 0.875rem;
 }
 
+/* Which branch of the chain the manager is working on. Above the tabs, because
+   every panel below is about one club. */
+.manager-club-switch {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.manager-club-label {
+  flex: 0 0 auto;
+  color: #6b7280;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.manager-club-select {
+  min-height: 2.75rem;
+  max-width: 100%;
+  border: 1px solid #d1d5db;
+  border-radius: 0.5rem;
+  background: #ffffff;
+  padding: 0 0.65rem;
+  color: #111827;
+  font: inherit;
+  font-size: 0.9375rem;
+}
+
+.manager-club-select:focus-visible {
+  outline: 2px solid #b45309;
+  outline-offset: 1px;
+}
+
+.manager-club-single {
+  margin: 0;
+  color: #111827;
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
 /* Four tabs rather than one long column. The panels behind the other three are
    not built until their tab is opened, so opening the dashboard costs the
    requests for the day's visitors and not also for pricing, promotions and the

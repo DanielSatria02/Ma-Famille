@@ -58,9 +58,13 @@ export function useBookingForm(initialDate = '', initialFacilityKey = '') {
     () => venuesStore.venues.find((venue) => venue.key === facilityKey.value) ?? null,
   )
 
+  // The picker lists the courts of every club, each with the club it belongs
+  // to. Two clubs can both have a "Lapangan Padel 1", and a player who cannot
+  // tell which one they are booking is booking the wrong court.
   const facilityOptions = computed(() =>
     venuesStore.venues.map((venue) => ({
       ...venue,
+      label: venue.clubName ? `${venue.clubName} — ${venue.label}` : venue.label,
       bookable: venuesStore.isBookable(venue.key),
       note: venuesStore.unavailableNote(venue.key),
     })),

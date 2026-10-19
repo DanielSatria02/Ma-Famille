@@ -19,12 +19,12 @@ function choose(option) {
 
 <template>
   <PickerField
-    label="Facility"
+    label="Court"
     :value="options.find((option) => option.key === modelValue)?.label"
     :open="open"
     @toggle="emit('toggle')"
   >
-    <ul class="facility-list" role="listbox" aria-label="Facility">
+    <ul class="facility-list" role="listbox" aria-label="Court">
       <li
         v-for="(option, index) in options"
         :key="option.key"

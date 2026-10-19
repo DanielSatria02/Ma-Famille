@@ -190,6 +190,14 @@ export async function fetchAvailabilityDates(courtPublicId, fromDay, toDay) {
   return res.data
 }
 
+// The free hours of a whole club, across all of its courts.
+export async function fetchVenueAvailabilityDates(venuePublicId, fromDay, toDay) {
+  const res = await api.get('/v1/availability/dates', {
+    params: { venue_public_id: venuePublicId, from_day: fromDay, to_day: toDay },
+  })
+  return res.data
+}
+
 export async function fetchQuote(courtPublicId, startsAt, endsAt) {
   const res = await api.get('/v1/pricing/quote', {
     params: { court_public_id: courtPublicId, starts_at: startsAt, ends_at: endsAt },

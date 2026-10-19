@@ -113,7 +113,7 @@ async function addClosure() {
       endsOn: closureTo.value,
       reason: closureReason.value.trim(),
     })
-    note.value = `Venue closed for ${created.days} day(s).`
+    note.value = `Club closed for ${created.days} day(s).`
     if (created.affected_bookings) {
       note.value += ` Careful: ${created.affected_bookings} booking(s) fall inside it.`
     }

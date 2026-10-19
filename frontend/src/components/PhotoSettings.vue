@@ -205,7 +205,7 @@ watch(
         </div>
         <div class="photo-body">
           <p class="photo-name">{{ court.name }}</p>
-          <p class="photo-kind">{{ court.sport }} facility</p>
+          <p class="photo-kind">Padel court</p>
           <div class="photo-row">
             <label class="photo-button">
               {{ busy === court.public_id ? 'Uploading…' : 'Upload' }}

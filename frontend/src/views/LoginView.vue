@@ -102,7 +102,7 @@ async function handleSubmit() {
 }
 
 const headline = computed(() => {
-  if (isManager.value) return 'Ma Famille!'
+  if (isManager.value) return 'Ma-Famille Premiere!'
   return registering.value ? 'Create your account' : 'Welcome back'
 })
 
@@ -157,7 +157,7 @@ const submitLabel = computed(() => {
       </div>
 
       <div class="space-y-2 text-center">
-        <p class="login-eyebrow text-sm font-semibold uppercase tracking-[0.2em]">Ma Famille</p>
+        <p class="login-eyebrow text-sm font-semibold uppercase tracking-[0.2em]">Ma-Famille Premiere</p>
         <h1 class="login-title text-3xl tracking-tight">{{ headline }}</h1>
         <p class="login-description">{{ description }}</p>
       </div>

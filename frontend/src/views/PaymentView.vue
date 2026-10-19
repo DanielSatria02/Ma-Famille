@@ -99,7 +99,7 @@ const state = computed(() => {
     return {
       tone: 'failed',
       title: 'Payment failed',
-      text: 'No money moved. The venue still has your hours and can confirm the visit or release them — try again from My bookings.',
+      text: 'No money moved. The club still has your hours and can confirm the visit or release them — try again from My bookings.',
     }
   }
   if (payment === 'refunded') {
@@ -109,7 +109,7 @@ const state = computed(() => {
     return {
       tone: 'neutral',
       title: 'Confirmed',
-      text: 'The venue confirmed this visit. The payment is handled offline.',
+      text: 'The club confirmed this visit. The payment is handled offline.',
     }
   }
   if (status === 'cancelled') {
@@ -144,7 +144,7 @@ const countdown = computed(() => {
 // someone will confirm it.
 const paymentOff = computed(() => {
   if (!clientConfig.value || clientConfig.value.payment_configured) return ''
-  return 'Online payment is not available on this server right now. Your booking is held and the venue will confirm it.'
+  return 'Online payment is not available on this server right now. Your booking is held and the club will confirm it.'
 })
 
 const notice = computed(() => {

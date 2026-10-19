@@ -79,12 +79,41 @@
   padding: 0.9rem 1rem 1rem;
 }
 
+/* The franchise name, above the branch. Small, because the branch is what
+   the visitor is choosing — but present, because this is a chain and a player
+   picking between two clubs is picking between two branches of it. */
+.venue-card-brand {
+  display: block;
+  margin-bottom: 0.15rem;
+  color: var(--card-accent);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-align: left;
+}
+
 .venue-card-title {
   display: block;
   color: var(--card-heading);
   font-size: 1.05rem;
   font-weight: 700;
   text-align: left;
+}
+
+/* How many courts, and what a court costs. The two things a player decides
+   on before they pick a day. */
+.venue-card-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.9rem;
+  margin-top: 0.5rem;
+}
+
+.venue-card-fact {
+  color: var(--card-text);
+  font-size: 0.8125rem;
+  font-weight: 600;
 }
 
 .venue-card-location {

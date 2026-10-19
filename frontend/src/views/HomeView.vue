@@ -4,7 +4,12 @@ import { useRouter } from 'vue-router'
 import BookingCalendar from '../components/BookingCalendar.vue'
 import ReviewsPanel from '../components/ReviewsPanel.vue'
 import VenueCard from '../components/VenueCard.vue'
-import { errorDetail, fetchAvailabilityDates, fetchVenueHours, fetchVenues } from '../services/api.js'
+import {
+  errorDetail,
+  fetchVenueAvailabilityDates,
+  fetchVenueHours,
+  fetchVenues,
+} from '../services/api.js'
 import { useVenuesStore } from '../stores/venues.js'
 import { addDays, formatLongDate, toIsoDate } from '../utils/date.js'
 import { minBookableDate } from '../utils/bookingRules.js'
@@ -24,32 +29,54 @@ const LazyVenueMap = defineAsyncComponent(() => import('../components/VenueMap.v
 // again. So: pick a venue, pick a day on the calendar that just appeared, go
 // book.
 
-const KIND_LABELS = { court: 'Court', office: 'Private Office', cafe: 'Cafe' }
-
 const router = useRouter()
 const venuesStore = useVenuesStore()
 
 const venues = ref([])
 const hoursByVenue = ref({})
-const filters = ref({ kind: [], tag: [] })
+const filters = ref({ tag: [] })
 const selectedKey = ref('')
 const checkedKey = ref('')
 const fullyBookedDates = ref([])
 const loading = ref(false)
 const error = ref('')
-// Dates the server said have at least one free hour. Empty until the venue is
+// Dates the server said have at least one free hour. Empty until the club is
 // chosen, and shown as "not checked yet" rather than as "no free dates".
 const checkedDates = ref([])
 
 const facilities = computed(() => venuesStore.facilities)
 const venueOf = (facility) =>
   venues.value.find((venue) => venue.public_id === facility?.venue?.public_id) ?? null
-const tagsOf = (facility) => venueOf(facility)?.tags ?? []
+const tagsOf = (venue) => venue?.tags ?? []
 
-const selected = computed(
-  () => facilities.value.find((facility) => facility.public_id === selectedKey.value) ?? null,
+// The clubs, each with the courts inside it. One card per club: a visitor
+// chooses where to play, and which of its courts they get is the second
+// question, not the first. Listing every court made the grid four times
+// longer than the number of places, and repeated the same address on each
+// row.
+const clubs = computed(() =>
+  venues.value.map((venue) => {
+    const courts = facilities.value.filter(
+      (facility) => facility.venue?.public_id === venue.public_id,
+    )
+    return {
+      venue,
+      courts,
+      courtCount: courts.length,
+      openCourts: courts.filter((court) => court.is_bookable).length,
+      // The cheapest rate in the club, so the card can say what it starts at.
+      fromPrice: courts
+        .map((court) => court.price_weekday ?? 0)
+        .filter((price) => price > 0)
+        .sort((a, b) => a - b)[0] ?? 0,
+    }
+  }),
 )
-const selectedVenue = computed(() => venueOf(selected.value))
+
+const selectedClub = computed(
+  () => clubs.value.find((club) => club.venue.public_id === selectedKey.value) ?? null,
+)
+const selectedVenue = computed(() => selectedClub.value?.venue ?? null)
 const availabilityChecked = computed(
   () => Boolean(checkedKey.value) && checkedKey.value === selectedKey.value,
 )
@@ -61,34 +88,25 @@ const availabilityChecked = computed(
 const mapVenues = computed(() => venues.value.filter(hasCoordinates))
 const activeVenueOnMap = computed(() => selectedVenue.value?.public_id ?? '')
 
-// Only the kinds and tags actually in use are offered as filters.
+// Only the tags actually in use are offered as filters. The kind of a court
+// is not one of them: every court here is a padel court, so a filter on it
+// would offer one option and hide nothing.
 const filterGroups = computed(() => {
-  const kinds = [...new Set(facilities.value.map((facility) => facility.kind))]
   const tags = [...new Set(venues.value.flatMap((venue) => venue.tags ?? []))].sort()
-  const groups = []
-  if (kinds.length) {
-    groups.push({
-      key: 'kind',
-      title: 'Type',
-      options: kinds.map((kind) => ({ value: kind, label: KIND_LABELS[kind] ?? kind })),
-    })
-  }
-  if (tags.length) {
-    groups.push({
+  if (!tags.length) return []
+  return [
+    {
       key: 'tag',
       title: 'Area',
       options: tags.map((tag) => ({ value: tag, label: tag })),
-    })
-  }
-  return groups
+    },
+  ]
 })
 
-const visibleFacilities = computed(() =>
-  facilities.value.filter((facility) => {
-    const kinds = filters.value.kind ?? []
+const visibleClubs = computed(() =>
+  clubs.value.filter((club) => {
     const tags = filters.value.tag ?? []
-    if (kinds.length && !kinds.includes(facility.kind)) return false
-    if (tags.length && !tags.some((tag) => tagsOf(facility).includes(tag))) return false
+    if (tags.length && !tags.some((tag) => club.venue.tags?.includes(tag))) return false
     return true
   }),
 )
@@ -96,17 +114,19 @@ const visibleFacilities = computed(() =>
 // Monday-first index, like the backend's day_of_week.
 const todayIndex = (new Date().getDay() + 6) % 7
 
-function cardProps(facility) {
-  const hours = hoursByVenue.value[facility.venue?.public_id] ?? []
+function cardProps(club) {
+  const hours = hoursByVenue.value[club.venue.public_id] ?? []
   const today = hours.find((entry) => entry.day_of_week === todayIndex) ?? null
   return {
-    title: facility.name,
-    location: venueOf(facility)?.address ?? '',
-    tags: tagsOf(facility),
+    title: club.venue.name,
+    location: club.venue.address ?? '',
+    tags: tagsOf(club.venue),
     openTime: today?.is_closed ? 'Closed today' : (today?.opens_at ?? ''),
     closeTime: today?.is_closed ? '' : (today?.closes_at ?? ''),
-    image: resolveImage(facility.image_url),
-    isChosen: facility.public_id === selectedKey.value,
+    courts: club.courtCount,
+    fromPrice: club.fromPrice,
+    image: resolveImage(club.venue.image_url),
+    isChosen: club.venue.public_id === selectedKey.value,
   }
 }
 
@@ -129,26 +149,21 @@ onMounted(async () => {
 
 // Keep a selection that is still on screen (bookable when there is one).
 watch(
-  visibleFacilities,
+  visibleClubs,
   (list) => {
-    if (list.some((facility) => facility.public_id === selectedKey.value)) return
-    const next = list.find((facility) => facility.is_bookable) ?? list[0]
-    selectedKey.value = next?.public_id ?? ''
+    if (list.some((club) => club.venue.public_id === selectedKey.value)) return
+    const next = list.find((club) => club.openCourts > 0) ?? list[0]
+    selectedKey.value = next?.venue.public_id ?? ''
   },
   { immediate: true },
 )
 
-// Tapping a pin selects that venue's first bookable facility, which is what the
-// visitor would have clicked on the card grid directly below. Selecting the
-// venue rather than jumping straight to a facility matters when the venue has
-// several and only some of them are bookable: the first bookable one is the one
-// the grid would have chosen for them anyway.
+// Tapping a pin selects that club, which is what the visitor would have
+// clicked on the card grid directly below.
 function selectVenueOnMap(venuePublicId) {
-  const candidates = facilities.value.filter(
-    (facility) => facility.venue?.public_id === venuePublicId,
-  )
-  const target = candidates.find((facility) => facility.is_bookable) ?? candidates[0]
-  if (target) selectedKey.value = target.public_id
+  if (visibleClubs.value.some((club) => club.venue.public_id === venuePublicId)) {
+    selectedKey.value = venuePublicId
+  }
 }
 
 // Picking a venue loads its calendar straight away. The old flow made this a
@@ -156,8 +171,8 @@ function selectVenueOnMap(venuePublicId) {
 // selecting it.
 watch(selectedKey, async (key) => {
   if (!key || key === checkedKey.value) return
-  const facility = facilities.value.find((entry) => entry.public_id === key)
-  if (!facility?.is_bookable) {
+  const club = clubs.value.find((entry) => entry.venue.public_id === key)
+  if (!club || club.openCourts === 0) {
     checkedKey.value = ''
     checkedDates.value = []
     return
@@ -165,7 +180,9 @@ watch(selectedKey, async (key) => {
   try {
     const from = toIsoDate(new Date())
     const to = toIsoDate(addDays(new Date(), 30))
-    const days = await fetchAvailabilityDates(key, from, to)
+    // The club, not one of its courts: the visitor picked the club, so the
+    // hours they are shown are the club's.
+    const days = await fetchVenueAvailabilityDates(key, from, to)
     checkedDates.value = days
     fullyBookedDates.value = days.filter((day) => day.free_hours === 0).map((day) => day.day)
     checkedKey.value = key
@@ -189,8 +206,18 @@ const nextOpenDay = computed(() => {
   return free?.day ?? ''
 })
 
+// The booking form needs a court, and the visitor picked a club. The first
+// bookable court of that club is the one the grid would have chosen for them.
+function firstBookableCourt(club) {
+  if (!club) return ''
+  const target = club.courts.find((court) => court.is_bookable) ?? club.courts[0]
+  return target?.public_id ?? ''
+}
+
 function goToBooking(date) {
-  router.push({ name: 'booking', query: { date, facility: selectedKey.value } })
+  const court = firstBookableCourt(selectedClub.value)
+  if (!court) return
+  router.push({ name: 'booking', query: { date, facility: court } })
 }
 
 // A number nobody has to add up themselves.
@@ -210,10 +237,10 @@ const freeHoursTotal = computed(() =>
       <header class="home-step-head">
         <p class="home-step-number">1</p>
         <div>
-          <h1 id="home-step-venue" class="home-step-title">Pick a place</h1>
+          <h1 id="home-step-venue" class="home-step-title">Pick a club</h1>
           <p class="home-step-hint">
-            {{ visibleFacilities.length }}
-            {{ visibleFacilities.length === 1 ? 'court' : 'courts' }} open for booking
+            {{ visibleClubs.length }}
+            {{ visibleClubs.length === 1 ? 'club' : 'clubs' }} open for booking
           </p>
         </div>
       </header>
@@ -240,16 +267,16 @@ const freeHoursTotal = computed(() =>
 
       <div class="venue-grid">
         <VenueCard
-          v-for="(facility, index) in visibleFacilities"
-          :key="facility.public_id"
-          v-bind="cardProps(facility)"
+          v-for="(club, index) in visibleClubs"
+          :key="club.venue.public_id"
+          v-bind="cardProps(club)"
           class="stagger-item"
           :style="{ animationDelay: `${Math.min(index, 8) * 40}ms` }"
-          @select="selectedKey = facility.public_id"
+          @select="selectedKey = club.venue.public_id"
         />
       </div>
-      <p v-if="!visibleFacilities.length && !loading" class="text-sm text-gray-600">
-        No venue matches those filters.
+      <p v-if="!visibleClubs.length && !loading" class="text-sm text-gray-600">
+        No club matches those filters.
       </p>
 
       <!-- Below the grid, not above it: someone opening the front page is
@@ -269,17 +296,17 @@ const freeHoursTotal = computed(() =>
       that sits at the top of the page before a venue is chosen looks like the
       main control of the page and does nothing.
     -->
-    <section v-if="selected" class="home-step" aria-labelledby="home-step-date">
+    <section v-if="selectedClub" class="home-step" aria-labelledby="home-step-date">
       <header class="home-step-head">
         <p class="home-step-number">2</p>
         <div>
           <h2 id="home-step-date" class="home-step-title">Pick a day</h2>
           <p class="home-step-hint">
-            <template v-if="!selected.is_bookable">
-              {{ selected.name }} is not taking bookings right now.
+            <template v-if="selectedClub.openCourts === 0">
+              {{ selectedClub.venue.name }} is not taking bookings right now.
             </template>
             <template v-else-if="availabilityChecked">
-              {{ selected.name }} has
+              {{ selectedClub.venue.name }} has
               {{ freeHoursTotal }} free hours in the next month.
               <button
                 v-if="nextOpenDay"
@@ -290,13 +317,13 @@ const freeHoursTotal = computed(() =>
                 Book {{ formatLongDate(nextOpenDay) }}
               </button>
             </template>
-            <template v-else>Checking {{ selected.name }}...</template>
+            <template v-else>Checking {{ selectedClub.venue.name }}...</template>
           </p>
         </div>
       </header>
 
       <BookingCalendar
-        v-if="selected.is_bookable && availabilityChecked"
+        v-if="selectedClub.openCourts > 0 && availabilityChecked"
         :booked-dates="fullyBookedDates"
         :min-date="minBookableDate()"
         :initial-date="nextOpenDay"

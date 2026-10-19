@@ -12,7 +12,7 @@ defineEmits(['toggle'])
 
 <template>
   <section class="venue-status" aria-labelledby="venue-status-title">
-    <h2 id="venue-status-title" class="venue-status-title">Venue Status</h2>
+    <h2 id="venue-status-title" class="venue-status-title">Court Status</h2>
 
     <ul class="venue-status-list">
       <li v-for="venue in venues" :key="venue.key" class="venue-status-card">

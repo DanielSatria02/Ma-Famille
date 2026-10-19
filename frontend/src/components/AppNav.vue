@@ -1,7 +1,7 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { DEFAULT_FRANCHISE } from '../config/franchise.js'
+import { BRAND_NAME } from '../config/brand.js'
 import { useAppStore } from '../stores/app.js'
 import { useAuthStore } from '../stores/auth.js'
 import { useCustomerStore } from '../stores/customer.js'
@@ -19,7 +19,7 @@ const isManagerArea = computed(() => route.path.startsWith('/manager'))
 // door, not proof of a session. The sign-out button needs the session.
 const isManagerSignedIn = computed(() => auth.isLoggedIn)
 const homePath = computed(() => (isManagerArea.value ? '/manager' : '/'))
-const brandName = computed(() => route.meta.franchise ?? DEFAULT_FRANCHISE)
+const brandName = computed(() => BRAND_NAME)
 
 const dotClass = computed(() => {
   if (store.backendStatus === 'ok') return 'bg-green-600'

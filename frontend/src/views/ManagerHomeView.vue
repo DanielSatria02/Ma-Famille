@@ -14,11 +14,11 @@ import { useVenuesStore } from '../stores/venues.js'
 import { addDays, toIsoDate } from '../utils/date.js'
 import '../styles/manager.css'
 
-// Four things a venue manager does, not fourteen panels in one column.
+// Four things a club manager does, not fourteen panels in one column.
 //
 // The dashboard used to be a single 7500px scroll: the day's visitors, the slot
 // calendar, opening hours, per-facility hours, photos, pricing, promotions, the
-// audit log and the venue switch, stacked in the order they were built, with no
+// audit log and the club switch, stacked in the order they were built, with no
 // headings. "Generate slots for 30 days" — the button that decides whether
 // anything is bookable at all — sat eleventh, below the fold, looking exactly
 // like the rest.
@@ -30,7 +30,7 @@ import '../styles/manager.css'
 const TABS = [
   { id: 'day', label: 'Today' },
   { id: 'slots', label: 'Slots' },
-  { id: 'venue', label: 'Venue' },
+  { id: 'venue', label: 'Club' },
   { id: 'records', label: 'Records' },
 ]
 
@@ -54,7 +54,7 @@ const { todaysBookings, upcomingBookings, bookedDates, weeklyVisitors, canceledC
   storeToRefs(bookingsStore)
 
 const venuesStore = useVenuesStore()
-const { venues, pricing, venueStatusItems } = storeToRefs(venuesStore)
+const { venues, clubs, pricing, venueStatusItems, activeVenueKey } = storeToRefs(venuesStore)
 
 const openingSchedule = ref([])
 const notice = ref('')
@@ -63,6 +63,18 @@ const venuesError = computed(() => venuesStore.error)
 
 const activeVenue = computed(() => venuesStore.activeVenue)
 const activeVenueId = computed(() => activeVenue.value?.venue?.public_id ?? '')
+
+// The clubs this manager runs, and which one the panels below are about. A
+// chain has branches: without a switch, every panel would be about whichever
+// club happened to be first in the list.
+const activeClub = computed(() => clubs.value.find((club) => club.key === activeVenueId.value) ?? null)
+
+function selectClub(key) {
+  activeVenueKey.value = key
+}
+
+// The panels that work on one club's courts follow the switch.
+const clubFacilities = computed(() => venuesStore.activeFacilities)
 
 // A count on the tab, so "Today" is worth opening even when the list is empty and
 // the manager has not looked yet.
@@ -169,6 +181,27 @@ async function generateMonth() {
       {{ bookingsStore.notice }}
     </p>
 
+    <!--
+      Which branch. The panels below are about one club, so the switch sits
+      above them rather than inside one of them.
+    -->
+    <div v-if="clubs.length > 1" class="manager-club-switch">
+      <label class="manager-club-label" for="manager-club">Club</label>
+      <select
+        id="manager-club"
+        class="manager-club-select"
+        :value="activeVenueId"
+        @change="selectClub($event.target.value)"
+      >
+        <option v-for="club in clubs" :key="club.key" :value="club.key">
+          {{ club.name }}
+        </option>
+      </select>
+    </div>
+    <p v-else-if="activeClub" class="manager-club-single">
+      {{ activeClub.name }}<span v-if="activeClub.address"> · {{ activeClub.address }}</span>
+    </p>
+
     <nav class="manager-tabs" role="tablist" aria-label="Dashboard sections">
       <button
         v-for="option in TABS"
@@ -247,16 +280,16 @@ async function generateMonth() {
       <OccupancyChart />
     </section>
 
-    <!-- How the venue is set up. -->
+    <!-- How the club is set up. -->
     <section v-else-if="tab === 'venue'" class="manager-panels" role="tabpanel">
       <LazyOpeningSchedule :schedule="openingSchedule" @update="updateSchedule" />
       <LazyManageHours
-        :facilities="venuesStore.facilities"
+        :facilities="clubFacilities"
         :venue-public-id="activeVenueId"
       />
       <LazyPricingSettings :items="pricing" @update="venuesStore.updatePricing" />
       <LazyPromoSettings />
-      <LazyPhotoSettings :facilities="venuesStore.facilities" :venue-public-id="activeVenueId" />
+      <LazyPhotoSettings :facilities="clubFacilities" :venue-public-id="activeVenueId" />
       <VenueStatus :venues="venueStatusItems" @toggle="venuesStore.toggleVenue" />
     </section>
 
