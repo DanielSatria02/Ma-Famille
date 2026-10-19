@@ -215,7 +215,12 @@ POST   /auth/login {password} → {token}       (token replaces MANAGER_TOKEN)
 POST   /auth/logout                            (deny-list the session token)
 POST   /slots/generate (manager, from venue hours, idempotent)
 POST   /slots/block (manager, close/reopen a window of hours; booked hours untouched)
-GET    /availability/hours?court_public_id=&day=  GET /availability/dates?court_public_id=&from_day=&to_day=
+GET    /availability/hours?court_public_id=&day=  GET /availability/dates?from_day=&to_day=
+
+     /availability/dates rolls up either one court (`court_public_id=`) or a
+     whole club (`venue_public_id=`). The club roll-up counts the free hours
+     across all of its courts, because a visitor picks the club before the
+     court. One of the two ids is required.
 GET    /pricing/quote?court_public_id=&starts_at=&ends_at= (rate, total, bookability; per-hour peak applies)
 PATCH  /slots/{public_id} (manager, open/close)
 POST   /bookings  (409 on conflict)           GET /bookings?customer_contact= (history)

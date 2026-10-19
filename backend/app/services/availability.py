@@ -110,6 +110,49 @@ def date_summary(db: Session, court: Court, from_day: date, to_day: date) -> lis
     return summary
 
 
+def venue_date_summary(db: Session, venue: Venue, from_day: date, to_day: date) -> list[dict]:
+    """Per-day roll-up for every court of a venue.
+
+    A visitor picks a club before they pick a court, so the calendar they are
+    looking at has to be the club's: a day is free when any of its courts has a
+    free hour, and the count is the free hours across the whole club.
+    """
+    booking_service.expire_stale_bookings(db, settings.booking_ttl_minutes)
+    court_ids = db.scalars(
+        select(Court.id).where(Court.venue_id == venue.id)
+    ).all()
+    if not court_ids:
+        return []
+    stmt = (
+        select(Slot)
+        .where(Slot.court_id.in_(court_ids))
+        .where(
+            Slot.starts_at >= datetime.combine(from_day, time.min),
+            Slot.starts_at <= datetime.combine(to_day, time.max),
+        )
+        .order_by(Slot.starts_at)
+    )
+    buckets: dict[date, list[Slot]] = {}
+    for slot in db.scalars(stmt).all():
+        buckets.setdefault(_naive(slot.starts_at).date(), []).append(slot)
+
+    closed = closure_service.days_off(db, venue, from_day, to_day)
+    summary: list[dict] = []
+    for day, slots in buckets.items():
+        if day in closed:
+            continue
+        free = sum(1 for slot in slots if slot.status in _FREE_STATUSES)
+        summary.append(
+            {
+                "day": day,
+                "total_hours": len(slots),
+                "booked_hours": len(slots) - free,
+                "free_hours": free,
+            }
+        )
+    return summary
+
+
 def bookable_hours(db: Session, court: Court, day: date) -> set[int]:
     """Hours a client may still start a booking in (used by the booking guard)."""
     return {

@@ -155,6 +155,73 @@ def test_date_summary_only_covers_days_with_slots():
         app.dependency_overrides.pop(get_db, None)
 
 
+def test_a_club_rolls_up_the_free_hours_of_all_its_courts():
+    """A visitor picks the club before the court, so the club is the calendar.
+
+    The roll-up counts the free hours across every court of the venue: a day
+    is free when any of them has a free hour, and the number is the club's
+    free hours rather than one court's.
+    """
+    client = _client()
+    try:
+        venue = client.post("/v1/venues", json={"name": "Padel Club", "address": "Jkt"}).json()
+        courts = [
+            client.post(
+                "/v1/courts",
+                json={
+                    "venue_public_id": venue["public_id"],
+                    "name": f"Court {n}",
+                    "sport": "padel",
+                    "price_weekday": 100000,
+                    "price_weekend": 150000,
+                },
+            ).json()
+            for n in (1, 2)
+        ]
+        for court in courts:
+            client.post(
+                "/v1/slots/generate",
+                json={
+                    "court_public_id": court["public_id"],
+                    "from_day": "2026-10-19",
+                    "to_day": "2026-10-19",
+                },
+            )
+
+        points = client.get(
+            "/v1/availability/dates",
+            params={
+                "venue_public_id": venue["public_id"],
+                "from_day": "2026-10-19",
+                "to_day": "2026-10-19",
+            },
+        ).json()
+        assert len(points) == 1
+        # Two courts, fourteen hours each.
+        assert points[0]["total_hours"] == 28
+        assert points[0]["free_hours"] == 28
+
+        # One court on its own still reports its own hours.
+        single = client.get(
+            "/v1/availability/dates",
+            params={
+                "court_public_id": courts[0]["public_id"],
+                "from_day": "2026-10-19",
+                "to_day": "2026-10-19",
+            },
+        ).json()
+        assert single[0]["free_hours"] == 14
+
+        # One id or the other, never neither.
+        neither = client.get(
+            "/v1/availability/dates",
+            params={"from_day": "2026-10-19", "to_day": "2026-10-19"},
+        )
+        assert neither.status_code == 422
+    finally:
+        app.dependency_overrides.pop(get_db, None)
+
+
 def test_closed_day_has_no_hours():
     client = _client()
     try:

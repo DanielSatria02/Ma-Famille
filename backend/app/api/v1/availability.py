@@ -1,12 +1,13 @@
 from datetime import date
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
 from app.models.court import Court
+from app.models.venue import Venue
 from app.schemas.availability import DayAvailability, DayHoursResponse
 from app.services import availability as availability_service
 
@@ -40,9 +41,10 @@ def hours_of_day(
     response_model=list[DayAvailability],
 )
 def dates(
-    court_public_id: UUID,
-    from_day: date,
-    to_day: date,
+    court_public_id: UUID | None = None,
+    venue_public_id: UUID | None = None,
+    from_day: date = Query(...),
+    to_day: date = Query(...),
     db: Session = Depends(get_db),
 ) -> list[DayAvailability]:
     if to_day < from_day:
@@ -51,8 +53,16 @@ def dates(
         raise HTTPException(
             status_code=422, detail=f"range too wide (max {MAX_RANGE_DAYS} days)"
         )
-    court = _court_or_404(db, court_public_id)
-    return [
-        DayAvailability(**point)
-        for point in availability_service.date_summary(db, court, from_day, to_day)
-    ]
+    if court_public_id is not None:
+        court = _court_or_404(db, court_public_id)
+        points = availability_service.date_summary(db, court, from_day, to_day)
+    elif venue_public_id is not None:
+        venue = db.scalars(select(Venue).where(Venue.public_id == venue_public_id)).first()
+        if venue is None:
+            raise HTTPException(status_code=404, detail="venue not found")
+        points = availability_service.venue_date_summary(db, venue, from_day, to_day)
+    else:
+        raise HTTPException(
+            status_code=422, detail="court_public_id or venue_public_id is required"
+        )
+    return [DayAvailability(**point) for point in points]
