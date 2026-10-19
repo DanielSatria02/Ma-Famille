@@ -34,11 +34,21 @@ git -C "$REPO_ROOT" archive --format=tar.gz -o "$TARBALL" HEAD
 # DOKU keys leaves the server's file exactly as it was.
 if [ -n "${DOKU_CLIENT_ID:-}" ] && [ -n "${DOKU_SECRET_KEY:-}" ]; then
   echo "==> write DOKU keys into backend/.env on the server"
-  # shellcheck disable=SC2086
-  $SSH "APP_DIR='$DEPLOY_APP_DIR' DOKU_CLIENT_ID='$DOKU_CLIENT_ID' DOKU_SECRET_KEY='$DOKU_SECRET_KEY' DOKU_BASE_URL='${DOKU_BASE_URL:-https://api-sandbox.doku.com}' sh -s" <<'EOF'
+  # The values travel base64-encoded over stdin, together with the script
+  # that writes them. A secret pasted into the ssh command line shows up in
+  # the process list of every user on the machine, and a stray quote in it
+  # would break the command it is embedded in.
+  PAYLOAD="$(mktemp)"
+  {
+    printf "export APP_DIR='%s'\n" "$DEPLOY_APP_DIR"
+    printf 'export DOKU_CLIENT_ID=%s\n' "$(printf '%s' "$DOKU_CLIENT_ID" | base64 | tr -d '\n')"
+    printf 'export DOKU_SECRET_KEY=%s\n' "$(printf '%s' "$DOKU_SECRET_KEY" | base64 | tr -d '\n')"
+    printf 'export DOKU_BASE_URL=%s\n' "$(printf '%s' "${DOKU_BASE_URL:-https://api-sandbox.doku.com}" | base64 | tr -d '\n')"
+    cat <<'REMOTE'
 set -e
 ENV_FILE="$APP_DIR/backend/.env"
 touch "$ENV_FILE"
+decode() { printf '%s' "$1" | base64 -d; }
 set_key() {
   KEY="$1"
   VALUE="$2"
@@ -57,12 +67,16 @@ set_key() {
     printf '%s=%s\n' "$KEY" "$VALUE" >> "$ENV_FILE"
   fi
 }
-set_key DOKU_CLIENT_ID "$DOKU_CLIENT_ID"
-set_key DOKU_SECRET_KEY "$DOKU_SECRET_KEY"
-set_key DOKU_BASE_URL "$DOKU_BASE_URL"
+set_key DOKU_CLIENT_ID "$(decode "$DOKU_CLIENT_ID")"
+set_key DOKU_SECRET_KEY "$(decode "$DOKU_SECRET_KEY")"
+set_key DOKU_BASE_URL "$(decode "$DOKU_BASE_URL")"
 chmod 600 "$ENV_FILE"
 echo "DOKU keys written to backend/.env"
-EOF
+REMOTE
+  } > "$PAYLOAD"
+  # shellcheck disable=SC2086
+  $SSH "sh -s" < "$PAYLOAD"
+  rm -f "$PAYLOAD"
 fi
 
 echo "==> deliver ke $DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_APP_DIR"
