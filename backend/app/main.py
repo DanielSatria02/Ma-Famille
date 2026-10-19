@@ -11,7 +11,7 @@ from app.core.audit_middleware import AuditMiddleware
 from app.core.config import settings
 from app.schemas.health import RootResponse
 
-DESCRIPTION = """Sports Venue Booking API (futsal / badminton courts).
+DESCRIPTION = """Sports Venue Booking API (padel courts).
 
 Venues, courts, slots, bookings, payments and the manager dashboard are
 wired to the store. `POST /payments` needs DOKU sandbox keys, otherwise it

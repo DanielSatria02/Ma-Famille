@@ -23,7 +23,7 @@ def test_court_links_to_venue_and_defaults_active():
     court = Court(
         venue_id=venue.id,
         name="Court 1",
-        sport="futsal",
+        sport="padel",
         price_weekday=100000,
         price_weekend=150000,
     )

@@ -36,7 +36,7 @@ def _court(client, venue, name, kind="court", prices=(100000, 150000)):
         json={
             "venue_public_id": venue["public_id"],
             "name": name,
-            "sport": "futsal",
+            "sport": "padel",
             "kind": kind,
             "price_weekday": prices[0] if prices else None,
             "price_weekend": prices[1] if prices else None,

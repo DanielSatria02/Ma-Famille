@@ -22,120 +22,224 @@ from app.models.booking import Booking
 from app.models.court import Court
 from app.models.slot import Slot
 from app.models.venue import Venue
+from app.models.venue_hours import VenueHours
 
-# name, street address, latitude, longitude
+# name, street address, latitude, longitude, under a roof, opening hours
 #
-# Coordinates are OpenStreetMap's, rounded to six decimals (about 10cm). Each
-# one was read off the OSM record for that place, not typed in from memory: a
-# pin in the wrong district is worse than no pin, because it looks right.
+# Padel clubs in and around Jakarta. Every one of them is a place that exists:
+# the name, the street and the coordinates come out of that club's own
+# OpenStreetMap record, so the map has something honest to draw and a booking
+# has a real address to send someone to. Two of them sit in a town just outside
+# the city — a padel player drives for a good court, and the ones worth driving
+# to are not all inside the ring road.
+#
+# The last two are what OpenStreetMap says about the place rather than about
+# the name: a club mapped as a `pitch` is a marked court in the open, a club
+# mapped as a `sports_centre` is a building, and a club that records its
+# opening hours gets those hours instead of the default window.
+#
+# Coordinates are OpenStreetMap's, rounded to six decimals (about 10cm). A pin
+# in the wrong district is worse than no pin, because it looks right.
 VENUES = [
     (
-        "Istana Olahraga Gelora Bung Karno",
-        "Jalan Plaza Selatan, Gelora, Tanah Abang, Jakarta Pusat",
-        -6.220338,
-        106.805750,
+        "Agora Padel",
+        "Jalan Kota Bumi, Tanah Abang, Jakarta Pusat",
+        -6.198632,
+        106.821108,
+        False,
+        None,
     ),
     (
-        "Indonesia Arena",
-        "Jalan Gerbang Pemuda, Gelora, Tanah Abang, Jakarta Pusat",
-        -6.214829,
-        106.800522,
+        "Athletiqs Airdome",
+        "Jalan K.H. Mas Mansyur, Tanah Abang, Jakarta Pusat",
+        -6.211882,
+        106.813886,
+        True,
+        (6, 24),
     ),
     (
-        "GOR Velodrome Rawamangun",
-        "Jalan Pemuda, Rawamangun, Pulo Gadung, Jakarta Timur",
-        -6.193181,
-        106.889096,
+        "Booster Arena",
+        "Jalan Andara, Cinere, Depok",
+        -6.316026,
+        106.803453,
+        False,
+        None,
     ),
     (
-        "Gelanggang Olahraga Sunter",
-        "Jalan Taman Tirta Sunter 1, Sunter Jaya, Tanjung Priok, Jakarta Utara",
-        -6.146852,
-        106.875605,
+        "Commune Court",
+        "Jalan Lingkar Luar Barat, Cengkareng, Jakarta Barat",
+        -6.173629,
+        106.731041,
+        False,
+        None,
     ),
     (
-        "Stadion Tugu",
-        "Jalan Jamrud III, Tugu Selatan, Koja, Jakarta Utara",
-        -6.136877,
-        106.913396,
+        "Crown Padel",
+        "Jalan Gempol Raya, Alam Sutera, Pinang, Tangerang",
+        -6.228010,
+        106.660490,
+        True,
+        None,
     ),
     (
-        "Cempaka Putih Sport Center Arcici",
-        "Jalan Cempaka Putih Barat 26, Cempaka Putih, Jakarta Pusat",
-        -6.184235,
-        106.868883,
+        "Double Padel by Kadena",
+        "Jalan Taman Lebak Bulus IV",
+        -6.295686,
+        106.775300,
+        True,
+        (6, 22),
     ),
     (
-        "GOR Kemayoran",
-        "Jalan Serdang Baru, Kemayoran, Jakarta Pusat",
-        -6.157083,
-        106.864889,
+        "Filari Sport Center",
+        "Jalan Sigura Gura II",
+        -6.258682,
+        106.834028,
+        True,
+        None,
     ),
     (
-        "Stadion Siliwangi",
-        "Jalan Lombok, Merdeka, Sumur Bandung, Kota Bandung",
-        -6.910328,
-        107.619556,
+        "Home Ground Kedoya",
+        "Gang Bakti Karya, Kebon Jeruk, Jakarta Barat",
+        -6.187570,
+        106.760214,
+        True,
+        None,
     ),
     (
-        "GOR Cisitu",
-        "Jalan Cisitu Indah 5, Dago, Coblong, Kota Bandung",
-        -6.875402,
-        107.613306,
+        "Kula Courts",
+        "Jalan Tol Jakarta–Merak, Pinang, Tangerang",
+        -6.221654,
+        106.652956,
+        False,
+        None,
     ),
     (
-        "Gelora Bandung Lautan Api",
-        "Jalan Pintu Masuk GBLA, Rancanumpang, Gedebage, Kota Bandung",
-        -6.956628,
-        107.712131,
+        "Master Padel",
+        "Jalan Yos Sudarso, Tanjung Priok, Jakarta Utara",
+        -6.146385,
+        106.889688,
+        False,
+        None,
     ),
     (
-        "Kompleks Stadion Mandala Krida",
-        "Jalan Kenari, Semaki, Umbulharjo, Kota Yogyakarta",
-        -7.796016,
-        110.384101,
+        "Matchaus Padel & Pickleball",
+        "Jalan Bekasi Raya, Cakung, Jakarta Timur",
+        -6.183150,
+        106.911391,
+        True,
+        None,
     ),
     (
-        "Stadion Kridosono",
-        "Jalan Yos Sudarso, Kotabaru, Gondokusuman, Kota Yogyakarta",
-        -7.787698,
-        110.374298,
+        "Metro Padel",
+        "Jalan Sampora Raya, BSD City",
+        -6.307137,
+        106.651646,
+        True,
+        None,
     ),
     (
-        "Gelora 10 November",
-        "Jalan Tambaksari I, Ploso, Tambaksari, Surabaya",
-        -7.251971,
-        112.756162,
+        "Noble Padel",
+        "Jalan M. Husni Thamrin, Pantai Indah Kapuk 2",
+        -6.067729,
+        106.701392,
+        True,
+        None,
     ),
     (
-        "Stadion Gelora Bung Tomo",
-        "Jalan TPA Benowo, Pakal, Surabaya",
-        -7.223065,
-        112.622833,
+        "Off Court",
+        "BSD Green Connector, BSD City",
+        -6.308952,
+        106.657980,
+        True,
+        None,
     ),
     (
-        "DBL Arena",
-        "Jalan Ahmad Yani, Ketintang, Gayungan, Surabaya",
-        -7.320451,
-        112.732202,
+        "Padel Hub",
+        "Jalan Raya Cisauk, BSD City",
+        -6.316343,
+        106.652814,
+        True,
+        None,
     ),
     (
-        "GOR Shima",
-        "Jalan Jaten Gede Timur II, Pedurungan Tengah, Semarang",
-        -6.999153,
-        110.473703,
+        "Padel Pro Satrio Club",
+        "Jalan Karet Sawah, Jakarta Selatan",
+        -6.219991,
+        106.818547,
+        True,
+        (6, 24),
     ),
     (
-        "Stadion UNDIP",
-        "Jalan Profesor Soedarto, Bulusan, Tembalang, Semarang",
-        -7.054688,
-        110.446562,
+        "Pop Padel",
+        "Gang Bambu Kuning, Cilincing, Jakarta Utara",
+        -6.160812,
+        106.929802,
+        True,
+        None,
     ),
     (
-        "Stadion Teladan",
-        "Jalan Stadion Teladan, Teladan Barat, Medan Kota, Medan",
-        3.564640,
-        98.696084,
+        "Racket Kuningan",
+        "Jalan Terusan Kuningan Hajjah R. Rasuna Said, Mampang Prapatan, Jakarta Selatan",
+        -6.239226,
+        106.826777,
+        True,
+        None,
+    ),
+    (
+        "Republic Padel",
+        "Jalan Nangka Raya, Jagakarsa, Jakarta Selatan",
+        -6.304320,
+        106.842268,
+        True,
+        None,
+    ),
+    (
+        "Skoya Padel",
+        "Jalan Damai Foresta, BSD City",
+        -6.308208,
+        106.655773,
+        True,
+        None,
+    ),
+    (
+        "Smash Padel Simatupang",
+        "Jalan Tahi Bonar Simatupang",
+        -6.299667,
+        106.834085,
+        False,
+        None,
+    ),
+    (
+        "Solace Club",
+        "Jalan Jenderal Gatot Subroto, Mampang Prapatan, Jakarta Selatan",
+        -6.239183,
+        106.828921,
+        True,
+        None,
+    ),
+    (
+        "The Good Padel Club",
+        "Jalan Sutera Tiara V, Alam Sutera, Pinang, Tangerang",
+        -6.229573,
+        106.655070,
+        True,
+        None,
+    ),
+    (
+        "ZSC Padel",
+        "Jalan Letnan Jenderal Suprapto, Cempaka Putih, Jakarta Pusat",
+        -6.174191,
+        106.858508,
+        False,
+        None,
+    ),
+    (
+        "Zeno Padel Court",
+        "Jalan Pisangan Barat I, Cireundeu, Ciputat Timur, Tangerang Selatan",
+        -6.311359,
+        106.761533,
+        False,
+        None,
     ),
 ]
 
@@ -157,40 +261,54 @@ TAGS = {
 
 # The name, sport, kind and weekend premium for each facility. Weekday prices
 # live here too; `price_weekday` on the record is what the manager edits later.
+#
+# Padel prices by the hour. A padel court costs more than a squash court and
+# less than a football pitch, and an indoor club with air conditioning costs
+# more than an open one — which is why the numbers are not one value repeated.
 FACILITIES = [
-    ("Lapangan Futsal Utama", "futsal", "court", 120000, 150000),
-    ("Lapangan Futsal 2", "futsal", "court", 120000, 150000),
-    ("Lapangan Badminton 1", "badminton", "court", 60000, 90000),
-    ("Lapangan Badminton 2", "badminton", "court", 60000, 90000),
-    ("Lapangan Badminton 3", "badminton", "court", 55000, 85000),
+    ("Lapangan Padel 1", "padel", "court", 90000, 120000),
+    ("Lapangan Padel 2", "padel", "court", 90000, 120000),
+    ("Lapangan Padel 3", "padel", "court", 85000, 110000),
+    ("Lapangan Padel 4", "padel", "court", 85000, 110000),
+    ("Lapangan Padel VIP", "padel", "court", 130000, 170000),
 ]
 
-# Facilities per venue type. A university stadium has one pitch and no five
-# badminton halls; a neighbourhoodsports hall is the reverse. Slicing the same
-# list for every venue made the home page look like a template.
-SMALL_VENUE = [FACILITIES[2], FACILITIES[3]]
+# Facilities per venue size. A neighbourhood club has two courts; a sports
+# centre with a hall has more. Slicing the same list for every venue made the
+# home page look like a template.
+SMALL_VENUE = FACILITIES[:2]
 MID_VENUE = FACILITIES[:4]
 BIG_VENUE = FACILITIES
 
+# Which size each club gets. Not a guess about the world — it is a guess, and
+# it says so: OpenStreetMap records a padel club's courts only for a few of
+# them, and the manager is expected to correct the count.
 VENUE_SIZE = {
-    "Istana Olahraga Gelora Bung Karno": MID_VENUE,
-    "Indonesia Arena": BIG_VENUE,
-    "GOR Velodrome Rawamangun": MID_VENUE,
-    "Gelanggang Olahraga Sunter": MID_VENUE,
-    "Stadion Tugu": SMALL_VENUE,
-    "Cempaka Putih Sport Center Arcici": MID_VENUE,
-    "GOR Kemayoran": SMALL_VENUE,
-    "Stadion Siliwangi": MID_VENUE,
-    "GOR Cisitu": SMALL_VENUE,
-    "Gelora Bandung Lautan Api": BIG_VENUE,
-    "Kompleks Stadion Mandala Krida": MID_VENUE,
-    "Stadion Kridosono": MID_VENUE,
-    "Gelora 10 November": MID_VENUE,
-    "Stadion Gelora Bung Tomo": SMALL_VENUE,
-    "DBL Arena": MID_VENUE,
-    "GOR Shima": SMALL_VENUE,
-    "Stadion UNDIP": MID_VENUE,
-    "Stadion Teladan": SMALL_VENUE,
+    "Agora Padel": MID_VENUE,
+    "Athletiqs Airdome": BIG_VENUE,
+    "Booster Arena": MID_VENUE,
+    "Commune Court": SMALL_VENUE,
+    "Crown Padel": MID_VENUE,
+    "Double Padel by Kadena": MID_VENUE,
+    "Filari Sport Center": MID_VENUE,
+    "Home Ground Kedoya": SMALL_VENUE,
+    "Kula Courts": SMALL_VENUE,
+    "Master Padel": MID_VENUE,
+    "Matchaus Padel & Pickleball": MID_VENUE,
+    "Metro Padel": MID_VENUE,
+    "Noble Padel": MID_VENUE,
+    "Off Court": SMALL_VENUE,
+    "Padel Hub": MID_VENUE,
+    "Padel Pro Satrio Club": BIG_VENUE,
+    "Pop Padel": SMALL_VENUE,
+    "Racket Kuningan": MID_VENUE,
+    "Republic Padel": MID_VENUE,
+    "Skoya Padel": SMALL_VENUE,
+    "Smash Padel Simatupang": MID_VENUE,
+    "Solace Club": MID_VENUE,
+    "The Good Padel Club": MID_VENUE,
+    "ZSC Padel": MID_VENUE,
+    "Zeno Padel Court": SMALL_VENUE,
 }
 
 # Booking days from today. Short on purpose: slots are generated rows, and a
@@ -201,22 +319,21 @@ OPEN_HOUR = 8
 CLOSE_HOUR = 22
 
 
-def _tags_for(name: str, address: str) -> list[str]:
-    """A plausible set of tags, from what is actually known about the place.
+def _tags_for(covered: bool, address: str) -> list[str]:
+    """A set of tags, from what is actually known about the place.
 
-    Nothing here claims a fact about the venue — whether a pitch is roofed is
-    not in OpenStreetMap. So these are the default marketing words a venue of
-    this kind would carry, and the manager is expected to correct them.
+    Whether the court is under a roof comes from how the club is mapped, not
+    from its name. The rest are the words a padel club of this kind would
+    carry — padel is booked by people who come with friends, in the evening,
+    and for a match they want to play properly — and the manager is expected to
+    correct them.
     """
-    tags = {"indoors" if "Gelora" in name or "Istana" in name else "outdoors"}
-    if "Stadion" in name:
-        tags.add("competitive")
-    else:
-        tags.add("classes")
-        tags.add("family")
-    if "Jakarta" in address or "Senayan" in address:
+    tags = {"indoors" if covered else "outdoors"}
+    tags.add("classes")
+    tags.add("family")
+    if "Jakarta" in address:
         tags.add("night-owl")
-    if len(tags) < 3:
+    else:
         tags.add("event")
     return sorted(tags)
 
@@ -232,17 +349,37 @@ def main() -> None:
 
         venues = []
         courts = []
-        for name, address, lat, lng in wanted:
+        windows = {}
+        for name, address, lat, lng, covered, hours in wanted:
             venue = Venue(
                 name=name,
                 address=address,
-                tags=_tags_for(name, address),
+                tags=_tags_for(covered, address),
                 lat=lat,
                 lng=lng,
             )
             db.add(venue)
             db.flush()
             venues.append(venue)
+            # A club that publishes its hours gets them; the rest run on the
+            # default window. The manager can change either afterwards.
+            windows[venue.id] = hours
+            if hours is not None:
+                opens_hour, closes_hour = hours
+                # A club that closes at midnight is recorded as closing at 23:00.
+                # The last hour of the day is a slot nobody can book anyway
+                # once the lead-time rule is in play, and "24:00" is not a time
+                # the column or the manager's clock can hold.
+                closes_hour = min(closes_hour, 23)
+                for day_of_week in range(7):
+                    db.add(
+                        VenueHours(
+                            venue_id=venue.id,
+                            day_of_week=day_of_week,
+                            opens_at=time(opens_hour),
+                            closes_at=time(closes_hour),
+                        )
+                    )
             for court_name, sport, kind, weekday, weekend in VENUE_SIZE.get(
                 name, FACILITIES
             ):
@@ -265,7 +402,13 @@ def main() -> None:
             weekend = day.weekday() >= 5
             for court, weekday, weekend_price in courts:
                 price = weekend_price if weekend else weekday
-                for hour in range(OPEN_HOUR, CLOSE_HOUR):
+                # A club with published hours only sells the hours it is open.
+                # Slots outside its window would be hours a player turns up to
+                # find a locked gate.
+                window = windows.get(court.venue_id) or (OPEN_HOUR, CLOSE_HOUR)
+                # The last hour of the day cannot be sold: a slot that ends at
+                # midnight has no hour to live in.
+                for hour in range(window[0], min(window[1], 23)):
                     db.add(
                         Slot(
                             court_id=court.id,
@@ -278,10 +421,12 @@ def main() -> None:
 
         # Two bookings so the list is not empty on first load: one already
         # confirmed, one pending so POST /payments can be tried straight away.
-        # The two earliest slots *from today*, not the two oldest rows — those
-        # would be last week's, which reads as a booking nobody can reach.
+        # The two earliest slots *from today* and *at the venues just seeded* —
+        # the earliest slots in the table could belong to a venue that was here
+        # before, and a booking on a slot that already has one is a duplicate.
         todays_slots = db.scalars(
             select(Slot)
+            .where(Slot.court_id.in_([court.id for court, _, _ in courts]))
             .where(Slot.starts_at >= datetime.combine(first_day, time(OPEN_HOUR)))
             .order_by(Slot.id)
             .limit(2)

@@ -33,8 +33,8 @@ def _venue(client):
 def _court(client, venue, **overrides):
     payload = {
         "venue_public_id": venue["public_id"],
-        "name": "Padel 1",
-        "sport": "futsal",
+        "name": "Lapangan Padel 1",
+        "sport": "padel",
         "kind": "court",
         "price_weekday": 100000,
         "price_weekend": 150000,

@@ -34,7 +34,7 @@ def _visit(client, contact="0812-3456-7890", day="2026-10-19"):
         json={
             "venue_public_id": venue["public_id"],
             "name": "C1",
-            "sport": "futsal",
+            "sport": "padel",
             "price_weekday": 100000,
             "price_weekend": 150000,
         },

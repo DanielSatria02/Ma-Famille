@@ -25,7 +25,7 @@ def test_payment_defaults_to_unpaid_deposit():
     venue = Venue(name="GOR A", address="Jakarta")
     db.add(venue)
     db.flush()
-    court = Court(venue_id=venue.id, name="C1", sport="futsal")
+    court = Court(venue_id=venue.id, name="C1", sport="padel")
     db.add(court)
     db.flush()
     slot = Slot(

@@ -6,7 +6,9 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 
 from app.schemas.venue import _clean_image_url
 
-Sport = Literal["futsal", "badminton"]
+# Padel. One sport, not two: the courts in this app are padel courts, and a
+# second sport in the type would only mean two ways to say the same thing.
+Sport = Literal["padel"]
 CourtKind = Literal["court", "office", "cafe"]
 
 

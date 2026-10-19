@@ -33,7 +33,7 @@ def _venue_and_court(client, name="C1"):
         json={
             "venue_public_id": venue["public_id"],
             "name": name,
-            "sport": "futsal",
+            "sport": "padel",
             "price_weekday": 100000,
             "price_weekend": 150000,
         },
@@ -128,7 +128,7 @@ def test_generate_prices_weekends_and_covers_venue():
             json={
                 "venue_public_id": venue["public_id"],
                 "name": "C2",
-                "sport": "badminton",
+                "sport": "padel",
                 "price_weekday": 50000,
                 "price_weekend": 80000,
             },

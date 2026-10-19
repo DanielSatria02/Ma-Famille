@@ -38,7 +38,7 @@ def _booked_range(client):
         json={
             "venue_public_id": venue["public_id"],
             "name": "Futsal A",
-            "sport": "futsal",
+            "sport": "padel",
             "price_weekday": 100000,
             "price_weekend": 150000,
         },
@@ -72,7 +72,7 @@ def test_booking_carries_slot_court_venue_and_total():
         fetched = client.get(f"/v1/bookings/{first['public_id']}").json()
         assert fetched["venue"]["name"] == "GOR Ma-Famille"
         assert fetched["court"]["name"] == "Futsal A"
-        assert fetched["court"]["sport"] == "futsal"
+        assert fetched["court"]["sport"] == "padel"
         assert fetched["slot"]["starts_at"].startswith("2026-10-19T09:00")
         assert fetched["slot"]["ends_at"].startswith("2026-10-19T10:00")
         assert fetched["total"] == 100000

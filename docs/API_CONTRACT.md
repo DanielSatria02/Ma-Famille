@@ -87,8 +87,11 @@ use, so the filter panel needs no hardcoded options.
 
 ### Court
 ```json
-{ "public_id": "uuidv7", "venue_public_id": "uuidv7", "name": "Court A", "sport": "futsal|badminton", "kind": "court|office|cafe", "price_weekday": 100000, "price_weekend": 150000, "price_peak": 200000, "peak_start_hour": 17, "peak_end_hour": 21, "is_price_set": true, "is_active": true, "image_url": "/media/courts/<public_id>.jpg | null" }
+{ "public_id": "uuidv7", "venue_public_id": "uuidv7", "name": "Lapangan Padel 1", "sport": "padel", "kind": "court|office|cafe", "price_weekday": 100000, "price_weekend": 150000, "price_peak": 200000, "peak_start_hour": 17, "peak_end_hour": 21, "is_price_set": true, "is_active": true, "image_url": "/media/courts/<public_id>.jpg | null" }
 ```
+
+`sport` is `padel` and nothing else. The courts in this app are padel courts, so
+a second sport in the type would only be a second way to say the same thing.
 `price_*: null` (and `is_price_set: false`) means the manager has not priced the
 facility: it is listed to clients but cannot be booked. `PATCH` writes only the
 fields present in the body, so `"price_weekday": null` clears that rate.

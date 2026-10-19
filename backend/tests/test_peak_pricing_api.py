@@ -54,7 +54,7 @@ def _venue_court(client, **court_fields):
     payload = {
         "venue_public_id": venue["public_id"],
         "name": "C1",
-        "sport": "futsal",
+        "sport": "padel",
         "price_weekday": 100000,
         "price_weekend": 150000,
     }
@@ -165,7 +165,7 @@ def test_peak_is_off_until_all_three_fields_are_set():
             json={
                 "venue_public_id": venue_id,
                 "name": "C1",
-                "sport": "futsal",
+                "sport": "padel",
                 "price_weekday": 100000,
                 "price_weekend": 150000,
                 "price_peak": 200000,
@@ -179,7 +179,7 @@ def test_peak_is_off_until_all_three_fields_are_set():
             json={
                 "venue_public_id": venue_id,
                 "name": "C2",
-                "sport": "futsal",
+                "sport": "padel",
                 "price_weekday": 100000,
                 "price_weekend": 150000,
             },
@@ -200,7 +200,7 @@ def test_half_set_peak_window_is_rejected():
                     "/v1/venues", json={"name": "GOR", "address": "Jkt"}
                 ).json()["public_id"],
                 "name": "C1",
-                "sport": "futsal",
+                "sport": "padel",
                 "price_weekday": 100000,
                 "price_weekend": 150000,
                 "peak_start_hour": 17,
@@ -218,7 +218,7 @@ def test_half_set_peak_window_is_rejected():
             json={
                 "venue_public_id": venue_id,
                 "name": "C2",
-                "sport": "futsal",
+                "sport": "padel",
                 "price_weekday": 100000,
                 "price_weekend": 150000,
                 "price_peak": 200000,

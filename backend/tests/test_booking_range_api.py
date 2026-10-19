@@ -37,7 +37,7 @@ def _court(client, venue_name="GOR"):
         json={
             "venue_public_id": venue["public_id"],
             "name": "C1",
-            "sport": "futsal",
+            "sport": "padel",
             "price_weekday": 100000,
             "price_weekend": 150000,
         },
@@ -191,7 +191,7 @@ def test_range_booking_respects_lead_time(monkeypatch):
             json={
                 "venue_public_id": venue["public_id"],
                 "name": "C1",
-                "sport": "futsal",
+                "sport": "padel",
                 "price_weekday": 100000,
                 "price_weekend": 150000,
             },

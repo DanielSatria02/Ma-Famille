@@ -47,7 +47,7 @@ def _booked(client, contact="0812-3456-7890"):
         json={
             "venue_public_id": venue["public_id"],
             "name": "Futsal A",
-            "sport": "futsal",
+            "sport": "padel",
             "price_weekday": 100000,
             "price_weekend": 150000,
         },

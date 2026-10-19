@@ -41,7 +41,7 @@ def _booking(client):
         json={
             "venue_public_id": venue["public_id"],
             "name": "C1",
-            "sport": "futsal",
+            "sport": "padel",
             "price_weekday": 100000,
             "price_weekend": 150000,
         },

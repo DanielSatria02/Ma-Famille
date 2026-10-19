@@ -38,7 +38,7 @@ def test_court_crud_roundtrip():
         payload = {
             "venue_public_id": venue_id,
             "name": "Court A",
-            "sport": "futsal",
+            "sport": "padel",
             "price_weekday": 100000,
             "price_weekend": 150000,
         }
@@ -70,7 +70,7 @@ def test_court_rejects_unknown_venue():
             json={
                 "venue_public_id": "00000000-0000-0000-0000-000000000000",
                 "name": "X",
-                "sport": "futsal",
+                "sport": "padel",
                 "price_weekday": 1,
                 "price_weekend": 1,
             },
