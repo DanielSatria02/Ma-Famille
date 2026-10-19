@@ -1,12 +1,12 @@
-"""Demo seed: real Indonesian venues, their courts, slots and two bookings.
+"""Demo seed: real padel clubs, their courts, slots and two bookings.
 
-Every venue here is a place that exists — the name, the street and the
-coordinates come out of that place's OpenStreetMap record, so the map has
+Every club here is a place that exists — the name, the street and the
+coordinates come out of that club's OpenStreetMap record, so the map has
 something honest to draw and a booking has a real address to send someone to.
-The facilities inside each venue are invented, which they have to be: nobody
+The courts inside each club are invented, which they have to be: nobody
 publishes a list of which court is number four.
 
-Idempotent — exits quietly when the demo venues already exist. Rerun it after a
+Idempotent — exits quietly when the demo clubs already exist. Rerun it after a
 schema change and it adds nothing rather than duplicating anything.
 
 Run: make db-seed (needs a live PostgreSQL + migrated schema).

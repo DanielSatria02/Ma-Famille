@@ -49,13 +49,13 @@ const placed = computed(() =>
 
 // Where the map opens.
 //
-// Fitting the bounds to every venue is what the obvious version does, and it is
-// useless here: the seeded venues are in six cities, so fitting them all zooms
-// out until Indonesia is a grey square with eighteen dots and no streets. A map
-// that shows nothing you can act on is worse than no map.
+// Fitting the bounds to every club is what the obvious version does, and it is
+// useless here: the clubs are spread over Greater Jakarta, so fitting them all
+// zooms out until the map is a grey square with twenty-five dots and no
+// streets. A map that shows nothing you can act on is worse than no map.
 //
-// So the map opens on the densest cluster — the city with the most venues — and
-// the other cities are one drag away. Everything is still pinned, so nothing is
+// So the map opens on the densest cluster — the district with the most clubs —
+// and the rest is one drag away. Everything is still pinned, so nothing is
 // hidden; this only decides where the viewport starts.
 const view = computed(() => {
   const points = placed.value
