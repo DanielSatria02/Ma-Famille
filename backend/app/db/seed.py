@@ -93,25 +93,14 @@ TAGS = {
 # more than an open one — which is why the numbers are not one value repeated.
 FACILITIES = [
     ("Lapangan Padel 1", "padel", "court", 90000, 120000),
-    ("Lapangan Padel 2", "padel", "court", 90000, 120000),
-    ("Lapangan Padel 3", "padel", "court", 85000, 110000),
-    ("Lapangan Padel 4", "padel", "court", 85000, 110000),
-    ("Lapangan Padel VIP", "padel", "court", 130000, 170000),
 ]
 
-# Facilities per venue size. A neighbourhood club has two courts; a sports
-# centre with a hall has more. Slicing the same list for every venue made the
-# home page look like a template.
-SMALL_VENUE = FACILITIES[:2]
-MID_VENUE = FACILITIES[:4]
-BIG_VENUE = FACILITIES
-
-# Which size each branch gets. A branch in a dense part of the city has more
-# courts than a new one; the manager is expected to correct the count either
-# way.
+# Which courts each branch gets. The seed keeps it to one court per branch:
+# the point of the demo is that a manager can add more, and a database that
+# arrives with nine courts says nothing about that. Adding a court is one row.
 VENUE_SIZE = {
-    "Pondok Indah": BIG_VENUE,
-    "Lebak Bulus": MID_VENUE,
+    "Pondok Indah": [FACILITIES[0]],
+    "Lebak Bulus": [FACILITIES[0]],
 }
 
 # Booking days from today. Short on purpose: slots are generated rows, and a

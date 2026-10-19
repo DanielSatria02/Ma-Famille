@@ -252,8 +252,11 @@ nobody publishes a list of which court is number four.
 
 | Branch | Street | Courts |
 |---|---|---|
-| Pondok Indah | Jalan Alam Permai X, Pondok Pinang, Jakarta Selatan | 5 |
-| Lebak Bulus | Jalan Taman Lebak Bulus IV, Lebak Bulus, Jakarta Selatan | 4 |
+| Pondok Indah | Jalan Alam Permai X, Pondok Pinang, Jakarta Selatan | 1 |
+| Lebak Bulus | Jalan Taman Lebak Bulus IV, Lebak Bulus, Jakarta Selatan | 1 |
+
+One court each is the point: the seed is the smallest thing that works, and
+the rest of the courts are rows a manager adds.
 
 Tags (`indoors`, `classes`, `competitive`, `family`, `night-owl`, `outdoors`)
 drive the home page filters, so they are a small closed set — otherwise the
