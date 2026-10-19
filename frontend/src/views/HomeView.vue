@@ -45,8 +45,6 @@ const error = ref('')
 const checkedDates = ref([])
 
 const facilities = computed(() => venuesStore.facilities)
-const venueOf = (facility) =>
-  venues.value.find((venue) => venue.public_id === facility?.venue?.public_id) ?? null
 const tagsOf = (venue) => venue?.tags ?? []
 
 // The clubs, each with the courts inside it. One card per club: a visitor
