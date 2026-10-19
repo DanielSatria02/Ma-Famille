@@ -1,9 +1,10 @@
-from datetime import UTC, date, datetime
+from datetime import date, datetime
 from uuid import UUID
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.models.court import Court
 from app.models.slot import Slot
 from app.models.venue import Venue
@@ -141,7 +142,11 @@ def _reprice_open_slots(db: Session, court: Court) -> None:
     it would change an invoice that exists. Returns nothing; the caller owns
     the transaction.
     """
-    now = datetime.now(UTC).replace(tzinfo=None)
+    # The venue's clock, not UTC. A slot holds a wall-clock time at the venue,
+    # so comparing it with UTC silently drops the venue's morning out of "still
+    # in the future" — seven hours of the day that kept yesterday's rate after
+    # the manager had changed it.
+    now = settings.venue_now
     open_slots = db.scalars(
         select(Slot)
         .where(Slot.court_id == court.id)

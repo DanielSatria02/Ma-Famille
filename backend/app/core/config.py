@@ -125,6 +125,20 @@ class Settings(BaseSettings):
         return datetime.now(self.venue_tz).date()
 
     @property
+    def venue_now(self):
+        """Now, in the venue's own words.
+
+        A slot is a wall-clock time at the venue and is stored without an
+        offset, so the only clock it can be compared against is the venue's.
+        Reading UTC instead shifts every comparison by the venue's offset, which
+        silently excludes the venue's morning from "still in the future" and
+        leaves it priced at yesterday's rate.
+        """
+        from datetime import datetime
+
+        return datetime.now(self.venue_tz).replace(tzinfo=None)
+
+    @property
     def smtp_configured(self) -> bool:
         return bool(self.smtp_host)
 

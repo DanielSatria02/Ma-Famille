@@ -2,6 +2,8 @@
 day's weekday/weekend rate. Active only when price + start + end are all set.
 """
 
+from datetime import date, timedelta
+
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -11,8 +13,22 @@ from app.db.base import Base
 from app.db.session import get_db
 from app.main import app
 
-# Monday 2026-10-19, a weekday, so weekday rate applies outside peak.
-WEEKDAY = "2026-10-19"
+
+# A weekday that has not happened yet.
+#
+# Pinned to a date, this test only passed in the morning: slots are priced
+# against the clock, and an hour that had already gone by on the test's own day
+# was not repriced, so the assertion about a new rate failed after lunch. The
+# next Monday, at least two days out, is a weekday by definition and is always
+# in the future.
+def _next_weekday():
+    day = date.today() + timedelta(days=2)
+    while day.weekday() != 0:  # Monday
+        day += timedelta(days=1)
+    return day.isoformat()
+
+
+WEEKDAY = _next_weekday()
 
 
 def _client():
@@ -59,6 +75,36 @@ def _quote(client, court_public_id, day=WEEKDAY, hour=17):
     )
     assert res.status_code == 200, res.text
     return res.json()
+
+
+def test_a_rate_change_reaches_the_venue_morning():
+    """The morning of the venue has to be repriced like every other open hour.
+
+    Slots hold the wall time of the venue, and the sweep that restamps open
+    slots used to compare them with UTC. Seven hours of the day — the ones a
+    player actually books — then read as "already gone" and kept the old rate
+    after the manager had changed it. The check below puts the slot in the
+    venue's morning on purpose, which is the part that used to be skipped.
+    """
+    client = _client()
+    try:
+        _, court = _venue_court(client)
+        cid = court["public_id"]
+        client.post(
+            "/v1/slots/generate",
+            json={"court_public_id": cid, "from_day": WEEKDAY, "to_day": WEEKDAY},
+        )
+        before = _slots_by_hour(client, cid)
+        assert before["08"]["price"] == 100000
+
+        res = client.patch(f"/v1/courts/{cid}", json={"price_weekday": 120000})
+        assert res.status_code == 200, res.text
+
+        after = _slots_by_hour(client, cid)
+        assert after["08"]["price"] == 120000
+        assert after["08"]["status"] == "available"
+    finally:
+        app.dependency_overrides.clear()
 
 
 def test_peak_fields_round_trip():

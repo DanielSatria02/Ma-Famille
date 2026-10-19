@@ -13,12 +13,12 @@ account is held by the contact they booked with, for the same reason.
 """
 
 import logging
-from datetime import UTC, datetime
 
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 
+from app.core.config import settings
 from app.models.booking import Booking
 from app.models.court import Court
 from app.models.customer import Customer
@@ -77,7 +77,10 @@ def _completed_visit(
         .where(
             Booking.status == "confirmed",
             Court.venue_id == venue_id,
-            Slot.starts_at <= datetime.now(UTC),
+            # The venue's clock. A slot holds the wall time of the visit, and
+            # reading UTC here would keep the review form closed for the seven
+            # hours between the visit starting and the venue's morning.
+            Slot.starts_at <= settings.venue_now,
         )
         .order_by(Slot.starts_at.desc())
     ).all()
