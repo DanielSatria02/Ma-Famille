@@ -79,7 +79,9 @@ async function handleSubmit() {
   const payload = { email: email.value.trim(), password: password.value }
   let ok
   if (isManager.value) {
-    ok = await auth.login(payload)
+    // The manager door sends no email: there is one manager account and the
+    // server checks the password alone.
+    ok = await auth.login({ password: password.value })
     if (ok) {
       await router.push({ name: 'manager-home' })
       return
@@ -107,7 +109,7 @@ const headline = computed(() => {
 })
 
 const description = computed(() => {
-  if (isManager.value) return 'Sign in to run your club dashboard'
+  if (isManager.value) return 'One password opens the club dashboard'
   if (registering.value) return 'One account keeps every booking and cancellation together'
   // Say why the door is here, or it reads as an arbitrary hurdle.
   return 'Your bookings, cancellations and receipts live behind this'
@@ -177,7 +179,13 @@ const submitLabel = computed(() => {
           />
         </div>
 
-        <div class="space-y-2">
+        <!--
+          The customer door asks for an email because a customer has an
+          account. The manager door does not: there is one manager account and
+          it is the password that opens it, so an email field here would be
+          something to fill in that the server never looks at.
+        -->
+        <div v-if="!isManager" class="space-y-2">
           <label for="email" class="login-label block text-sm font-medium">Email address</label>
           <input
             id="email"
@@ -199,7 +207,7 @@ const submitLabel = computed(() => {
             type="password"
             name="password"
             :autocomplete="showRegister ? 'new-password' : 'current-password'"
-            :placeholder="showRegister ? 'At least 8 characters' : 'Enter your password'"
+            :placeholder="showRegister ? 'At least 8 characters' : isManager ? 'Manager password' : 'Enter your password'"
             :minlength="showRegister ? 8 : undefined"
             required
             class="login-input w-full rounded-lg border px-3 py-2.5 outline-none transition"
