@@ -1,9 +1,11 @@
 # ma-famille
 
-Booking web app for sports venues — futsal and badminton courts, hourly slots,
-and a checkout that goes through DOKU. A customer picks a place, picks a day,
-taps the hours, and pays. A venue manager runs the other side of it from a
-four-tab dashboard: today's bookings, the slot grid, pricing, and the record.
+Booking web app for padel clubs — hourly slots and a checkout that goes through
+DOKU. A customer picks a club, picks a day, taps the hours, and pays. A club
+manager runs the other side of it from a four-tab dashboard: today's bookings,
+the slot grid, pricing, and the record.
+
+One brand, twenty-five branches: Ma-Famille Premiere.
 
 This is the repository for a college group project. The backend is complete and
 tested; the frontend covers every route a user can reach.
@@ -41,10 +43,10 @@ tested; the frontend covers every route a user can reach.
 
 | Area | What it does |
 |---|---|
-| **Customer flow** | Register or sign in, browse venues on a map or a list, filter by type and area, see which hours are free, tap a start and an end hour, confirm, and pay. |
+| **Customer flow** | Register or sign in, browse clubs on a map or a list, filter by area, see which hours are free, tap a start and an end hour, confirm, and pay. |
 | **My bookings** | Every booking on the account, with its status, its payment state, and cancellation for the ones still cancellable. |
 | **Live updates** | A WebSocket pushes status changes to the booking and payment pages, so a booking that is confirmed while you watch it confirms on screen. |
-| **Manager dashboard** | Four tabs: today's bookings, slot generation and blocking, venue hours and pricing, and the record (audit trail, guest messages, occupancy). |
+| **Manager dashboard** | Four tabs: today's bookings, slot generation and blocking, club hours and pricing, and the record (audit trail, guest messages, occupancy). A switch picks the branch, because one dashboard cannot be about twenty-five clubs at once. |
 | **Pricing** | Weekday rate, weekend rate, and an optional peak-hours premium that overlays either. Promotion codes with a flat or percentage discount. |
 | **Payments** | DOKU checkout, a signed webhook, refunds, and a pending-booking hold that expires on its own. |
 | **Reviews** | A confirmed booking can be rated and reviewed once, tied to the booking rather than to a name. |
@@ -142,9 +144,9 @@ head is checked in; there is nothing to generate.
 make db-seed
 ```
 
-Optional but recommended — without it the app is an empty map. It inserts 18
-real Indonesian venues across Jakarta, Bandung, Yogyakarta, Surabaya, Semarang,
-and Medan, their courts, and a week of hourly slots. See [Seed data](#seed-data).
+Optional but recommended — without it the app is an empty map. It inserts 25
+real padel clubs around Jakarta, their courts, and a week of hourly slots. See
+[Seed data](#seed-data).
 
 ### Starting the backend
 
@@ -188,7 +190,7 @@ Vite serves the app on <http://localhost:5173> with hot module replacement.
 ### Opening it
 
 Go to <http://localhost:5173>. You land on the home page, which is public.
-Choose a venue, choose a day, choose hours, and the app asks you to sign in when
+Choose a club, choose a day, choose hours, and the app asks you to sign in when
 you try to confirm — that is deliberate, so nobody can hold a slot without an
 account.
 
@@ -234,29 +236,31 @@ Never commit a filled `.env`. All three are in `.gitignore`.
 
 ## Seed data
 
-`make db-seed` is idempotent — it exits quietly if the venues are already there,
+`make db-seed` is idempotent — it exits quietly if the clubs are already there,
 so running it twice changes nothing.
 
-The venues are real places. The name, the street, and the coordinates all come
-from that place's OpenStreetMap record, so the map draws something honest and the
+The clubs are real places. The name, the street, and the coordinates all come
+from that club's OpenStreetMap record, so the map draws something honest and the
 directions link sends someone to the right building. The courts inside each
-venue are invented, which they have to be: nobody publishes a list of which
+club are invented, which they have to be: nobody publishes a list of which
 court is number four.
 
-| City | Venues |
+| Area | Clubs |
 |---|---|
-| Jakarta | Istana Olahraga Gelora Bung Karno, Indonesia Arena, GOR Velodrome Rawamangun, Gelanggang Olahraga Sunter, Stadion Tugu, Cempaka Putih Sport Center Arcici, GOR Kemayoran |
-| Bandung | Stadion Siliwangi, GOR Cisitu, Gelora Bandung Lautan Api |
-| Yogyakarta | Kompleks Stadion Mandala Krida, Stadion Kridosono |
-| Surabaya | Gelora 10 November, Stadion Gelora Bung Tomo, DBL Arena |
-| Semarang | GOR Shima, Stadion UNDIP |
-| Medan | Stadion Teladan |
+| Jakarta Pusat | Agora Padel, Athletiqs Airdome, ZSC Padel |
+| Jakarta Selatan | Padel Pro Satrio Club, Racket Kuningan, Republic Padel, Solace Club, Smash Padel Simatupang, Double Padel by Kadena |
+| Jakarta Barat | Commune Court, Home Ground Kedoya |
+| Jakarta Timur | Matchaus Padel & Pickleball |
+| Jakarta Utara | Master Padel, Pop Padel |
+| Tangerang | Crown Padel, Kula Courts, The Good Padel Club, Zeno Padel Court |
+| Depok | Booster Arena |
+| BSD City | Metro Padel, Off Court, Padel Hub, Skoya Padel |
+| Pantai Indah Kapuk | Noble Padel |
 
-Venue size varies: a university stadium gets two badminton halls, a national
-arena gets five courts plus three. Tags (`indoors`, `classes`, `competitive`,
-`family`, `night-owl`, `outdoors`) drive the home page filters, so they are a
-small closed set — otherwise the filter row grows a new button every time a
-manager types something new.
+Club size varies: a two-court club gets two, a big indoor dome gets five.
+Tags (`indoors`, `classes`, `competitive`, `family`, `night-owl`, `outdoors`)
+drive the home page filters, so they are a small closed set — otherwise the
+filter row grows a new button every time a manager types something new.
 
 The seed also leaves two bookings: one confirmed and one pending, so
 `POST /v1/payments` can be tried straight away.
@@ -305,7 +309,7 @@ See [`docs/PAYMENTS.md`](docs/PAYMENTS.md) for the full flow. The short version:
 | `make db-migrate m="msg"` | Autogenerate a revision. |
 | `make db-upgrade` | `alembic upgrade head`. |
 | `make db-downgrade` | Roll back one revision. |
-| `make db-seed` | Insert the demo venues, courts, and slots. |
+| `make db-seed` | Insert the demo clubs, courts, and slots. |
 | `make frontend-install` | `npm install` in `frontend/`. |
 | `make frontend-dev` | Vite dev server. |
 | `make frontend-build` | Production build. |
@@ -314,7 +318,7 @@ See [`docs/PAYMENTS.md`](docs/PAYMENTS.md) for the full flow. The short version:
 ## Tests and linting
 
 ```bash
-make backend-test       # 216 tests
+make backend-test       # 218 tests
 make backend-lint       # ruff
 npm --prefix frontend test        # 37 tests
 npm --prefix frontend run build
