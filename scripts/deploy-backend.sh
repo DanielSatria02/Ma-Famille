@@ -7,7 +7,7 @@
 #   DEPLOY_HOST=be-ssh.rzidinc.com DEPLOY_USER=deploy DEPLOY_APP_DIR=/home/deploy/ma-famille \
 #     bash scripts/deploy-backend.sh
 # Env: DEPLOY_HOST, DEPLOY_USER, DEPLOY_APP_DIR, SSH_OPTS,
-#      DOKU_CLIENT_ID, DOKU_SECRET_KEY, DOKU_BASE_URL
+#      DOKU_CLIENT_ID, DOKU_SECRET_KEY, DOKU_BASE_URL, MANAGER_PASSWORD
 set -euo pipefail
 
 DEPLOY_HOST="${DEPLOY_HOST:-be-ssh.rzidinc.com}"
@@ -32,8 +32,8 @@ git -C "$REPO_ROOT" archive --format=tar.gz -o "$TARBALL" HEAD
 #
 # Nothing is written when the secrets are absent, so a local deploy with no
 # DOKU keys leaves the server's file exactly as it was.
-if [ -n "${DOKU_CLIENT_ID:-}" ] && [ -n "${DOKU_SECRET_KEY:-}" ]; then
-  echo "==> write DOKU keys into backend/.env on the server"
+if [ -n "${DOKU_CLIENT_ID:-}${DOKU_SECRET_KEY:-}${MANAGER_PASSWORD:-}" ]; then
+  echo "==> write the secrets into backend/.env on the server"
   # The values travel base64-encoded over stdin, together with the script
   # that writes them. A secret pasted into the ssh command line shows up in
   # the process list of every user on the machine, and a stray quote in it
@@ -41,9 +41,14 @@ if [ -n "${DOKU_CLIENT_ID:-}" ] && [ -n "${DOKU_SECRET_KEY:-}" ]; then
   PAYLOAD="$(mktemp)"
   {
     printf "export APP_DIR='%s'\n" "$DEPLOY_APP_DIR"
-    printf 'export DOKU_CLIENT_ID=%s\n' "$(printf '%s' "$DOKU_CLIENT_ID" | base64 | tr -d '\n')"
-    printf 'export DOKU_SECRET_KEY=%s\n' "$(printf '%s' "$DOKU_SECRET_KEY" | base64 | tr -d '\n')"
-    printf 'export DOKU_BASE_URL=%s\n' "$(printf '%s' "${DOKU_BASE_URL:-https://api-sandbox.doku.com}" | base64 | tr -d '\n')"
+    if [ -n "${DOKU_CLIENT_ID:-}" ] && [ -n "${DOKU_SECRET_KEY:-}" ]; then
+      printf 'export DOKU_CLIENT_ID=%s\n' "$(printf '%s' "$DOKU_CLIENT_ID" | base64 | tr -d '\n')"
+      printf 'export DOKU_SECRET_KEY=%s\n' "$(printf '%s' "$DOKU_SECRET_KEY" | base64 | tr -d '\n')"
+      printf 'export DOKU_BASE_URL=%s\n' "$(printf '%s' "${DOKU_BASE_URL:-https://api-sandbox.doku.com}" | base64 | tr -d '\n')"
+    fi
+    if [ -n "${MANAGER_PASSWORD:-}" ]; then
+      printf 'export MANAGER_PASSWORD=%s\n' "$(printf '%s' "$MANAGER_PASSWORD" | base64 | tr -d '\n')"
+    fi
     cat <<'REMOTE'
 set -e
 ENV_FILE="$APP_DIR/backend/.env"
@@ -67,9 +72,14 @@ set_key() {
     printf '%s=%s\n' "$KEY" "$VALUE" >> "$ENV_FILE"
   fi
 }
-set_key DOKU_CLIENT_ID "$(decode "$DOKU_CLIENT_ID")"
-set_key DOKU_SECRET_KEY "$(decode "$DOKU_SECRET_KEY")"
-set_key DOKU_BASE_URL "$(decode "$DOKU_BASE_URL")"
+if [ -n "${DOKU_CLIENT_ID:-}" ] && [ -n "${DOKU_SECRET_KEY:-}" ]; then
+  set_key DOKU_CLIENT_ID "$(decode "$DOKU_CLIENT_ID")"
+  set_key DOKU_SECRET_KEY "$(decode "$DOKU_SECRET_KEY")"
+  set_key DOKU_BASE_URL "$(decode "$DOKU_BASE_URL")"
+fi
+if [ -n "${MANAGER_PASSWORD:-}" ]; then
+  set_key MANAGER_PASSWORD "$(decode "$MANAGER_PASSWORD")"
+fi
 chmod 600 "$ENV_FILE"
 echo "DOKU keys written to backend/.env"
 REMOTE

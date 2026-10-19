@@ -103,13 +103,18 @@ Then register in GitHub (repo → Settings → Secrets and variables → Actions
 | `DOKU_CLIENT_ID` (secret) | DOKU client id — sandbox for now |
 | `DOKU_SECRET_KEY` (secret) | DOKU **non-SNAP** secret key — sandbox for now |
 | `DOKU_BASE_URL` (variable) | `https://api-sandbox.doku.com` — change with the keys |
+| `MANAGER_PASSWORD` (secret) | the one password that opens the manager dashboard |
 
-The two DOKU secrets are written into the server's `backend/.env` by the
-deploy, before the stack starts, so the checkout on the VM never has to be
-edited by hand and the keys never live in the repository. The other settings
-in that file — database URL, manager token — are left as they are. A deploy
-without the secrets leaves the file untouched, which is what a local deploy
-should do.
+The two DOKU secrets and the manager password are written into the server's
+`backend/.env` by the deploy, before the stack starts, so the checkout on the
+VM never has to be edited by hand and the keys never live in the repository.
+The other settings in that file — database URL, manager token — are left as
+they are. A deploy without the secrets leaves the file untouched, which is
+what a local deploy should do.
+
+The manager password is not optional in production. Without it the manager
+routes answer every write, because there is nothing to check the token
+against.
 
 The sandbox keys point at `api-sandbox.doku.com`. Moving to the production
 account is three changes: the two secret values and the base URL. The DOKU

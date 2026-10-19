@@ -8,7 +8,8 @@ name: deploy
 #
 # Required secrets: SSH_PRIVATE_KEY, CF_ACCESS_CLIENT_ID, CF_ACCESS_CLIENT_SECRET
 # Optional secrets: DOKU_CLIENT_ID, DOKU_SECRET_KEY (sandbox for now — swap
-#   the values and the base URL when the production account is ready)
+#   the values and the base URL when the production account is ready),
+#   MANAGER_PASSWORD (the one password that opens the manager dashboard)
 # Optional vars: DEPLOY_HOST (default be-ssh.rzidinc.com),
 #   DEPLOY_USER (default deploy), DEPLOY_APP_DIR (default /home/deploy/ma-famille),
 #   SEED_DB (default 1; set 0 to skip the idempotent demo seed after deploy)
@@ -94,6 +95,9 @@ jobs:
           DOKU_CLIENT_ID: ${{ secrets.DOKU_CLIENT_ID }}
           DOKU_SECRET_KEY: ${{ secrets.DOKU_SECRET_KEY }}
           DOKU_BASE_URL: ${{ vars.DOKU_BASE_URL || 'https://api-sandbox.doku.com' }}
+          # Without this the manager dashboard on the server has no password
+          # and answers every manager write.
+          MANAGER_PASSWORD: ${{ secrets.MANAGER_PASSWORD }}
 
       - name: Deploy frontend via script
         run: bash scripts/deploy-frontend.sh

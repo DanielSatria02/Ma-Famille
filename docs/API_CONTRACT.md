@@ -7,7 +7,9 @@ Base: `/v1`. All domain routes are wired to the store; the only
 
 - Customer reads + booking flow: open.
 - `POST /auth/login` `{password}` → `{token, role, expires_at}` (501 when
-  `MANAGER_PASSWORD` is unset). The token goes in the same header as the static
+  `MANAGER_PASSWORD` is unset). The body takes an optional `email` for the
+  form's sake, but **only the password is checked** — there is one manager
+  account, so an email is not a login. The frontend does not send it. The token goes in the same header as the static
   token below; both are accepted until it expires. Each login mints a **distinct**
   token (random nonce), so logging out one device leaves the others signed in.
 - **Lockout:** `MANAGER_LOCKOUT_ATTEMPTS` (default 5) wrong passwords from one

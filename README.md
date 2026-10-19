@@ -214,7 +214,7 @@ The ones that change behaviour rather than just working:
 | Variable | Default | What it does |
 |---|---|---|
 | `DATABASE_URL` | local `mafamille` | PostgreSQL connection string. |
-| `MANAGER_PASSWORD` | empty | Password for `POST /v1/auth/login`. **Empty disables manager login entirely**, and the dashboard sends you to the customer sign-in form. |
+| `MANAGER_PASSWORD` | empty | Password for `POST /v1/auth/login`. **Empty disables manager login entirely**, and the dashboard sends you to the customer sign-in form. There is one manager account: the form asks for a password only, because an email is not a login here. |
 | `MANAGER_TOKEN` | empty | A static token that also authenticates as manager. Production sets a random one. |
 | `MANAGER_SESSION_MINUTES` | 480 | How long a manager login lasts. |
 | `MANAGER_LOCKOUT_ATTEMPTS` | 5 | Wrong passwords before the caller is locked out with `429` and a `Retry-After`. |
@@ -276,7 +276,8 @@ opaque, stored hashed, lasts 14 days, and travels in the `X-Customer-Token`
 header. A wrong password and an unknown email return the same response, so the
 form cannot be used to find out who has an account.
 
-**Managers** sign in at `POST /v1/auth/login` with `MANAGER_PASSWORD`. Each login
+**Managers** sign in at `POST /v1/auth/login` with `MANAGER_PASSWORD` — a
+password, not an email and a password. Each login
 mints a distinct token, so signing out one device leaves the others signed in.
 The token is HMAC-signed as `manager:<expiry>:<nonce>` and travels in the same
 `X-Manager-Token` header that `MANAGER_TOKEN` uses.
