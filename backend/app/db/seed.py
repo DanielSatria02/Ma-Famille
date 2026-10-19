@@ -24,222 +24,47 @@ from app.models.slot import Slot
 from app.models.venue import Venue
 from app.models.venue_hours import VenueHours
 
-# name, street address, latitude, longitude, under a roof, opening hours
+# The two branches of the chain, as (name, street address, latitude, longitude,
+# under a roof, opening hours).
 #
-# Padel clubs in and around Jakarta. Every one of them is a place that exists:
-# the name, the street and the coordinates come out of that club's own
-# OpenStreetMap record, so the map has something honest to draw and a booking
-# has a real address to send someone to. Two of them sit in a town just outside
-# the city — a padel player drives for a good court, and the ones worth driving
-# to are not all inside the ring road.
+# Ma-Famille Premiere is the brand and it is not repeated in the row: the club
+# card shows the brand above the branch, so a row called "Ma-Famille Premiere
+# Pondok Indah" would print the brand twice on the same card. The branch is
+# what the manager picks and what the player looks for.
 #
-# The last two are what OpenStreetMap says about the place rather than about
-# the name: a club mapped as a `pitch` is a marked court in the open, a club
-# mapped as a `sports_centre` is a building, and a club that records its
+# The addresses and the coordinates are real — they come out of OpenStreetMap
+# for the place in question — so the map draws something honest and a booking
+# has a real address to send someone to.
+#
+# Pondok Indah is the branch the franchise is named after, and the street
+# there is taken from what OpenStreetMap records at that spot: Jalan Bungur V
+# in Kebayoran Lama Utara, which is the Pondok Indah / Kebayoran Lama side of
+# the city. The second branch is in Lebak Bulus, where there is a padel club
+# actually mapped, so that address and those coordinates are a club's own.
+#
+# The last column is what OpenStreetMap says about the place rather than
+# about the name: a club mapped as a `pitch` is a marked court in the open, a
+# club mapped as a `sports_centre` is a building, and a club that records its
 # opening hours gets those hours instead of the default window.
 #
 # Coordinates are OpenStreetMap's, rounded to six decimals (about 10cm). A pin
 # in the wrong district is worse than no pin, because it looks right.
 VENUES = [
     (
-        "Agora Padel",
-        "Jalan Kota Bumi, Tanah Abang, Jakarta Pusat",
-        -6.198632,
-        106.821108,
-        False,
-        None,
-    ),
-    (
-        "Athletiqs Airdome",
-        "Jalan K.H. Mas Mansyur, Tanah Abang, Jakarta Pusat",
-        -6.211882,
-        106.813886,
-        True,
-        (6, 24),
-    ),
-    (
-        "Booster Arena",
-        "Jalan Andara, Cinere, Depok",
-        -6.316026,
-        106.803453,
-        False,
-        None,
-    ),
-    (
-        "Commune Court",
-        "Jalan Lingkar Luar Barat, Cengkareng, Jakarta Barat",
-        -6.173629,
-        106.731041,
-        False,
-        None,
-    ),
-    (
-        "Crown Padel",
-        "Jalan Gempol Raya, Alam Sutera, Pinang, Tangerang",
-        -6.228010,
-        106.660490,
+        "Pondok Indah",
+        "Jalan Bungur V, Kebayoran Lama Utara, Jakarta Selatan",
+        -6.245796,
+        106.780760,
         True,
         None,
     ),
     (
-        "Double Padel by Kadena",
-        "Jalan Taman Lebak Bulus IV",
+        "Lebak Bulus",
+        "Jalan Taman Lebak Bulus IV, Lebak Bulus, Jakarta Selatan",
         -6.295686,
         106.775300,
         True,
         (6, 22),
-    ),
-    (
-        "Filari Sport Center",
-        "Jalan Sigura Gura II",
-        -6.258682,
-        106.834028,
-        True,
-        None,
-    ),
-    (
-        "Home Ground Kedoya",
-        "Gang Bakti Karya, Kebon Jeruk, Jakarta Barat",
-        -6.187570,
-        106.760214,
-        True,
-        None,
-    ),
-    (
-        "Kula Courts",
-        "Jalan Tol Jakarta–Merak, Pinang, Tangerang",
-        -6.221654,
-        106.652956,
-        False,
-        None,
-    ),
-    (
-        "Master Padel",
-        "Jalan Yos Sudarso, Tanjung Priok, Jakarta Utara",
-        -6.146385,
-        106.889688,
-        False,
-        None,
-    ),
-    (
-        "Matchaus Padel & Pickleball",
-        "Jalan Bekasi Raya, Cakung, Jakarta Timur",
-        -6.183150,
-        106.911391,
-        True,
-        None,
-    ),
-    (
-        "Metro Padel",
-        "Jalan Sampora Raya, BSD City",
-        -6.307137,
-        106.651646,
-        True,
-        None,
-    ),
-    (
-        "Noble Padel",
-        "Jalan M. Husni Thamrin, Pantai Indah Kapuk 2",
-        -6.067729,
-        106.701392,
-        True,
-        None,
-    ),
-    (
-        "Off Court",
-        "BSD Green Connector, BSD City",
-        -6.308952,
-        106.657980,
-        True,
-        None,
-    ),
-    (
-        "Padel Hub",
-        "Jalan Raya Cisauk, BSD City",
-        -6.316343,
-        106.652814,
-        True,
-        None,
-    ),
-    (
-        "Padel Pro Satrio Club",
-        "Jalan Karet Sawah, Jakarta Selatan",
-        -6.219991,
-        106.818547,
-        True,
-        (6, 24),
-    ),
-    (
-        "Pop Padel",
-        "Gang Bambu Kuning, Cilincing, Jakarta Utara",
-        -6.160812,
-        106.929802,
-        True,
-        None,
-    ),
-    (
-        "Racket Kuningan",
-        "Jalan Terusan Kuningan Hajjah R. Rasuna Said, Mampang Prapatan, Jakarta Selatan",
-        -6.239226,
-        106.826777,
-        True,
-        None,
-    ),
-    (
-        "Republic Padel",
-        "Jalan Nangka Raya, Jagakarsa, Jakarta Selatan",
-        -6.304320,
-        106.842268,
-        True,
-        None,
-    ),
-    (
-        "Skoya Padel",
-        "Jalan Damai Foresta, BSD City",
-        -6.308208,
-        106.655773,
-        True,
-        None,
-    ),
-    (
-        "Smash Padel Simatupang",
-        "Jalan Tahi Bonar Simatupang",
-        -6.299667,
-        106.834085,
-        False,
-        None,
-    ),
-    (
-        "Solace Club",
-        "Jalan Jenderal Gatot Subroto, Mampang Prapatan, Jakarta Selatan",
-        -6.239183,
-        106.828921,
-        True,
-        None,
-    ),
-    (
-        "The Good Padel Club",
-        "Jalan Sutera Tiara V, Alam Sutera, Pinang, Tangerang",
-        -6.229573,
-        106.655070,
-        True,
-        None,
-    ),
-    (
-        "ZSC Padel",
-        "Jalan Letnan Jenderal Suprapto, Cempaka Putih, Jakarta Pusat",
-        -6.174191,
-        106.858508,
-        False,
-        None,
-    ),
-    (
-        "Zeno Padel Court",
-        "Jalan Pisangan Barat I, Cireundeu, Ciputat Timur, Tangerang Selatan",
-        -6.311359,
-        106.761533,
-        False,
-        None,
     ),
 ]
 
@@ -280,35 +105,12 @@ SMALL_VENUE = FACILITIES[:2]
 MID_VENUE = FACILITIES[:4]
 BIG_VENUE = FACILITIES
 
-# Which size each club gets. Not a guess about the world — it is a guess, and
-# it says so: OpenStreetMap records a padel club's courts only for a few of
-# them, and the manager is expected to correct the count.
+# Which size each branch gets. A branch in a dense part of the city has more
+# courts than a new one; the manager is expected to correct the count either
+# way.
 VENUE_SIZE = {
-    "Agora Padel": MID_VENUE,
-    "Athletiqs Airdome": BIG_VENUE,
-    "Booster Arena": MID_VENUE,
-    "Commune Court": SMALL_VENUE,
-    "Crown Padel": MID_VENUE,
-    "Double Padel by Kadena": MID_VENUE,
-    "Filari Sport Center": MID_VENUE,
-    "Home Ground Kedoya": SMALL_VENUE,
-    "Kula Courts": SMALL_VENUE,
-    "Master Padel": MID_VENUE,
-    "Matchaus Padel & Pickleball": MID_VENUE,
-    "Metro Padel": MID_VENUE,
-    "Noble Padel": MID_VENUE,
-    "Off Court": SMALL_VENUE,
-    "Padel Hub": MID_VENUE,
-    "Padel Pro Satrio Club": BIG_VENUE,
-    "Pop Padel": SMALL_VENUE,
-    "Racket Kuningan": MID_VENUE,
-    "Republic Padel": MID_VENUE,
-    "Skoya Padel": SMALL_VENUE,
-    "Smash Padel Simatupang": MID_VENUE,
-    "Solace Club": MID_VENUE,
-    "The Good Padel Club": MID_VENUE,
-    "ZSC Padel": MID_VENUE,
-    "Zeno Padel Court": SMALL_VENUE,
+    "Pondok Indah": BIG_VENUE,
+    "Lebak Bulus": MID_VENUE,
 }
 
 # Booking days from today. Short on purpose: slots are generated rows, and a
@@ -322,7 +124,7 @@ CLOSE_HOUR = 22
 def _tags_for(covered: bool, address: str) -> list[str]:
     """A set of tags, from what is actually known about the place.
 
-    Whether the court is under a roof comes from how the club is mapped, not
+    Whether the court is under a roof comes from how the branch is mapped, not
     from its name. The rest are the words a padel club of this kind would
     carry — padel is booked by people who come with friends, in the evening,
     and for a match they want to play properly — and the manager is expected to
@@ -331,10 +133,8 @@ def _tags_for(covered: bool, address: str) -> list[str]:
     tags = {"indoors" if covered else "outdoors"}
     tags.add("classes")
     tags.add("family")
-    if "Jakarta" in address:
-        tags.add("night-owl")
-    else:
-        tags.add("event")
+    tags.add("night-owl")
+    tags.add("competitive")
     return sorted(tags)
 
 
@@ -346,6 +146,16 @@ def main() -> None:
         if not wanted:
             print("already seeded")
             return
+        stale = existing - {v[0] for v in VENUES}
+        if stale:
+            # Rows from an older seed are still in the database. The foreign
+            # keys do not cascade, so they have to be removed in order by hand;
+            # saying so is better than leaving a database that claims to have
+            # clubs it does not have.
+            print("note: this database still has clubs from an older seed:")
+            for name in sorted(stale):
+                print(f"  {name}")
+            print("remove them with backend/scripts/reset-demo-data.sql if you want a clean slate")
 
         venues = []
         courts = []
@@ -421,8 +231,8 @@ def main() -> None:
 
         # Two bookings so the list is not empty on first load: one already
         # confirmed, one pending so POST /payments can be tried straight away.
-        # The two earliest slots *from today* and *at the venues just seeded* —
-        # the earliest slots in the table could belong to a venue that was here
+        # The two earliest slots *from today* and *at the branches just seeded* —
+        # the earliest slots in the table could belong to a branch that was here
         # before, and a booking on a slot that already has one is a duplicate.
         todays_slots = db.scalars(
             select(Slot)
@@ -448,7 +258,7 @@ def main() -> None:
                 )
             )
         db.commit()
-        print(f"seeded {len(venues)} venues, {len(courts)} courts")
+        print(f"seeded {len(venues)} branches, {len(courts)} courts")
         for venue in venues:
             print(f"  {venue.name} — {venue.address}")
     finally:
