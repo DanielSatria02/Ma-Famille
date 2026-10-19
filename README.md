@@ -252,7 +252,7 @@ nobody publishes a list of which court is number four.
 
 | Branch | Street | Courts |
 |---|---|---|
-| Pondok Indah | Jalan Bungur V, Kebayoran Lama Utara, Jakarta Selatan | 5 |
+| Pondok Indah | Jalan Alam Permai X, Pondok Pinang, Jakarta Selatan | 5 |
 | Lebak Bulus | Jalan Taman Lebak Bulus IV, Lebak Bulus, Jakarta Selatan | 4 |
 
 Tags (`indoors`, `classes`, `competitive`, `family`, `night-owl`, `outdoors`)

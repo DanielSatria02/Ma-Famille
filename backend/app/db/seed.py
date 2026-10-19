@@ -36,11 +36,12 @@ from app.models.venue_hours import VenueHours
 # for the place in question — so the map draws something honest and a booking
 # has a real address to send someone to.
 #
-# Pondok Indah is the branch the franchise is named after, and the street
-# there is taken from what OpenStreetMap records at that spot: Jalan Bungur V
-# in Kebayoran Lama Utara, which is the Pondok Indah / Kebayoran Lama side of
-# the city. The second branch is in Lebak Bulus, where there is a padel club
-# actually mapped, so that address and those coordinates are a club's own.
+# Pondok Indah is the branch the franchise is named after. OpenStreetMap has
+# no padel club mapped inside it, so the street and the coordinates are taken
+# from the centre of the neighbourhood itself — Jalan Alam Permai X in Pondok
+# Pinang, which is what the map records at that point. The second branch is in
+# Lebak Bulus, where a padel club is actually mapped, so that address and
+# those coordinates are a club's own.
 #
 # The last column is what OpenStreetMap says about the place rather than
 # about the name: a club mapped as a `pitch` is a marked court in the open, a
@@ -52,9 +53,9 @@ from app.models.venue_hours import VenueHours
 VENUES = [
     (
         "Pondok Indah",
-        "Jalan Bungur V, Kebayoran Lama Utara, Jakarta Selatan",
-        -6.245796,
-        106.780760,
+        "Jalan Alam Permai X, Pondok Pinang, Jakarta Selatan",
+        -6.270000,
+        106.780000,
         True,
         None,
     ),
