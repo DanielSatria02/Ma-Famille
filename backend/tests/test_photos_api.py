@@ -58,7 +58,7 @@ def _venue(client, **extra):
 def _court(client, venue, **extra):
     body = {
         "venue_public_id": venue["public_id"],
-        "name": "Futsal A",
+        "name": "Lapangan Padel 1",
         "sport": "padel",
         "price_weekday": 100000,
         "price_weekend": 150000,

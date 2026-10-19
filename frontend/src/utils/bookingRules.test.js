@@ -27,26 +27,26 @@ describe('the H-1 rule', () => {
 
 describe('takenHours', () => {
   const bookings = [
-    { venueName: 'Futsal A', date: '2026-10-19', startTime: '09:00', endTime: '12:00' },
+    { venueName: 'Lapangan Padel 1', date: '2026-10-19', startTime: '09:00', endTime: '12:00' },
     // A different venue on the same day must not block this one.
-    { venueName: 'Futsal B', date: '2026-10-19', startTime: '09:00', endTime: '11:00' },
+    { venueName: 'Lapangan Padel 3', date: '2026-10-19', startTime: '09:00', endTime: '11:00' },
     // The same venue on a different day must not block it either.
-    { venueName: 'Futsal A', date: '2026-10-20', startTime: '09:00', endTime: '11:00' },
+    { venueName: 'Lapangan Padel 1', date: '2026-10-20', startTime: '09:00', endTime: '11:00' },
   ]
 
   it('collects the booked hours for that venue and day only', () => {
-    expect([...takenHours(bookings, 'Futsal A', '2026-10-19')].sort((a, b) => a - b)).toEqual([
+    expect([...takenHours(bookings, 'Lapangan Padel 1', '2026-10-19')].sort((a, b) => a - b)).toEqual([
       9, 10, 11,
     ])
   })
 
   it('keeps the end hour free', () => {
     // 09:00-12:00 occupies 9, 10, 11 — hour 12 is the next booking's start.
-    expect(takenHours(bookings, 'Futsal A', '2026-10-19').has(12)).toBe(false)
+    expect(takenHours(bookings, 'Lapangan Padel 1', '2026-10-19').has(12)).toBe(false)
   })
 
   it('is empty when nothing matches', () => {
-    expect(takenHours(bookings, 'Futsal A', '2026-10-21').size).toBe(0)
+    expect(takenHours(bookings, 'Lapangan Padel 1', '2026-10-21').size).toBe(0)
   })
 })
 

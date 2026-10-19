@@ -26,7 +26,7 @@ def _client():
     return TestClient(app)
 
 
-def _venue(client, name="GOR Ma-Famille"):
+def _venue(client, name="Ma-Famille Premiere"):
     return client.post("/v1/venues", json={"name": name, "address": "Jkt"}).json()
 
 
@@ -48,7 +48,7 @@ def test_facilities_list_marks_what_can_be_booked():
     client = _client()
     try:
         venue = _venue(client)
-        bookable = _court(client, venue, "Futsal A")
+        bookable = _court(client, venue, "Lapangan Padel 1")
         unpriced = _court(client, venue, "Kopi Corner", kind="cafe", prices=None)
         client.patch(f"/v1/courts/{unpriced['public_id']}", json={"is_active": False})
 
@@ -56,17 +56,17 @@ def test_facilities_list_marks_what_can_be_booked():
         assert len(listed) == 2
         by_name = {entry["name"]: entry for entry in listed}
 
-        assert by_name["Futsal A"]["is_bookable"] is True
-        assert by_name["Futsal A"]["unavailable_reason"] is None
-        assert by_name["Futsal A"]["venue"]["name"] == "GOR Ma-Famille"
-        assert by_name["Futsal A"]["price_weekday"] == 100000
-        assert by_name["Futsal A"]["public_id"] == bookable["public_id"]
+        assert by_name["Lapangan Padel 1"]["is_bookable"] is True
+        assert by_name["Lapangan Padel 1"]["unavailable_reason"] is None
+        assert by_name["Lapangan Padel 1"]["venue"]["name"] == "Ma-Famille Premiere"
+        assert by_name["Lapangan Padel 1"]["price_weekday"] == 100000
+        assert by_name["Lapangan Padel 1"]["public_id"] == bookable["public_id"]
 
         assert by_name["Kopi Corner"]["kind"] == "cafe"
         assert by_name["Kopi Corner"]["is_bookable"] is False
         assert by_name["Kopi Corner"]["unavailable_reason"] == "inactive"
         # Public payload stays free of manager-only flags.
-        assert "locked" not in by_name["Futsal A"]
+        assert "locked" not in by_name["Lapangan Padel 1"]
     finally:
         app.dependency_overrides.pop(get_db, None)
 
@@ -76,7 +76,7 @@ def test_facilities_filter_by_kind_and_venue():
     try:
         first = _venue(client, "GOR A")
         second = _venue(client, "GOR B")
-        _court(client, first, "Futsal A")
+        _court(client, first, "Lapangan Padel 1")
         _court(client, first, "Kopi Corner", kind="cafe", prices=None)
         _court(client, second, "Meeting Room", kind="office")
 
@@ -87,8 +87,8 @@ def test_facilities_filter_by_kind_and_venue():
             "/v1/facilities", params={"venue_public_id": first["public_id"]}
         ).json()
         assert sorted(entry["name"] for entry in only_first) == [
-            "Futsal A",
             "Kopi Corner",
+            "Lapangan Padel 1",
         ]
 
         assert (
@@ -106,14 +106,14 @@ def test_manager_facilities_flag_locked_until_priced():
     client = _client()
     try:
         venue = _venue(client)
-        priced = _court(client, venue, "Futsal A")
-        unpriced = _court(client, venue, "Badminton 1", prices=None)
+        priced = _court(client, venue, "Lapangan Padel 1")
+        unpriced = _court(client, venue, "Lapangan Padel 2", prices=None)
 
         listed = client.get("/v1/manager/facilities").json()
         by_name = {entry["name"]: entry for entry in listed}
-        assert by_name["Futsal A"]["locked"] is False
-        assert by_name["Badminton 1"]["locked"] is True
-        assert by_name["Badminton 1"]["is_price_set"] is False
+        assert by_name["Lapangan Padel 1"]["locked"] is False
+        assert by_name["Lapangan Padel 2"]["locked"] is True
+        assert by_name["Lapangan Padel 2"]["is_price_set"] is False
 
         # Pricing the facility unlocks the switch straight away.
         client.patch(
@@ -124,8 +124,8 @@ def test_manager_facilities_flag_locked_until_priced():
             entry["name"]: entry
             for entry in client.get("/v1/manager/facilities").json()
         }
-        assert refreshed["Badminton 1"]["locked"] is False
-        assert refreshed["Badminton 1"]["is_bookable"] is True
-        assert refreshed["Futsal A"]["public_id"] == priced["public_id"]
+        assert refreshed["Lapangan Padel 2"]["locked"] is False
+        assert refreshed["Lapangan Padel 2"]["is_bookable"] is True
+        assert refreshed["Lapangan Padel 1"]["public_id"] == priced["public_id"]
     finally:
         app.dependency_overrides.pop(get_db, None)

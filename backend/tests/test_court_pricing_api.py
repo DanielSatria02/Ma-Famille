@@ -47,7 +47,7 @@ def test_kind_defaults_and_is_reported():
     client = _client()
     try:
         venue = _venue(client)
-        default = _court(client, venue, name="Futsal A")
+        default = _court(client, venue, name="Lapangan Padel 1")
         assert default["kind"] == "court"
 
         cafe = _court(client, venue, name="Kopi Corner", kind="cafe")
@@ -143,9 +143,9 @@ def test_pricing_can_be_set_and_reset():
 
         # A rename alone must not wipe the weekend rate.
         renamed = client.patch(
-            f"/v1/courts/{court['public_id']}", json={"name": "Futsal B"}
+            f"/v1/courts/{court['public_id']}", json={"name": "Lapangan Padel 3"}
         ).json()
-        assert renamed["name"] == "Futsal B"
+        assert renamed["name"] == "Lapangan Padel 3"
         assert renamed["price_weekend"] == 130000
     finally:
         app.dependency_overrides.pop(get_db, None)

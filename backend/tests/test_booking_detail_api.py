@@ -31,13 +31,13 @@ def _client():
 
 def _booked_range(client):
     venue = client.post(
-        "/v1/venues", json={"name": "GOR Ma-Famille", "address": "Jl. Demo 1"}
+        "/v1/venues", json={"name": "Ma-Famille Premiere", "address": "Jl. Demo 1"}
     ).json()
     court = client.post(
         "/v1/courts",
         json={
             "venue_public_id": venue["public_id"],
-            "name": "Futsal A",
+            "name": "Lapangan Padel 1",
             "sport": "padel",
             "price_weekday": 100000,
             "price_weekend": 150000,
@@ -70,8 +70,8 @@ def test_booking_carries_slot_court_venue_and_total():
         first = group["bookings"][0]
 
         fetched = client.get(f"/v1/bookings/{first['public_id']}").json()
-        assert fetched["venue"]["name"] == "GOR Ma-Famille"
-        assert fetched["court"]["name"] == "Futsal A"
+        assert fetched["venue"]["name"] == "Ma-Famille Premiere"
+        assert fetched["court"]["name"] == "Lapangan Padel 1"
         assert fetched["court"]["sport"] == "padel"
         assert fetched["slot"]["starts_at"].startswith("2026-10-19T09:00")
         assert fetched["slot"]["ends_at"].startswith("2026-10-19T10:00")
@@ -81,7 +81,7 @@ def test_booking_carries_slot_court_venue_and_total():
 
         history = client.get("/v1/bookings", params={"customer_contact": "0812"}).json()
         assert len(history) == 2
-        assert all(row["court"]["name"] == "Futsal A" for row in history)
+        assert all(row["court"]["name"] == "Lapangan Padel 1" for row in history)
     finally:
         app.dependency_overrides.pop(get_db, None)
 
@@ -94,7 +94,7 @@ def test_manager_list_is_render_ready():
         assert len(rows) == 2
         # The manager dashboard cards need name, venue and clock times.
         assert {row["customer_name"] for row in rows} == {"Budi"}
-        assert {row["venue"]["name"] for row in rows} == {"GOR Ma-Famille"}
+        assert {row["venue"]["name"] for row in rows} == {"Ma-Famille Premiere"}
         assert [row["slot"]["starts_at"][11:16] for row in rows] == ["09:00", "10:00"]
         assert {row["total"] for row in rows} == {100000}
     finally:

@@ -38,7 +38,7 @@ def _visit(client, contact="0812-3456-7890"):
         "/v1/courts",
         json={
             "venue_public_id": venue["public_id"],
-            "name": "Futsal A",
+            "name": "Lapangan Padel 1",
             "sport": "padel",
             "price_weekday": 100000,
             "price_weekend": 150000,
@@ -73,7 +73,7 @@ def test_a_booking_queues_one_message_for_the_visit():
         assert message["recipient"] == "0812-3456-7890"
         assert message["status"] == "queued"
         assert message["attempts"] == 0
-        assert message["subject"].startswith("Booking received: Futsal A at GOR")
+        assert message["subject"].startswith("Booking received: Lapangan Padel 1 at GOR")
         assert "Mon 19 Oct 2026 09:00-11:00 (2 hours)" in message["body"]
         assert "Total: 200000" in message["body"]
         assert "Hi Budi" in message["body"]
