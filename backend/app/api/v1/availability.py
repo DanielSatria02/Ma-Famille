@@ -59,7 +59,7 @@ def dates(
     elif venue_public_id is not None:
         venue = db.scalars(select(Venue).where(Venue.public_id == venue_public_id)).first()
         if venue is None:
-            raise HTTPException(status_code=404, detail="venue not found")
+            raise HTTPException(status_code=404, detail="club not found")
         points = availability_service.venue_date_summary(db, venue, from_day, to_day)
     else:
         raise HTTPException(

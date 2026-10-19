@@ -112,7 +112,7 @@ def facilities(
         db, venue_public_id, kind, manager_view=True
     )
     if entries is None:
-        raise HTTPException(status_code=404, detail="venue not found")
+        raise HTTPException(status_code=404, detail="club not found")
     return [ManagerFacilityResponse(**entry) for entry in entries]
 
 

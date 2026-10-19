@@ -68,7 +68,7 @@ def generate_slots(
 ) -> SlotGenerateResponse:
     result = slot_service.generate_slots(db, body)
     if result is None:
-        raise HTTPException(status_code=404, detail="court or venue not found")
+        raise HTTPException(status_code=404, detail="court or club not found")
     return SlotGenerateResponse(**result)
 
 
@@ -83,7 +83,7 @@ def block_slots(
 ) -> SlotBlockResponse:
     result = slot_service.block_window(db, body)
     if result is None:
-        raise HTTPException(status_code=404, detail="court or venue not found")
+        raise HTTPException(status_code=404, detail="court or club not found")
     return SlotBlockResponse(**result)
 
 

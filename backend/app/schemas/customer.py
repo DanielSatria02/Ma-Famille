@@ -20,7 +20,7 @@ def _email(value: str) -> str:
 
 
 class CustomerRegister(BaseModel):
-    """Creating an account. The email is the login; `phone` is where a venue
+    """Creating an account. The email is the login; `phone` is where the club
     reaches them, which is usually a WhatsApp number rather than that email."""
 
     email: str = Field(min_length=3, max_length=254)

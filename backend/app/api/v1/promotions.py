@@ -80,7 +80,7 @@ def create_promotion(body: PromotionCreate, db: Session = Depends(get_db)):
             select(Venue).where(Venue.public_id == body.venue_public_id)
         ).first()
         if venue is None:
-            raise HTTPException(status_code=404, detail="venue not found")
+            raise HTTPException(status_code=404, detail="club not found")
         venue_id = venue.id
     promo = Promotion(
         code=body.code,

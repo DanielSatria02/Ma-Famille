@@ -23,5 +23,5 @@ def list_facilities(
 ) -> list[FacilityResponse]:
     entries = facility_service.list_facilities(db, venue_public_id, kind)
     if entries is None:
-        raise HTTPException(status_code=404, detail="venue not found")
+        raise HTTPException(status_code=404, detail="club not found")
     return [FacilityResponse(**entry) for entry in entries]

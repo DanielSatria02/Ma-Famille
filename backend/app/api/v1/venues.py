@@ -63,7 +63,7 @@ def create_venue(body: VenueCreate, db: Session = Depends(get_db)) -> VenueRespo
 def get_venue(public_id: UUID, db: Session = Depends(get_db)) -> VenueResponse:
     venue = venue_service.get_by_public_id(db, public_id)
     if venue is None:
-        raise HTTPException(status_code=404, detail="venue not found")
+        raise HTTPException(status_code=404, detail="club not found")
     return _to_response(venue)
 
 
@@ -78,7 +78,7 @@ def update_venue(
 ) -> VenueResponse:
     venue = venue_service.get_by_public_id(db, public_id)
     if venue is None:
-        raise HTTPException(status_code=404, detail="venue not found")
+        raise HTTPException(status_code=404, detail="club not found")
     return _to_response(venue_service.update_venue(db, venue, body))
 
 
@@ -91,7 +91,7 @@ def update_venue(
 def delete_venue(public_id: UUID, db: Session = Depends(get_db)) -> None:
     venue = venue_service.get_by_public_id(db, public_id)
     if venue is None:
-        raise HTTPException(status_code=404, detail="venue not found")
+        raise HTTPException(status_code=404, detail="club not found")
     venue_service.delete_venue(db, venue)
 
 
@@ -110,7 +110,7 @@ async def upload_venue_photo(
 ) -> VenueResponse:
     venue = venue_service.get_by_public_id(db, public_id)
     if venue is None:
-        raise HTTPException(status_code=404, detail="venue not found")
+        raise HTTPException(status_code=404, detail="club not found")
     return _to_response(await _store_photo(db, "venues", venue, request))
 
 
@@ -123,7 +123,7 @@ async def upload_venue_photo(
 def delete_venue_photo(public_id: UUID, db: Session = Depends(get_db)) -> None:
     venue = venue_service.get_by_public_id(db, public_id)
     if venue is None:
-        raise HTTPException(status_code=404, detail="venue not found")
+        raise HTTPException(status_code=404, detail="club not found")
     photo_service.clear("venues", venue.public_id)
     venue.image_url = None
     db.commit()
@@ -147,7 +147,7 @@ async def _store_photo(db: Session, kind: str, row, request: Request):
 def _venue_or_404(db: Session, public_id: UUID):
     venue = venue_service.get_by_public_id(db, public_id)
     if venue is None:
-        raise HTTPException(status_code=404, detail="venue not found")
+        raise HTTPException(status_code=404, detail="club not found")
     return venue
 
 

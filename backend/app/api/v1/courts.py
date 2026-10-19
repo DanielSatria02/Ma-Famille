@@ -49,7 +49,7 @@ def list_courts(
 def create_court(body: CourtCreate, db: Session = Depends(get_db)) -> CourtResponse:
     court = court_service.create_court(db, body)
     if court is None:
-        raise HTTPException(status_code=404, detail="venue not found")
+        raise HTTPException(status_code=404, detail="club not found")
     return _to_response(db, court)
 
 
