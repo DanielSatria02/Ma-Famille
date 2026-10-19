@@ -93,16 +93,14 @@ TAGS = {
 # more than an open one — which is why the numbers are not one value repeated.
 FACILITIES = [
     ("Lapangan Padel 1", "padel", "court", 90000, 120000),
-    ("Lapangan Padel 2", "padel", "court", 85000, 110000),
 ]
 
-# Which courts each branch gets. Two is the smallest number that behaves like
-# a club: one court means a player who wants 21:00 has nobody else to share
-# the room with, and a booking takes the whole place. A manager can add more
-# from the dashboard; adding a court is one row.
+# Which courts each branch gets. The seed is deliberately small: one court at
+# the branch the franchise is named after, and the second one at the other
+# branch. A manager can add more from the dashboard; adding a court is one row.
 VENUE_SIZE = {
-    "Pondok Indah": FACILITIES,
-    "Lebak Bulus": FACILITIES,
+    "Pondok Indah": [FACILITIES[0]],
+    "Lebak Bulus": [FACILITIES[0]],
 }
 
 # Booking days from today. Short on purpose: slots are generated rows, and a
