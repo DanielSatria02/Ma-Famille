@@ -6,13 +6,19 @@ No real money moves anywhere in this project. All calls default to
 ## Setup
 
 1. Register at `https://sandbox.doku.com`, grab **Client ID** + **Secret Key**.
-2. Copy them into `backend/.env` (never commit real keys):
+2. Put them in `backend/.env` (never commit real keys):
    ```bash
    DOKU_CLIENT_ID=MCH-xxxx
    DOKU_SECRET_KEY=SK-xxxx
    DOKU_BASE_URL=https://api-sandbox.doku.com
    ```
-3. Without keys, `POST /payments` answers `501` and a refund stays local
+3. On the prod server the same three settings come from the repository
+   secrets instead: `DOKU_CLIENT_ID` and `DOKU_SECRET_KEY` as secrets,
+   `DOKU_BASE_URL` as a variable. The deploy writes them into the server's
+   `backend/.env` before the stack starts — see
+   [DEPLOYMENT.md](DEPLOYMENT.md#one-time-access-setup-instead-of-a-runner).
+   Sandbox for now; the production account is the same three values changed.
+4. Without keys, `POST /payments` answers `501` and a refund stays local
    bookkeeping (see below) — nothing pretends money moved.
 
 ### Which key this wants

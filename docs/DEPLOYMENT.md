@@ -45,8 +45,10 @@ bash scripts/bootstrap-server.sh
    "One-time access setup" below (replaces any runner).
 4. Create `backend/.env` on the server from
    `backend/.env.prod.example` (fill `DATABASE_URL`, `POSTGRES_PASSWORD`,
-   `MANAGER_TOKEN`, DOKU keys). The tarball deploy wipes the checkout each
-   run but never touches `backend/.env` or root `.env` — create them once.
+   `MANAGER_TOKEN`). The tarball deploy wipes the checkout each run but never
+   touches `backend/.env` or root `.env` — create them once. The DOKU keys do
+   not go in this file by hand: the deploy writes them from the repository
+   secrets.
 5. Create the compose env file at repo root (`~/ma-famille/.env`) so
    `POSTGRES_*` interpolate:
    ```bash
@@ -98,6 +100,21 @@ Then register in GitHub (repo → Settings → Secrets and variables → Actions
 | `DEPLOY_HOST` (secret) | `be-ssh.rzidinc.com` |
 | `DEPLOY_USER` (variable, default `deploy`) | VM username |
 | `DEPLOY_APP_DIR` (variable, default `/home/deploy/ma-famille`) | checkout path on the VM |
+| `DOKU_CLIENT_ID` (secret) | DOKU client id — sandbox for now |
+| `DOKU_SECRET_KEY` (secret) | DOKU **non-SNAP** secret key — sandbox for now |
+| `DOKU_BASE_URL` (variable) | `https://api-sandbox.doku.com` — change with the keys |
+
+The two DOKU secrets are written into the server's `backend/.env` by the
+deploy, before the stack starts, so the checkout on the VM never has to be
+edited by hand and the keys never live in the repository. The other settings
+in that file — database URL, manager token — are left as they are. A deploy
+without the secrets leaves the file untouched, which is what a local deploy
+should do.
+
+The sandbox keys point at `api-sandbox.doku.com`. Moving to the production
+account is three changes: the two secret values and the base URL. The DOKU
+Notification URL has to be set in the Back Office to the production host at
+the same time, or the webhook stops arriving.
 
 And in Cloudflare Zero Trust: protect `be-ssh.rzidinc.com` with an
 Access app whose only rule allows that service token.

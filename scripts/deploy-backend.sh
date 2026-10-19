@@ -6,7 +6,8 @@
 # Usage:
 #   DEPLOY_HOST=be-ssh.rzidinc.com DEPLOY_USER=deploy DEPLOY_APP_DIR=/home/deploy/ma-famille \
 #     bash scripts/deploy-backend.sh
-# Env: DEPLOY_HOST, DEPLOY_USER, DEPLOY_APP_DIR, SSH_OPTS
+# Env: DEPLOY_HOST, DEPLOY_USER, DEPLOY_APP_DIR, SSH_OPTS,
+#      DOKU_CLIENT_ID, DOKU_SECRET_KEY, DOKU_BASE_URL
 set -euo pipefail
 
 DEPLOY_HOST="${DEPLOY_HOST:-be-ssh.rzidinc.com}"
@@ -22,6 +23,47 @@ TARBALL="/tmp/mafamille-app.tgz"
 
 echo "==> pack HEAD -> $TARBALL"
 git -C "$REPO_ROOT" archive --format=tar.gz -o "$TARBALL" HEAD
+
+# The DOKU keys live in the server's backend/.env, not in the repository. When
+# CI has them (as secrets) they are written into that file before the stack
+# starts, so the checkout on the server is never the place a key has to be
+# typed. The file is rewritten in place: the rest of the server's settings
+# (database URL, manager token) live there too and must not be lost.
+#
+# Nothing is written when the secrets are absent, so a local deploy with no
+# DOKU keys leaves the server's file exactly as it was.
+if [ -n "${DOKU_CLIENT_ID:-}" ] && [ -n "${DOKU_SECRET_KEY:-}" ]; then
+  echo "==> write DOKU keys into backend/.env on the server"
+  # shellcheck disable=SC2086
+  $SSH "APP_DIR='$DEPLOY_APP_DIR' DOKU_CLIENT_ID='$DOKU_CLIENT_ID' DOKU_SECRET_KEY='$DOKU_SECRET_KEY' DOKU_BASE_URL='${DOKU_BASE_URL:-https://api-sandbox.doku.com}' sh -s" <<'EOF'
+set -e
+ENV_FILE="$APP_DIR/backend/.env"
+touch "$ENV_FILE"
+set_key() {
+  KEY="$1"
+  VALUE="$2"
+  if grep -q "^${KEY}=" "$ENV_FILE"; then
+    # sed cannot hold an arbitrary value safely, so the line is replaced by
+    # rewriting the file around it.
+    TMP_FILE="$ENV_FILE.tmp"
+    while IFS= read -r line; do
+      case "$line" in
+        "${KEY}="*) printf '%s=%s\n' "$KEY" "$VALUE" >> "$TMP_FILE" ;;
+        *) printf '%s\n' "$line" >> "$TMP_FILE" ;;
+      esac
+    done < "$ENV_FILE" > "$TMP_FILE"
+    mv "$TMP_FILE" "$ENV_FILE"
+  else
+    printf '%s=%s\n' "$KEY" "$VALUE" >> "$ENV_FILE"
+  fi
+}
+set_key DOKU_CLIENT_ID "$DOKU_CLIENT_ID"
+set_key DOKU_SECRET_KEY "$DOKU_SECRET_KEY"
+set_key DOKU_BASE_URL "$DOKU_BASE_URL"
+chmod 600 "$ENV_FILE"
+echo "DOKU keys written to backend/.env"
+EOF
+fi
 
 echo "==> deliver ke $DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_APP_DIR"
 # shellcheck disable=SC2086

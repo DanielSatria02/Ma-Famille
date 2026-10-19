@@ -7,6 +7,8 @@ name: deploy
 # and CI use the same path.
 #
 # Required secrets: SSH_PRIVATE_KEY, CF_ACCESS_CLIENT_ID, CF_ACCESS_CLIENT_SECRET
+# Optional secrets: DOKU_CLIENT_ID, DOKU_SECRET_KEY (sandbox for now — swap
+#   the values and the base URL when the production account is ready)
 # Optional vars: DEPLOY_HOST (default be-ssh.rzidinc.com),
 #   DEPLOY_USER (default deploy), DEPLOY_APP_DIR (default /home/deploy/ma-famille),
 #   SEED_DB (default 1; set 0 to skip the idempotent demo seed after deploy)
@@ -86,6 +88,12 @@ jobs:
           DEPLOY_APP_DIR: ${{ env.DEPLOY_APP_DIR }}
           TUNNEL_SERVICE_TOKEN_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
           TUNNEL_SERVICE_TOKEN_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
+          # The DOKU keys are written into the server's backend/.env before the
+          # stack starts. Sandbox for now; change the secret values and the
+          # base URL together when the production account is ready.
+          DOKU_CLIENT_ID: ${{ secrets.DOKU_CLIENT_ID }}
+          DOKU_SECRET_KEY: ${{ secrets.DOKU_SECRET_KEY }}
+          DOKU_BASE_URL: ${{ vars.DOKU_BASE_URL || 'https://api-sandbox.doku.com' }}
 
       - name: Deploy frontend via script
         run: bash scripts/deploy-frontend.sh
