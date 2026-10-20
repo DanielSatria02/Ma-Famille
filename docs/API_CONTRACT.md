@@ -209,7 +209,11 @@ disagreeing about which of two wrong days to send.
        does not count. payment_problem is the operator-facing reason and is
        empty when payment_configured is true. Added 2026-10-19.
 GET    /venues /venues/{public_id}            POST /venues (manager)
-PATCH  /venues/{public_id} (manager)          DELETE /venues/{public_id} (manager)
+PATCH  /venues/{public_id} (manager)          DELETE /venues/{public_id} (manager, 204)
+       Deleting a club takes its courts, their slots, its opening hours, its
+       closure dates and its discount codes with it. A booking or a review is
+       a customer's, so the delete is refused with a 409 that names what is in
+       the way.
 GET    /venues/{public_id}/hours (7 days)     PUT /venues/{public_id}/hours/{day} (manager, 0=Mon)
 GET    /venues/{public_id}/closures            POST /venues/{public_id}/closures (manager, 201)
 DELETE /venues/{public_id}/closures/{public_id} (manager, 204)

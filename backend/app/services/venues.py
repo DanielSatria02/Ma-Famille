@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
 from app.models.venue import Venue
@@ -74,6 +74,74 @@ def update_venue(db: Session, venue: Venue, data: VenueUpdate) -> Venue:
     return venue
 
 
+class VenueNotEmptyError(Exception):
+    """The club still holds a customer's data, so it cannot be deleted.
+
+    A booking belongs to the person who made it and a review belongs to the
+    person who wrote it. Neither is the manager's to erase, and the foreign
+    keys do not cascade for exactly that reason — so the delete is refused
+    and the error says what is in the way.
+
+    Everything the manager owns — the courts, their slots, the opening hours,
+    the closure dates, the discount codes — goes with the club.
+    """
+
+    def __init__(self, blockers: dict[str, int]):
+        super().__init__("the club still holds a customer's data")
+        self.blockers = blockers
+        self.status_code = 409
+
+    @property
+    def message(self) -> str:
+        parts = [f"{count} {name}" for name, count in self.blockers.items() if count]
+        return (
+            "this club still has "
+            + ", ".join(parts)
+            + " — those belong to customers and cannot be deleted here"
+        )
+
+
+def _customer_rows(db: Session, venue: Venue) -> dict[str, int]:
+    """What points at this club that belongs to a customer."""
+    from app.models.booking import Booking
+    from app.models.court import Court
+    from app.models.review import Review
+    from app.models.slot import Slot
+
+    court_ids = select(Court.id).where(Court.venue_id == venue.id)
+    slot_ids = select(Slot.id).where(Slot.court_id.in_(court_ids))
+    counts = {
+        "bookings": db.scalar(
+            select(func.count(Booking.id)).where(Booking.slot_id.in_(slot_ids))
+        ),
+        "reviews": db.scalar(
+            select(func.count(Review.id)).where(Review.venue_id == venue.id)
+        ),
+    }
+    return {name: count for name, count in counts.items() if count}
+
+
+def _delete_manager_rows(db: Session, venue: Venue) -> None:
+    """Remove everything under this club that the manager owns."""
+    from app.models.court import Court
+    from app.models.promotion import Promotion
+    from app.models.slot import Slot
+    from app.models.venue_closure import VenueClosure
+    from app.models.venue_hours import VenueHours
+
+    court_ids = select(Court.id).where(Court.venue_id == venue.id)
+    # Slots first: the courts point at nothing, the slots point at the courts.
+    db.execute(delete(Slot).where(Slot.court_id.in_(court_ids)))
+    db.execute(delete(VenueHours).where(VenueHours.venue_id == venue.id))
+    db.execute(delete(VenueClosure).where(VenueClosure.venue_id == venue.id))
+    db.execute(delete(Promotion).where(Promotion.venue_id == venue.id))
+    db.execute(delete(Court).where(Court.venue_id == venue.id))
+
+
 def delete_venue(db: Session, venue: Venue) -> None:
+    blockers = _customer_rows(db, venue)
+    if blockers:
+        raise VenueNotEmptyError(blockers)
+    _delete_manager_rows(db, venue)
     db.delete(venue)
     db.commit()

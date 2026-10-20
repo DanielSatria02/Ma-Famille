@@ -92,7 +92,12 @@ def delete_venue(public_id: UUID, db: Session = Depends(get_db)) -> None:
     venue = venue_service.get_by_public_id(db, public_id)
     if venue is None:
         raise HTTPException(status_code=404, detail="club not found")
-    venue_service.delete_venue(db, venue)
+    try:
+        venue_service.delete_venue(db, venue)
+    except venue_service.VenueNotEmptyError as exc:
+        # The club still holds rows that point at it. Saying so is the whole
+        # answer — a crash here told the manager nothing.
+        raise HTTPException(status_code=exc.status_code, detail=exc.message) from exc
 
 
 @router.put(
