@@ -101,6 +101,44 @@ $SSH "DEPLOY_APP_DIR='$DEPLOY_APP_DIR' sh -s" <<'EOF'
 set -e
 cd "$DEPLOY_APP_DIR"
 tar xzf app.tgz && rm app.tgz
+
+# A dump before anything touches the database. The migrations that came with
+# this release remove rows the old seeds left behind, and "we meant to" is not
+# a way back from that.
+BACKUP_DIR="$DEPLOY_APP_DIR/backups"
+mkdir -p "$BACKUP_DIR"
+STAMP=$(date +%Y%m%d-%H%M%S)
+DUMP_FILE="$BACKUP_DIR/db-$STAMP.sql"
+
+# The database URL lives in the server's backend/.env, not in this shell.
+if [ -f "$DEPLOY_APP_DIR/backend/.env" ]; then
+  DATABASE_URL=$(grep '^DATABASE_URL=' "$DEPLOY_APP_DIR/backend/.env" | head -1 | cut -d= -f2-)
+fi
+
+if [ -n "${DATABASE_URL:-}" ]; then
+  if command -v pg_dump >/dev/null; then
+    if pg_dump "$DATABASE_URL" > "$DUMP_FILE" 2>/dev/null; then
+      echo "==> database dumped to backups/db-$STAMP.sql"
+    else
+      rm -f "$DUMP_FILE"
+      echo "WARNING: pg_dump failed — no backup of the database was taken" >&2
+    fi
+  elif command -v podman >/dev/null; then
+    # No pg_dump on the host: the postgres image has one.
+    if podman run --rm --network host -e PGPASSWORD= \
+        "postgres:16-alpine" pg_dump --clean --no-owner "$DATABASE_URL" \
+        > "$DUMP_FILE" 2>/dev/null; then
+      echo "==> database dumped to backups/db-$STAMP.sql"
+    else
+      rm -f "$DUMP_FILE"
+      echo "WARNING: pg_dump through podman failed — no backup was taken" >&2
+    fi
+  else
+    echo "WARNING: no pg_dump and no podman — no backup was taken" >&2
+  fi
+else
+  echo "WARNING: no DATABASE_URL found — no backup was taken" >&2
+fi
 if podman compose version >/dev/null 2>&1; then COMPOSE="podman compose"; else COMPOSE="podman-compose"; fi
 # Down dulu: compose lama kadang keep container stale.
 $COMPOSE -f docker-compose.yml -f compose.prod.yml down 2>/dev/null || true
