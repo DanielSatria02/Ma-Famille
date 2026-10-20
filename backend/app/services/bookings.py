@@ -390,6 +390,71 @@ def slot_public_id(db: Session, booking: Booking) -> UUID:
     return db.get(Slot, booking.slot_id).public_id
 
 
+def group_span(db: Session, booking: Booking) -> dict:
+    """The whole visit this booking is part of.
+
+    A visit of several hours is bought as one thing: one price, one invoice,
+    one confirmation. The rows share a `group_public_id`, and this is the
+    window they cover and what they cost together.
+
+    A booking that stands alone is its own group, so this works for a single
+    hour too.
+    """
+    if booking.group_public_id is None:
+        return {
+            "group_total": 0,
+            "group_hours": 1,
+            "group_starts_at": None,
+            "group_ends_at": None,
+        }
+    rows = list_group(db, booking.group_public_id)
+    if not rows:
+        return {
+            "group_total": 0,
+            "group_hours": 1,
+            "group_starts_at": None,
+            "group_ends_at": None,
+        }
+    total = 0
+    starts: datetime | None = None
+    ends: datetime | None = None
+    for row in rows:
+        row_slot = db.get(Slot, row.slot_id)
+        if row_slot is None:
+            continue
+        total += row_slot.price - row.discount
+        if starts is None or row_slot.starts_at < starts:
+            starts = row_slot.starts_at
+        if ends is None or row_slot.ends_at > ends:
+            ends = row_slot.ends_at
+    return {
+        "group_total": max(total, 0),
+        "group_hours": len(rows),
+        "group_starts_at": starts,
+        "group_ends_at": ends,
+    }
+
+
+def _group_payment(db: Session, booking: Booking) -> Payment | None:
+    """The invoice of the visit this booking is part of.
+
+    One visit has one invoice, so the newest payment of any hour of the group
+    is the payment of the visit.
+    """
+    if booking.group_public_id is None:
+        return db.scalars(
+            select(Payment)
+            .where(Payment.booking_id == booking.id)
+            .order_by(Payment.id.desc())
+        ).first()
+    booking_ids = select(Booking.id).where(Booking.group_public_id == booking.group_public_id)
+    return db.scalars(
+        select(Payment)
+        .where(Payment.booking_id.in_(booking_ids))
+        .order_by(Payment.id.desc())
+    ).first()
+
+
 def detail(db: Session, booking: Booking) -> dict:
     """Slot, court, venue, total and payment state for one booking.
 
@@ -399,11 +464,12 @@ def detail(db: Session, booking: Booking) -> dict:
     slot = db.get(Slot, booking.slot_id)
     court = db.get(Court, slot.court_id) if slot is not None else None
     venue = db.get(Venue, court.venue_id) if court is not None else None
-    payment = db.scalars(
-        select(Payment)
-        .where(Payment.booking_id == booking.id)
-        .order_by(Payment.id.desc())
-    ).first()
+    # The invoice belongs to the visit, not to the hour it was raised against.
+    # A two-hour booking has one invoice, and the second hour is paid for by
+    # that same invoice — so the payment is looked up across the whole group.
+    # Looking it up per row left the second hour reading "unpaid" while the
+    # customer had already paid for it.
+    payment = _group_payment(db, booking)
     return {
         "slot": (
             None
@@ -431,6 +497,9 @@ def detail(db: Session, booking: Booking) -> dict:
             else {"public_id": venue.public_id, "name": venue.name}
         ),
         "total": (slot.price - booking.discount) if slot is not None else 0,
+        # What the whole visit costs, so a client that knows one hour of a
+        # three-hour booking still knows the price of the booking.
+        **group_span(db, booking),
         # Rupiah taken off by a promo, and the code that did it. Both nil/0 when
         # no code was used, so the client shows a discount line only when real.
         "discount": booking.discount,

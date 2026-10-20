@@ -85,6 +85,13 @@ class BookingResponse(BaseModel):
     court: BookingCourtInfo | None = None
     venue: BookingVenueInfo | None = None
     total: int = 0
+    # The visit as a whole: a booking of several hours is bought as one
+    # thing, and the client has to know what it costs without summing rows.
+    # `total` stays the price of this one hour.
+    group_total: int = 0
+    group_hours: int = 1
+    group_starts_at: datetime | None = None
+    group_ends_at: datetime | None = None
     # Rupiah taken off by a promo, and the code that did it (nil when none).
     discount: int = 0
     promo_code: str | None = None

@@ -16,6 +16,7 @@ from app.schemas.payment import (
     PaymentRefundResponse,
     PaymentResponse,
 )
+from app.services import bookings as booking_service
 from app.services import doku
 from app.services import payments as payment_service
 
@@ -56,7 +57,7 @@ def create_payment(body: PaymentCreate, db: Session = Depends(get_db)):
     # gateway for another one leaves the customer with two pages to pay and the
     # venue with two amounts to reconcile, and the one nobody was looking at is
     # the one that gets paid.
-    existing = payment_service.find_unpaid_for_booking(db, booking.id)
+    existing = payment_service.find_unpaid_for_visit(db, booking)
     if existing is not None and existing.checkout_url:
         return PaymentInitiateResponse(
             invoice_number=existing.invoice_number,
@@ -64,11 +65,22 @@ def create_payment(body: PaymentCreate, db: Session = Depends(get_db)):
             token_id=existing.provider_token_id or "",
         )
 
+    # A visit of several hours is one purchase, so "full" means the whole
+    # visit — not whatever the client happened to know about. The client that
+    # only had the first hour of a two-hour booking would otherwise charge
+    # for one hour and confirm one, and the second hour would be given away.
+    amount = body.amount
+    if body.kind == "full":
+        amount = max(body.amount, booking_service.group_span(db, booking)["group_total"])
+    else:
+        # A deposit cannot be more than the visit is worth.
+        amount = min(body.amount, booking_service.group_span(db, booking)["group_total"])
+
     invoice_number = doku.new_invoice_number()
     try:
         result = doku.create_checkout(
             invoice_number=invoice_number,
-            amount=body.amount,
+            amount=amount,
             customer_name=booking.customer_name,
         )
     except doku.DokuError as exc:
@@ -78,7 +90,7 @@ def create_payment(body: PaymentCreate, db: Session = Depends(get_db)):
     payment = payment_service.create_payment(
         db,
         booking_id=booking.id,
-        amount=body.amount,
+        amount=amount,
         kind=body.kind,
         invoice_number=invoice_number,
         provider_request_id=getattr(result, "request_id", ""),

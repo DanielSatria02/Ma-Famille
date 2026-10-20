@@ -172,6 +172,25 @@ Rules:
 - One active booking per slot (overlap/conflict guard backend-side, `409`).
 - `pending` expires after TTL unless confirmed + deposit.
 
+### A visit of several hours is one purchase
+
+Booking two hours writes two rows that share a `group_public_id`, and it is
+bought as one thing: one price, one invoice, one confirmation. So the booking
+answers both its own row and the whole visit:
+
+- `total` — the price of that one hour (the group's discount sits on the
+  first row, so summing the rows counts it exactly once).
+- `group_total` — the price of the whole visit, `group_hours` — how many
+  hours it is, and `group_starts_at` / `group_ends_at` — the window it
+  covers.
+
+`POST /payments` with `kind: "full"` prices the whole visit, whatever the
+client sent: the amount in the body is advisory, so a client that only knows
+about the first hour cannot make the customer pay for one hour of a two-hour
+booking. `kind: "deposit"` keeps the amount as sent, up to the price of the
+visit. A paid payment confirms **every** hour of the group, so no hour of a
+paid visit is left hanging and later expires.
+
 ### Payment
 ```json
 { "public_id": "uuidv7", "booking_public_id": "uuidv7", "amount": 60000, "kind": "deposit|full", "status": "unpaid|paid|failed|refunded", "invoice_number": "MAF-…", "provider_status": "SUCCESS|EXPIRED|…", "failure_reason": "gateway reported EXPIRED", "refunded_at": null }

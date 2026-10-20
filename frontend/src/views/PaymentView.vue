@@ -49,16 +49,24 @@ const bookingId = computed(() => order.value?.bookingId ?? route.query.booking ?
 const hourOf = (stamp) => Number(String(stamp).slice(11, 13))
 const dayOf = (stamp) => String(stamp).slice(0, 10)
 
+// A visit of several hours is one purchase, so the card shows the whole
+// window and the whole price. Reading the first hour of a two-hour booking
+// gave a card that said "14:00 - 15:00, Rp 90.000" for a booking that
+// actually cost Rp 180.000 — the customer was told to pay half of what the
+// invoice asked for.
 const summary = computed(() => {
   const b = booking.value
   if (b?.slot) {
+    const startsAt = b.group_starts_at ?? b.slot.starts_at
+    const endsAt = b.group_ends_at ?? b.slot.ends_at
     return {
       facility: b.court?.name ?? '',
       venue: b.venue?.name ?? '',
-      date: dayOf(b.slot.starts_at),
-      startHour: hourOf(b.slot.starts_at),
-      endHour: hourOf(b.slot.ends_at),
-      total: b.total ?? 0,
+      date: dayOf(startsAt),
+      startHour: hourOf(startsAt),
+      endHour: hourOf(endsAt),
+      hours: b.group_hours ?? 1,
+      total: b.group_total ?? b.total ?? 0,
     }
   }
   const o = order.value
@@ -69,6 +77,7 @@ const summary = computed(() => {
     date: o.date,
     startHour: o.startHour,
     endHour: o.endHour,
+    hours: o.hours ?? 1,
     total: o.total,
   }
 })
@@ -219,7 +228,11 @@ async function ensureCheckoutLink() {
       })
       return
     }
-    const payment = await createPayment(b.public_id, { amount: b.total ?? 0, kind: 'full' })
+    // The whole visit, not the one hour the page happens to know about.
+    const payment = await createPayment(b.public_id, {
+      amount: b.group_total ?? b.total ?? 0,
+      kind: 'full',
+    })
     checkout.setGateway({ status: 'ready', ...payment })
   } catch (err) {
     checkout.setGateway({ status: errorStatus(err) === 501 ? 'unconfigured' : 'failed' })
@@ -299,6 +312,9 @@ onBeforeUnmount(() => {
       <span class="payment-card-line">{{ formatLongDate(summary.date) }}</span>
       <span class="payment-card-line"
         >{{ formatHour(summary.startHour) }} - {{ formatHour(summary.endHour) }}</span
+      >
+      <span v-if="summary.hours > 1" class="payment-card-line"
+        >{{ summary.hours }} hours</span
       >
       <span class="payment-card-total">Total: {{ formatRupiah(summary.total) }}</span>
       <span v-if="booking?.payment_invoice_number" class="payment-card-ref">

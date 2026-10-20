@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.models.booking import Booking
 from app.models.payment import Payment
 from app.schemas.payment import PaymentKind
+from app.services import notifications as notification_service
 
 # Statuses a payment can hold, and what moves it on.
 LIVE_STATUSES = ("unpaid", "paid")
@@ -67,17 +68,49 @@ def find_unpaid_for_booking(db: Session, booking_id: int) -> Payment | None:
     ).first()
 
 
+def find_unpaid_for_visit(db: Session, booking) -> Payment | None:
+    """The invoice still owed for the visit this booking is part of.
+
+    A visit of several hours is one purchase with one invoice, and the invoice
+    is raised against the first hour. Looking only at the hour in the request
+    meant that opening the second hour's payment page asked the gateway for a
+    second invoice — the customer then had two DOKU pages for one booking.
+    """
+    if booking.group_public_id is None:
+        return find_unpaid_for_booking(db, booking.id)
+    from app.models.booking import Booking
+
+    booking_ids = select(Booking.id).where(Booking.group_public_id == booking.group_public_id)
+    return db.scalars(
+        select(Payment)
+        .where(Payment.booking_id.in_(booking_ids), Payment.status == "unpaid")
+        .order_by(Payment.id)
+    ).first()
+
+
 def mark_paid(db: Session, payment: Payment, note: str = "") -> Payment:
-    """Mark paid and auto-confirm a pending booking (deposit rule).
+    """Mark paid and auto-confirm the visit (deposit rule).
 
     `note` records something the manager has to act on (e.g. money that arrived
     for a visit that was already cancelled) without lying about the status.
+
+    The whole visit is confirmed, not only the hour the invoice was raised
+    against. A two-hour booking paid in full is two hours of the court; leaving
+    the second hour pending would let it expire and be given away while the
+    customer had already paid for it.
     """
     payment.status = "paid"
     payment.failure_reason = note[:160] or None
     booking = db.get(Booking, payment.booking_id)
     if booking is not None and booking.status == "pending":
-        booking.status = "confirmed"
+        from app.services import bookings as booking_service
+
+        for row in booking_service.list_group(db, booking.group_public_id):
+            if row.status == "pending":
+                row.status = "confirmed"
+        notification_service.queue_event(
+            db, booking_service.list_group(db, booking.group_public_id), "confirmed"
+        )
     db.commit()
     db.refresh(payment)
     return payment
