@@ -42,6 +42,23 @@ BRANCHES = {
     "Lebak Bulus": "Lapangan Padel 1",
 }
 
+# Where each branch sits. The addresses and the coordinates are the ones the
+# seed uses, so a database that was seeded before the move has the branch on
+# the wrong street — the coordinates and the street name disagreed, and the
+# map pin landed outside the neighbourhood it claimed.
+BRANCH_PLACES = {
+    "Pondok Indah": (
+        "Jalan Alam Permai X, Pondok Pinang, Jakarta Selatan",
+        -6.270000,
+        106.780000,
+    ),
+    "Lebak Bulus": (
+        "Jalan Taman Lebak Bulus IV, Lebak Bulus, Jakarta Selatan",
+        -6.295686,
+        106.775300,
+    ),
+}
+
 
 def _kept_ids() -> str:
     """The ids of the two branches, as a literal list for the SQL below.
@@ -178,6 +195,18 @@ def upgrade() -> None:
             """,
         ):
             bind.execute(sa.text(statement))
+
+    # The branches move to the address and the coordinates the seed holds.
+    for branch, (address, lat, lng) in BRANCH_PLACES.items():
+        bind.execute(
+            sa.text(
+                """
+                UPDATE venues
+                SET address = :address, lat = :lat, lng = :lng
+                WHERE name = :branch
+                """
+            ).bindparams(address=address, lat=lat, lng=lng, branch=branch)
+        )
 
     # A court left over under a branch that survives still has to become
     # padel, or the constraint below would refuse the insert.
