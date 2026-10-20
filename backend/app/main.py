@@ -9,6 +9,7 @@ from app.api.v1.realtime import close_open_sockets
 from app.api.v1.router import router as v1_router
 from app.core.audit_middleware import AuditMiddleware
 from app.core.config import settings
+from app.core.crash_handler import CrashHandlerMiddleware
 from app.schemas.health import RootResponse
 
 DESCRIPTION = """Sports Venue Booking API (padel courts).
@@ -70,8 +71,15 @@ def create_app() -> FastAPI:
     app.include_router(v1_router, prefix=settings.api_v1_prefix)
 
     # Records every successful write under /v1/ so the trail cannot drift out of
-    # date when a new endpoint is added. Added last so it wraps the whole stack.
+    # date when a new endpoint is added.
     app.add_middleware(AuditMiddleware)
+
+    # Added last, so it is the outermost middleware and sees a crash before
+    # anything else does. A crash answered by Starlette's plain-text 500
+    # carries no CORS headers, so the browser blocks it and the client reads
+    # the failure as "the server is not reachable" — for a crash on a server
+    # that was answering fine. See core/crash_handler.py.
+    app.add_middleware(CrashHandlerMiddleware)
 
     # Uploaded venue/court photos. The directory is created on boot so a fresh
     # checkout (and the test client) can serve them without a manual mkdir.

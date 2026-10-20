@@ -25,12 +25,25 @@ api.interceptors.request.use((config) => {
 })
 
 // The backend puts a human-readable reason in `detail`; surface it verbatim.
+//
+// A crash on the server comes back as JSON with a request id, and the id is
+// what ties the message on the screen to the line in the server log. It is
+// only useful if it is shown, so it is appended rather than left in the
+// network panel.
 export function errorDetail(error, fallback = 'Something went wrong.') {
   const detail = error?.response?.data?.detail
-  if (typeof detail === 'string') return detail
+  if (typeof detail === 'string') return withRequestId(error, detail)
   if (error?.response?.status === 401) return 'Please log in as manager first.'
+  // No response at all: the request never got an answer. Either the server is
+  // down, or the browser blocked the answer — which is what happened when a
+  // crash came back without CORS headers.
   if (!error?.response) return 'The server is not reachable.'
-  return fallback
+  return withRequestId(error, fallback)
+}
+
+function withRequestId(error, message) {
+  const requestId = error?.response?.data?.request_id
+  return requestId ? `${message} (reference ${requestId})` : message
 }
 
 export function errorStatus(error) {
