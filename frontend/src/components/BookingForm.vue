@@ -6,6 +6,7 @@ import TimePicker from './TimePicker.vue'
 import { useBookingForm } from '../composables/useBookingForm.js'
 import { useCustomerStore } from '../stores/customer.js'
 import { useVenuesStore } from '../stores/venues.js'
+import { formatRupiah } from '../utils/money.js'
 import '../styles/booking-form.css'
 
 const props = defineProps({
@@ -201,14 +202,14 @@ onUnmounted(() => {
       v-else-if="form.promoAccepted.value"
       class="booking-hint booking-promo-ok"
       role="status"
-    >{{ form.promoResult.value.code }} applied — {{ form.promoDiscount.value }} off</p>
+    >{{ form.promoResult.value.code }} applied — {{ formatRupiah(form.promoDiscount.value) }} off</p>
 
     <p v-if="form.submitError.value" class="booking-error" role="alert">{{ form.submitError.value }}</p>
 
     <dl v-if="form.facility.value && form.hasTime.value && form.isFacilityBookable.value" class="booking-summary">
       <div>
         <dt>Rate</dt>
-        <dd>{{ form.hourlyRate.value }} /hour</dd>
+        <dd>{{ formatRupiah(form.hourlyRate.value) }}/hour</dd>
       </div>
       <div>
         <dt>Duration</dt>
@@ -216,11 +217,11 @@ onUnmounted(() => {
       </div>
       <div v-if="form.promoAccepted.value">
         <dt>Promo ({{ form.promoResult.value.code }})</dt>
-        <dd class="booking-summary-discount">-{{ form.promoDiscount.value }}</dd>
+        <dd class="booking-summary-discount">-{{ formatRupiah(form.promoDiscount.value) }}</dd>
       </div>
       <div>
         <dt>Total</dt>
-        <dd class="booking-summary-total">{{ form.total.value }}</dd>
+        <dd class="booking-summary-total">{{ formatRupiah(form.total.value) }}</dd>
       </div>
     </dl>
   </section>

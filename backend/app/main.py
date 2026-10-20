@@ -12,9 +12,9 @@ from app.core.config import settings
 from app.core.crash_handler import CrashHandlerMiddleware
 from app.schemas.health import RootResponse
 
-DESCRIPTION = """Sports Venue Booking API (padel courts).
+DESCRIPTION = """Ma-Famille Premiere — padel court booking API.
 
-Venues, courts, slots, bookings, payments and the manager dashboard are
+Clubs, courts, slots, bookings, payments and the manager dashboard are
 wired to the store. `POST /payments` needs DOKU sandbox keys, otherwise it
 answers 501 — everything else is live.
 """

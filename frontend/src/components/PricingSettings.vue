@@ -1,5 +1,6 @@
 <script setup>
 import { computed, ref } from 'vue'
+import { formatRupiah } from '../utils/money.js'
 import '../styles/pricing.css'
 
 // items: [{ key, label, price, peak: { price, start, end } }] where price is a
@@ -97,10 +98,10 @@ function reset(item) {
         <div class="pricing-row">
           <div class="pricing-info">
             <p class="pricing-name">Current {{ item.label }} Price</p>
-            <p v-if="item.price !== null" class="pricing-value">Current price: {{ item.price }} /hour</p>
+            <p v-if="item.price !== null" class="pricing-value">Current price: {{ formatRupiah(item.price) }}/hour</p>
             <p v-else class="pricing-value is-unset">Current price: not set (unavailable for booking)</p>
             <p v-if="item.peak?.price !== null && item.peak?.price !== undefined" class="pricing-value pricing-peak">
-              Peak: {{ item.peak.price }} /hour from {{ item.peak.start }}:00–{{ item.peak.end }}:00
+              Peak: {{ formatRupiah(item.peak.price) }}/hour from {{ item.peak.start }}:00–{{ item.peak.end }}:00
             </p>
             <p v-else class="pricing-value pricing-peak is-unset">Peak rate: not set</p>
           </div>

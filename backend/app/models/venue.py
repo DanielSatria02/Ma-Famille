@@ -5,7 +5,7 @@ from app.db.base import Base, PKMixin, PublicIdMixin, TimestampMixin
 
 
 class Venue(Base, PKMixin, PublicIdMixin, TimestampMixin):
-    """A sports venue (manager-owned). Client key is `public_id` (UUIDv7).
+    """A padel club (manager-owned). Client key is `public_id` (UUIDv7).
 
     `tags` backs the client filters (area type, popular for, ...) and `lat`/`lng`
     place the venue on the map panel.

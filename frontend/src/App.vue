@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import AppNav from './components/AppNav.vue'
+import { BRAND_NAME } from './config/brand.js'
 import './styles/page.css'
 
 const route = useRoute()
@@ -36,7 +37,7 @@ const bare = computed(() => route.name === 'login')
       </RouterView>
     </main>
     <footer v-if="!bare" class="border-t border-gray-200 py-4 text-center text-sm text-gray-500">
-      ma-famille · Sports Venue Booking
+      {{ BRAND_NAME }} · Padel Court Booking
     </footer>
   </div>
 </template>
