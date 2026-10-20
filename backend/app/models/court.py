@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, ForeignKey, Integer, String
+from sqlalchemy import Boolean, CheckConstraint, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base, PKMixin, PublicIdMixin, TimestampMixin
@@ -13,6 +13,10 @@ class Court(Base, PKMixin, PublicIdMixin, TimestampMixin):
     """
 
     __tablename__ = "courts"
+    # The API only knows padel, so the column says so too. Without this the
+    # database could hold a sport the response schema refuses, and every
+    # listing that included that court would come back a 500.
+    __table_args__ = (CheckConstraint("sport = 'padel'", name="ck_courts_sport"),)
 
     venue_id: Mapped[int] = mapped_column(ForeignKey("venues.id"), nullable=False)
     name: Mapped[str] = mapped_column(String(120), nullable=False)

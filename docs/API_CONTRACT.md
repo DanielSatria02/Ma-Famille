@@ -3,6 +3,14 @@
 Base: `/v1`. All domain routes are wired to the store; the only
 `501` left is `POST /payments` (and the webhook) when DOKU keys are missing.
 
+A crash in a route answers `500` with JSON:
+`{"detail": "The server ran into a problem handling this request.", "request_id": "…"}`.
+The request id is in the `X-Request-Id` header as well and is the thing to
+quote when looking for the crash in the server log. The answer carries CORS
+headers, so the browser can read it — a plain-text 500 without them is blocked
+by the browser and the client reports the server as unreachable, which it is
+not.
+
 ## Auth
 
 - Customer reads + booking flow: open.

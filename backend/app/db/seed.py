@@ -142,6 +142,11 @@ def main() -> None:
             # keys do not cascade, so they have to be removed in order by hand;
             # saying so is better than leaving a database that claims to have
             # clubs it does not have.
+            #
+            # And it is not only untidy: a court left over from the older seed
+            # carries a sport the API no longer accepts, and a listing that
+            # touches it answers 500 instead of a list. The demo is broken
+            # until those rows are gone.
             print("note: this database still has clubs from an older seed:")
             for name in sorted(stale):
                 print(f"  {name}")

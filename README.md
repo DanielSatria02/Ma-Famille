@@ -266,6 +266,13 @@ A database seeded with the older, longer club list still has those rows in
 it, and the foreign keys do not cascade. Clear them with
 `backend/scripts/reset-demo-data.sql` before seeding the branches.
 
+Those leftovers are not only untidy. A court from the older seed carries a
+sport the API no longer accepts — the app used to book futsal and badminton —
+and a listing that touches one of them comes back a `500` instead of a list,
+which takes the club list and the manager dashboard down with it. The
+migration `c2f9a4e71b03` clears them on deploy and pins the sport in the
+database, so a court that is not a padel court cannot be inserted at all.
+
 The seed also leaves two bookings: one confirmed and one pending, so
 `POST /v1/payments` can be tried straight away.
 
