@@ -34,13 +34,15 @@ jobs:
           TUNNEL_SERVICE_TOKEN_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
           TUNNEL_SERVICE_TOKEN_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
         run: |
-          scp scripts/patch-edge-websocket.sh prod:/tmp/patch-edge-websocket.sh
+          scp scripts/patch_edge_websocket.py scripts/patch-edge-websocket.sh prod:/tmp/
           ssh prod "sh -s" <<'EOF'
           set -e
-          sh /tmp/patch-edge-websocket.sh /home/deploy/edge/nginx.conf
-          rm -f /tmp/patch-edge-websocket.sh
+          mkdir -p ~/scripts
+          cp /tmp/patch_edge_websocket.py /tmp/patch-edge-websocket.sh ~/scripts/
+          sh ~/scripts/patch-edge-websocket.sh /home/deploy/edge/nginx.conf
+          rm -f /tmp/patch_edge_websocket.py /tmp/patch-edge-websocket.sh
           echo
-          echo "=== the handshake now ==="
+          echo "=== the handshake through the edge now ==="
           python3 - <<'PY'
           import socket
 
@@ -59,4 +61,8 @@ jobs:
           sock.close()
           print(data.decode(errors="replace").split("\r\n")[0])
           PY
+          echo
+          echo "=== the api still answers normally ==="
+          curl -s -o /dev/null -m 10 -w 'health -> %{http_code}\n' \
+            -H 'Host: college-api.rzidinc.com' 'http://127.0.0.1/ma-famille/v1/health'
           EOF
