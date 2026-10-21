@@ -115,29 +115,29 @@ if [ -f "$DEPLOY_APP_DIR/backend/.env" ]; then
   DATABASE_URL=$(grep '^DATABASE_URL=' "$DEPLOY_APP_DIR/backend/.env" | head -1 | cut -d= -f2-)
 fi
 
+# The dump is taken from inside the container that is already running, before
+# it is replaced: that container is the one that can reach the database, and
+# it is still on the old code and the old schema. The host has no pg_dump,
+# and it cannot pull the postgres image either: it has egress but no working
+# resolver, and a pull needs a name. So the dump comes out of a container
+# that is already up, piped to a file on the host.
 if [ -n "${DATABASE_URL:-}" ]; then
-  if command -v pg_dump >/dev/null; then
-    if pg_dump "$DATABASE_URL" > "$DUMP_FILE" 2>/dev/null; then
-      echo "==> database dumped to backups/db-$STAMP.sql"
-    else
-      rm -f "$DUMP_FILE"
-      echo "WARNING: pg_dump failed — no backup of the database was taken" >&2
+  DUMPED=""
+  API_CONTAINER=$(podman ps --filter "name=ma-famille_api" --format '{{.Names}}' | head -1)
+  if [ -n "$API_CONTAINER" ]; then
+    if podman exec -i "$API_CONTAINER" python - \
+        < "$DEPLOY_APP_DIR/backend/scripts/dump_db.py" > "$DUMP_FILE" 2>/dev/null; then
+      [ -s "$DUMP_FILE" ] && DUMPED="$DUMP_FILE"
     fi
-  elif command -v podman >/dev/null; then
-    # No pg_dump on the host: the postgres image has one.
-    if podman run --rm --network host -e PGPASSWORD= \
-        "postgres:16-alpine" pg_dump --clean --no-owner "$DATABASE_URL" \
-        > "$DUMP_FILE" 2>/dev/null; then
-      echo "==> database dumped to backups/db-$STAMP.sql"
-    else
-      rm -f "$DUMP_FILE"
-      echo "WARNING: pg_dump through podman failed — no backup was taken" >&2
-    fi
+  fi
+  if [ -n "$DUMPED" ]; then
+    echo "==> database dumped to backups/db-$STAMP.sql"
   else
-    echo "WARNING: no pg_dump and no podman — no backup was taken" >&2
+    rm -f "$DUMP_FILE"
+    echo "WARNING: the dump failed - no backup of the database was taken" >&2
   fi
 else
-  echo "WARNING: no DATABASE_URL found — no backup was taken" >&2
+  echo "WARNING: no DATABASE_URL found - no backup was taken" >&2
 fi
 if podman compose version >/dev/null 2>&1; then COMPOSE="podman compose"; else COMPOSE="podman-compose"; fi
 # Down dulu: compose lama kadang keep container stale.

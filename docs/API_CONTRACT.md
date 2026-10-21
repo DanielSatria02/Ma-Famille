@@ -196,6 +196,10 @@ paid visit is left hanging and later expires.
 { "public_id": "uuidv7", "booking_public_id": "uuidv7", "amount": 60000, "kind": "deposit|full", "status": "unpaid|paid|failed|refunded", "invoice_number": "MAF-…", "provider_status": "SUCCESS|EXPIRED|…", "failure_reason": "gateway reported EXPIRED", "refunded_at": null }
 ```
 `invoice_number` links the row to the DOKU sandbox checkout (see `docs/PAYMENTS.md`).
+A checkout that cannot be started answers `501` with the reason in `detail` —
+the gateway refusing, the keys missing, or the name of the gateway not being
+resolvable. On a machine with no working resolver the name is looked up over
+HTTPS instead, so a checkout still works there.
 `provider_request_id` (not exposed) is the DOKU Request-Id of that checkout: a refund
 must quote it. `provider_status` keeps the raw gateway status even when it changes no
 state; `failure_reason` carries the human-readable why (a gateway failure, an expired

@@ -11,8 +11,10 @@ import base64
 import hashlib
 import hmac
 import json
+import socket
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from urllib.parse import urlsplit
 from uuid import uuid4
 
 import httpx
@@ -76,9 +78,82 @@ def verify_signature(
 
 CHECKOUT_TARGET = "/checkout/v1/payment"
 
+# Where a name is looked up when the machine has no working resolver. The
+# production VM has egress but no DNS: every resolver on port 53 is closed,
+# and the gateway refuses. A name that cannot be resolved is asked for over
+# HTTPS instead — the address is an IP, so it needs no lookup of its own.
+DOH_ENDPOINT = "https://1.1.1.1/dns-query"
+
 
 class DokuError(RuntimeError):
     pass
+
+
+def _is_a_name_error(exc: BaseException) -> bool:
+    """True when the address could not be looked up, rather than refused."""
+    seen: set[int] = set()
+    while exc is not None and id(exc) not in seen:
+        seen.add(id(exc))
+        if isinstance(exc, socket.gaierror):
+            return True
+        exc = exc.__cause__ or exc.__context__
+    return False
+
+
+def resolve_over_https(hostname: str) -> str:
+    """Ask a resolver over HTTPS for the address of a host."""
+    res = httpx.get(
+        DOH_ENDPOINT,
+        params={"name": hostname, "type": "A"},
+        headers={"accept": "application/dns-json"},
+        timeout=10,
+    )
+    if res.status_code != 200:
+        raise DokuError(
+            f"the name could not be looked up (DNS over HTTPS answered {res.status_code})"
+        )
+    try:
+        answers = res.json().get("Answer", [])
+    except ValueError:
+        answers = []
+    for answer in answers:
+        if answer.get("type") == 1 and answer.get("data"):
+            return str(answer["data"])
+    raise DokuError(f"the name {hostname} has no address")
+
+
+def post_to_doku(
+    url: str, *, content: bytes, headers: dict[str, str], timeout: int = 15
+) -> httpx.Response:
+    """POST to DOKU, working around a server with no working resolver.
+
+    When the name cannot be resolved, it is looked up over HTTPS and the
+    request goes to the address — with the name kept for the TLS handshake
+    and the Host header, because the certificate belongs to the name and
+    not to the address.
+    """
+    try:
+        return httpx.post(url, content=content, headers=headers, timeout=timeout)
+    except httpx.ConnectError as exc:
+        if not _is_a_name_error(exc):
+            raise
+        parts = urlsplit(url)
+        hostname = parts.hostname
+        if not hostname:
+            raise
+        address = resolve_over_https(hostname)
+        target = f"https://{address}{parts.path}"
+        if parts.query:
+            target = f"{target}?{parts.query}"
+        with httpx.Client(timeout=timeout) as client:
+            request = client.build_request(
+                "POST",
+                target,
+                content=content,
+                headers={**headers, "Host": hostname},
+                extensions={"sni_hostname": hostname},
+            )
+            return client.send(request)
 
 
 def doku_error_detail(res: httpx.Response) -> str:
@@ -158,7 +233,7 @@ def create_checkout(
         ),
     }
     try:
-        res = httpx.post(
+        res = post_to_doku(
             settings.doku_base_url + CHECKOUT_TARGET,
             content=raw,
             headers=headers,
@@ -233,7 +308,7 @@ def request_refund(
         ),
     }
     try:
-        res = httpx.post(
+        res = post_to_doku(
             settings.doku_base_url + REFUND_TARGET,
             content=raw,
             headers=headers,

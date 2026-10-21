@@ -70,6 +70,22 @@ Then set the DOKU sandbox Notification URL to
 `https://college-api.rzidinc.com/ma-famille/v1/payments/webhook/doku`
 and run one real sandbox payment (see `docs/PAYMENTS.md`).
 
+## The server has egress but no resolver
+
+The prod VM has no working DNS: every resolver on port 53 is closed and the
+gateway refuses. HTTPS to an address works, but a name cannot be looked up.
+
+Two consequences, both handled in the repository rather than on the server:
+
+- **The payment gateway.** A checkout that needs the gateway's name is looked
+  up over HTTPS and the request goes to the address, with the name kept for
+  the TLS handshake. See `backend/app/services/doku.py`.
+- **The backup.** `pg_dump` is not on the host, and the postgres image cannot
+  be pulled (a pull needs a name). The dump is therefore taken from inside
+  the container that is already running, before it is replaced, by
+  `backend/scripts/dump_db.py`. A deploy that cannot take the dump says so
+  loudly instead of pretending it did.
+
 ## How a deploy flows
 
 1. Push to `main` (backend paths) → `ci` runs (lint, migrate, pytest).
