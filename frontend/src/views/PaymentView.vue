@@ -91,6 +91,7 @@ const lookUpError = ref('')
 const connection = ref('connecting')
 let stopWatching = null
 let tickTimer = null
+let pollTimer = null
 
 const settled = computed(() => {
   const status = booking.value?.status
@@ -244,6 +245,12 @@ function tick() {
   secondsLeft.value = Math.max(secondsLeft.value - 1, 0)
 }
 
+// A slow heartbeat for when the socket cannot be there. The page used to
+// trust the socket alone, so a proxy that dropped the upgrade left the
+// customer looking at "reconnecting" over a booking that had already been
+// paid. The poll is slow enough not to matter and it keeps the page honest.
+const FALLBACK_POLL_MS = 20000
+
 function startWatching(bookingId) {
   if (!bookingId || stopWatching) return
   stopWatching = watchBooking(bookingId, {
@@ -253,12 +260,24 @@ function startWatching(bookingId) {
     },
   })
   if (!tickTimer) tickTimer = setInterval(tick, COUNTDOWN_MS)
+  if (!pollTimer) {
+    pollTimer = setInterval(async () => {
+      // The socket is doing its job; there is nothing to ask for.
+      if (connection.value === 'live') return
+      if (settled.value) return
+      await refresh()
+    }, FALLBACK_POLL_MS)
+  }
 }
 
 function closeWatch() {
   if (stopWatching) {
     stopWatching()
     stopWatching = null
+  }
+  if (pollTimer) {
+    clearInterval(pollTimer)
+    pollTimer = null
   }
 }
 

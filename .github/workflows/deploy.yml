@@ -74,6 +74,17 @@ jobs:
           TUNNEL_SERVICE_TOKEN_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
           TUNNEL_SERVICE_TOKEN_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
 
+      - name: Keep the edge able to pass a websocket through
+        run: |
+          scp scripts/patch_edge_websocket.py scripts/patch-edge-websocket.sh prod:/tmp/
+          ssh prod "sh -s" <<'EOF'
+          set -e
+          mkdir -p ~/scripts
+          cp /tmp/patch_edge_websocket.py /tmp/patch-edge-websocket.sh ~/scripts/
+          rm -f /tmp/patch_edge_websocket.py /tmp/patch-edge-websocket.sh
+          sh ~/scripts/patch-edge-websocket.sh /home/deploy/edge/nginx.conf
+          EOF
+
       - name: Setup node
         uses: actions/setup-node@v4
         with:
