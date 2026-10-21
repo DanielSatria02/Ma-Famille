@@ -34,77 +34,44 @@ jobs:
           TUNNEL_SERVICE_TOKEN_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
         run: |
           ssh prod "sh -s" <<'EOF'
-          echo "=== the route and the gateway ==="
-          ip route 2>/dev/null | head -5
+          echo "=== can the deploy user write the resolver? ==="
+          sudo -n true 2>&1 && echo "SUDO_OK" || echo "NO_PASSWORDLESS_SUDO"
+          ls -l /etc/resolv.conf
           echo
-          echo "=== tcp 53 to the usual resolvers ==="
-          for dns in 10.10.0.1 1.1.1.1 8.8.8.8 9.9.9.9; do
-            if timeout 4 bash -c "cat < /dev/null > /dev/tcp/$dns/53" 2>/dev/null; then
-              echo "$dns:53 tcp -> open"
-            else
-              echo "$dns:53 tcp -> blocked"
-            fi
+          echo "=== the lan resolvers: what do they answer for doku? ==="
+          for dns in 10.10.0.3 10.10.0.51; do
+            echo "--- $dns ---"
+            nslookup api-sandbox.doku.com "$dns" 2>&1 | tail -6
           done
           echo
-          echo "=== does the gateway answer dns? ==="
-          GW=$(ip route 2>/dev/null | awk '/default/{print $3; exit}')
-          echo "gateway: $GW"
-          if [ -n "$GW" ]; then
-            getent hosts google.com >/dev/null 2>&1 && echo "the gateway resolves" || echo "the gateway does not resolve"
-            nslookup google.com "$GW" 2>&1 | tail -4
-          fi
+          echo "=== and do they answer for a random name? ==="
+          nslookup example.com 10.10.0.3 2>&1 | tail -4
           echo
-          echo "=== dns over https from the host (no name needed, it is an ip) ==="
-          curl -s -m 15 -H 'accept: application/dns-json' \
-            'https://1.1.1.1/dns-query?name=api-sandbox.doku.com&type=A' | head -c 400
+          echo "=== what is 10.10.0.3 and 10.10.0.51? ==="
+          for ip in 10.10.0.3 10.10.0.51; do
+            printf '%-14s ' "$ip"
+            timeout 3 bash -c "cat < /dev/null > /dev/tcp/$ip/53" 2>/dev/null && echo "dns port open" || echo "dns port closed"
+          done
           echo
+          echo "=== the host resolver config ==="
+          cat /etc/resolv.conf
           echo
-          echo "=== and through the tunnel container? ==="
-          podman exec ma-famille_edge_1 sh -c \
-            "wget -q -O - --header='accept: application/dns-json' 'https://1.1.1.1/dns-query?name=api-sandbox.doku.com&type=A' 2>&1 | head -c 300" 2>&1 | tail -3
+          echo "=== can we write it? ==="
+          if [ -w /etc/resolv.conf ]; then echo "WRITABLE"; else echo "NOT_WRITABLE"; fi
           echo
-          echo "=== the scan of the lan for a resolver that answers ==="
-          python3 - <<'PY' 2>&1 | tail -20
-          import socket, struct
-
-          def ask(server, name="google.com", timeout=1.5):
-              header = struct.pack("!HHHHHH", 0x4321, 0x0100, 1, 0, 0, 0)
-              body = b""
-              for part in name.split("."):
-                  body += bytes([len(part)]) + part.encode()
-              body += b"\x00" + struct.pack("!HH", 1, 1)
-              s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-              s.settimeout(timeout)
-              try:
-                  s.sendto(header + body, (server, 53))
-                  data, _ = s.recvfrom(2048)
-              except Exception:
-                  return None
-              finally:
-                  s.close()
-              if data[3] & 0x0F == 0 and struct.unpack("!H", data[6:8])[0]:
-                  return True
-              return False
-
-          found = []
-          for last in range(1, 60):
-              server = f"10.10.0.{last}"
-              if ask(server):
-                  found.append(server)
-                  print(server, "answers")
-          print("resolvers on the lan:", found or "none")
-          PY
+          echo "=== the network manager? ==="
+          ls /etc/NetworkManager 2>/dev/null && echo "has NetworkManager"
+          command -v nmcli >/dev/null && nmcli -t -f NAME,DEVICE con show 2>/dev/null | head -5
           echo
-          echo "=== the podman dns the container uses ==="
+          echo "=== the podman network the api uses ==="
+          podman inspect ma-famille_api_1 --format '{{range $k,$v := .NetworkSettings.Networks}}{{$k}} ip={{$v.IPAddress}} dns={{$v.DNS}}{{end}}' 2>&1
+          echo
+          echo "=== does podman forward to the host resolver? ==="
           podman exec ma-famille_api_1 cat /etc/resolv.conf 2>&1
           echo
-          echo "=== can the container reach 1.1.1.1 on 443? ==="
-          podman exec ma-famille_api_1 python -c "
-          import httpx
-          try:
-              r = httpx.get('https://1.1.1.1/', timeout=10)
-              print('1.1.1.1 https ->', r.status_code)
-          except Exception as e:
-              print('1.1.1.1 https FAILED:', type(e).__name__, e)
-          " 2>&1 | tail -2
+          echo "=== what images are on the host (for the backup) ==="
+          podman images --format '{{.Repository}}:{{.Tag}}' 2>&1 | head -10
+          echo
+          echo "=== is there a postgres image to dump with? ==="
+          podman images --format '{{.Repository}}:{{.Tag}}' 2>&1 | grep -i postgres || echo "NO_POSTGRES_IMAGE"
           EOF
