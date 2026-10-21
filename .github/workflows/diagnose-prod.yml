@@ -4,6 +4,10 @@ name: diagnose-prod
 on:
   workflow_dispatch:
 
+env:
+  DEPLOY_HOST: ${{ secrets.DEPLOY_HOST || 'be-ssh.rzidinc.com' }}
+  DEPLOY_USER: ${{ vars.DEPLOY_USER || 'deploy' }}
+
 jobs:
   diagnose:
     runs-on: ubuntu-latest
