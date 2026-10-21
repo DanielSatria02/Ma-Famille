@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy.orm import Session
 
 from app.api.paging import Page, set_total
+from app.core.config import settings
 from app.core.security import require_manager
 from app.db.session import get_db
 from app.schemas.audit import AuditEventResponse
@@ -91,8 +92,13 @@ def stats(
     db: Session = Depends(get_db),
 ) -> ManagerStats:
     """Counters for the manager dashboard. `day` defaults to today; the week
-    runs Monday-Sunday around it unless `week_start` says otherwise."""
-    target = day if day is not None else date.today()
+    runs Monday-Sunday around it unless `week_start` says otherwise.
+
+    Today is the venue's today, not the server's. The server runs on UTC, so
+    between seven in the evening and midnight it was still yesterday in
+    Jakarta — and the dashboard counted the wrong day.
+    """
+    target = day if day is not None else settings.venue_today
     if week_start is not None and week_start > target:
         raise HTTPException(status_code=422, detail="week_start after day")
     return ManagerStats(**manager_service.stats(db, target, week_start))
