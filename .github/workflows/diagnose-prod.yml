@@ -34,128 +34,77 @@ jobs:
           TUNNEL_SERVICE_TOKEN_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
         run: |
           ssh prod "sh -s" <<'EOF'
-          echo "=== the containers and their state ==="
-          podman ps -a --format '{{.Names}} {{.Status}}'
+          echo "=== the route and the gateway ==="
+          ip route 2>/dev/null | head -5
           echo
-          echo "=== the host resolv.conf ==="
-          cat /etc/resolv.conf
-          echo
-          echo "=== a raw DNS query to each resolver (from the host) ==="
-          python3 - <<'PY' 2>&1 || echo "no python3 on the host"
-          import socket, struct
-
-          def query(server, name="api-sandbox.doku.com", timeout=4):
-              # A DNS A query, built by hand: no dnspython on a minimal image.
-              qid = 0x1234
-              header = struct.pack("!HHHHHH", qid, 0x0100, 1, 0, 0, 0)
-              body = b""
-              for part in name.split("."):
-                  body += bytes([len(part)]) + part.encode()
-              body += b"\x00" + struct.pack("!HH", 1, 1)
-              sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-              sock.settimeout(timeout)
-              try:
-                  sock.sendto(header + body, (server, 53))
-                  data, _ = sock.recvfrom(2048)
-              except socket.timeout:
-                  return "TIMEOUT"
-              except OSError as err:
-                  return f"ERROR {err}"
-              finally:
-                  sock.close()
-              rcode = data[3] & 0x0F
-              ancount = struct.unpack("!H", data[6:8])[0]
-              if rcode == 0 and ancount:
-                  # Walk the answers for the first A record.
-                  pos = 12
-                  while data[pos] != 0:
-                      pos += 1 + data[pos]
-                  pos += 5
-                  for _ in range(ancount):
-                      if data[pos] & 0xC0 == 0xC0:
-                          pos += 2
-                      else:
-                          pos += 1 + data[pos]
-                      rtype, _cls, _ttl, rdlen = struct.unpack("!HHIH", data[pos:pos + 10])
-                      pos += 10
-                      rdata = data[pos:pos + rdlen]
-                      pos += rdlen
-                      if rtype == 1 and rdlen == 4:
-                          return ".".join(str(b) for b in rdata)
-                  return f"OK but no A (rcode {rcode})"
-              return f"rcode {rcode}"
-
-          for server in ("10.10.0.1", "10.89.0.1", "1.1.1.1", "8.8.8.8", "9.9.9.9", "208.67.222.222"):
-              print(f"{server:16} -> {query(server)}")
-          PY
-          echo
-          echo "=== the same query from inside the api container ==="
-          C=ma-famille_api_1
-          podman exec "$C" python - <<'PY' 2>&1 | tail -12
-          import socket, struct
-
-          def query(server, name="api-sandbox.doku.com", timeout=4):
-              qid = 0x1234
-              header = struct.pack("!HHHHHH", qid, 0x0100, 1, 0, 0, 0)
-              body = b""
-              for part in name.split("."):
-                  body += bytes([len(part)]) + part.encode()
-              body += b"\x00" + struct.pack("!HH", 1, 1)
-              sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-              sock.settimeout(timeout)
-              try:
-                  sock.sendto(header + body, (server, 53))
-                  data, _ = sock.recvfrom(2048)
-              except socket.timeout:
-                  return "TIMEOUT"
-              except OSError as err:
-                  return f"ERROR {err}"
-              finally:
-                  sock.close()
-              rcode = data[3] & 0x0F
-              ancount = struct.unpack("!H", data[6:8])[0]
-              if rcode == 0 and ancount:
-                  pos = 12
-                  while data[pos] != 0:
-                      pos += 1 + data[pos]
-                  pos += 5
-                  for _ in range(ancount):
-                      if data[pos] & 0xC0 == 0xC0:
-                          pos += 2
-                      else:
-                          pos += 1 + data[pos]
-                      rtype, _cls, _ttl, rdlen = struct.unpack("!HHIH", data[pos:pos + 10])
-                      pos += 10
-                      rdata = data[pos:pos + rdlen]
-                      pos += rdlen
-                      if rtype == 1 and rdlen == 4:
-                          return ".".join(str(b) for b in rdata)
-                  return f"OK but no A (rcode {rcode})"
-              return f"rcode {rcode}"
-
-          for server in ("10.89.0.1", "10.10.0.1", "1.1.1.1", "8.8.8.8"):
-              print(f"{server:16} -> {query(server)}")
-          PY
-          echo
-          echo "=== and from the container: plain httpx to doku ==="
-          podman exec "$C" python -c "
-          import httpx
-          try:
-              print('https ->', httpx.get('https://api-sandbox.doku.com/', timeout=10).status_code)
-          except Exception as e:
-              print('https FAILED:', type(e).__name__, e)
-          " 2>&1 | tail -3
-          echo
-          echo "=== the host: egress by ip, and to the resolvers ==="
-          for target in 1.1.1.1:53 8.8.8.8:53 10.10.0.1:53 147.139.176.73:443 1.1.1.1:443; do
-            host=${target%:*}; port=${target#*:}
-            if nc -z -w 4 "$host" "$port" 2>/dev/null; then
-              echo "$target -> open"
+          echo "=== tcp 53 to the usual resolvers ==="
+          for dns in 10.10.0.1 1.1.1.1 8.8.8.8 9.9.9.9; do
+            if timeout 4 bash -c "cat < /dev/null > /dev/tcp/$dns/53" 2>/dev/null; then
+              echo "$dns:53 tcp -> open"
             else
-              echo "$target -> blocked"
+              echo "$dns:53 tcp -> blocked"
             fi
           done
           echo
-          echo "=== is the tunnel container the way out? ==="
-          podman inspect ma-famille_edge_1 --format '{{.Config.Image}} {{range .Config.Env}}{{println .}}{{end}}' 2>&1 | head -12
+          echo "=== does the gateway answer dns? ==="
+          GW=$(ip route 2>/dev/null | awk '/default/{print $3; exit}')
+          echo "gateway: $GW"
+          if [ -n "$GW" ]; then
+            getent hosts google.com >/dev/null 2>&1 && echo "the gateway resolves" || echo "the gateway does not resolve"
+            nslookup google.com "$GW" 2>&1 | tail -4
+          fi
+          echo
+          echo "=== dns over https from the host (no name needed, it is an ip) ==="
+          curl -s -m 15 -H 'accept: application/dns-json' \
+            'https://1.1.1.1/dns-query?name=api-sandbox.doku.com&type=A' | head -c 400
+          echo
+          echo
+          echo "=== and through the tunnel container? ==="
+          podman exec ma-famille_edge_1 sh -c \
+            "wget -q -O - --header='accept: application/dns-json' 'https://1.1.1.1/dns-query?name=api-sandbox.doku.com&type=A' 2>&1 | head -c 300" 2>&1 | tail -3
+          echo
+          echo "=== the scan of the lan for a resolver that answers ==="
+          python3 - <<'PY' 2>&1 | tail -20
+          import socket, struct
+
+          def ask(server, name="google.com", timeout=1.5):
+              header = struct.pack("!HHHHHH", 0x4321, 0x0100, 1, 0, 0, 0)
+              body = b""
+              for part in name.split("."):
+                  body += bytes([len(part)]) + part.encode()
+              body += b"\x00" + struct.pack("!HH", 1, 1)
+              s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+              s.settimeout(timeout)
+              try:
+                  s.sendto(header + body, (server, 53))
+                  data, _ = s.recvfrom(2048)
+              except Exception:
+                  return None
+              finally:
+                  s.close()
+              if data[3] & 0x0F == 0 and struct.unpack("!H", data[6:8])[0]:
+                  return True
+              return False
+
+          found = []
+          for last in range(1, 60):
+              server = f"10.10.0.{last}"
+              if ask(server):
+                  found.append(server)
+                  print(server, "answers")
+          print("resolvers on the lan:", found or "none")
+          PY
+          echo
+          echo "=== the podman dns the container uses ==="
+          podman exec ma-famille_api_1 cat /etc/resolv.conf 2>&1
+          echo
+          echo "=== can the container reach 1.1.1.1 on 443? ==="
+          podman exec ma-famille_api_1 python -c "
+          import httpx
+          try:
+              r = httpx.get('https://1.1.1.1/', timeout=10)
+              print('1.1.1.1 https ->', r.status_code)
+          except Exception as e:
+              print('1.1.1.1 https FAILED:', type(e).__name__, e)
+          " 2>&1 | tail -2
           EOF
