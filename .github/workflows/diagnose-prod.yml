@@ -34,44 +34,9 @@ jobs:
           TUNNEL_SERVICE_TOKEN_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
         run: |
           ssh prod "sh -s" <<'EOF'
-          echo "=== the edge container: mounts and command ==="
-          podman inspect ma-famille_edge_1 --format 'IMAGE {{.Config.Image}}{{println}}CMD {{.Config.Cmd}}{{println}}MOUNTS{{range .Mounts}}  {{.Source}} -> {{.Destination}} ({{.Mode}}){{println}}{{end}}' 2>&1
+          echo "=== the edge config ==="
+          podman exec ma-famille_edge_1 sh -c 'cat /etc/nginx/conf.d/default.conf' 2>&1
           echo
-          echo "=== the api host block of the nginx config ==="
-          podman exec ma-famille_edge_1 sh -c 'cat /etc/nginx/conf.d/default.conf' 2>&1 | sed -n '1,200p'
-          echo
-          echo "=== a handshake through the edge, on the host ==="
-          python3 - <<'PY' 2>&1 | tail -12
-          import socket
-
-          def handshake(host_header, path, upgrade=True):
-              lines = [
-                  f"GET {path} HTTP/1.1",
-                  f"Host: {host_header}",
-                  "Connection: Upgrade",
-                  "Upgrade: websocket",
-                  "Sec-WebSocket-Version: 13",
-                  "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==",
-              ]
-              if not upgrade:
-                  lines[2] = "Connection: close"
-                  lines.pop(3)
-              sock = socket.create_connection(("127.0.0.1", 80), timeout=10)
-              sock.sendall(("\r\n".join(lines) + "\r\n\r\n").encode())
-              data = sock.recv(4096)
-              sock.close()
-              return data.decode(errors="replace").split("\r\n")[0]
-
-          path = "/ma-famille/v1/ws/bookings/01a160b4-e6e0-7c12-a6ed-b3493602dccc"
-          print("college-api host, as an upgrade:",
-                handshake("college-api.rzidinc.com", path))
-          print("college-api host, as a plain GET:",
-                handshake("college-api.rzidinc.com", path, upgrade=False))
-          print("college host, as an upgrade:",
-                handshake("college.rzidinc.com", path))
-          PY
-          echo
-          echo "=== a plain GET through the edge (works today) ==="
-          curl -s -o /dev/null -m 10 -w 'GET /ma-famille/v1/health via the edge -> %{http_code}\n' \
-            -H 'Host: college-api.rzidinc.com' 'http://127.0.0.1/ma-famille/v1/health'
+          echo "=== every location line in it ==="
+          podman exec ma-famille_edge_1 sh -c 'cat /etc/nginx/conf.d/default.conf' 2>&1 | grep -n 'location' || true
           EOF

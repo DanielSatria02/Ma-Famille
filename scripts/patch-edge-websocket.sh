@@ -16,7 +16,6 @@ set -euo pipefail
 
 CONF="${1:-/home/deploy/edge/nginx.conf}"
 CONTAINER="${EDGE_CONTAINER:-ma-famille_edge_1}"
-LOCATION_MARKER='location ^~ /ma-famille/v1/ {'
 
 if [ ! -f "$CONF" ]; then
   echo "edge config not found at $CONF" >&2
@@ -30,40 +29,48 @@ else
   cp "$CONF" "$BACKUP"
   echo "==> edge config backed up to $BACKUP"
 
-  # The map has to sit outside a server block, so it goes at the top of the
-  # file. `Connection` is only "upgrade" when the client asked for it —
-  # sending it on every request would confuse the upstream.
-  TMP="$CONF.tmp"
-  {
-    cat <<'MAP'
-map $http_upgrade $maf_connection_upgrade {
-    default upgrade;
-    ''      close;
-}
+  python3 - "$CONF" <<'PY'
+  import re
+  import sys
 
-MAP
-    awk -v marker="$LOCATION_MARKER" '
-      $0 == marker {
-        print
-        print "        proxy_http_version 1.1;"
-        print "        proxy_set_header Upgrade $http_upgrade;"
-        print "        proxy_set_header Connection $maf_connection_upgrade;"
-        print "        proxy_read_timeout 3600s;"
-        print "        proxy_send_timeout 3600s;"
-        next
-      }
-      { print }
-    ' "$CONF"
-  } > "$TMP"
+  path = sys.argv[1]
+  with open(path, encoding="utf-8") as handle:
+      text = handle.read()
 
-  if ! grep -q 'proxy_set_header Upgrade' "$TMP"; then
-    echo "the ma-famille API location was not found in $CONF — nothing changed" >&2
-    rm -f "$TMP"
-    exit 1
-  fi
+  # The `map` has to sit outside a server block, so it goes at the top of
+  # the file. `Connection` is only "upgrade" when the client asked for it —
+  # sending it on every request confuses the upstream.
+  text = (
+      "map $http_upgrade $maf_connection_upgrade {\n"
+      "    default upgrade;\n"
+      "    ''      close;\n"
+      "}\n\n" + text
+  )
 
-  mv "$TMP" "$CONF"
-  echo "==> edge config now passes websockets through"
+  # The ma-famille API location, matched on what it says rather than on how
+  # it is spaced: the shared file is written by hand and the indentation is
+  # not a promise.
+  pattern = re.compile(r"(location\s+\^~\s+/ma-famille/v1/\s*\{)")
+  match = pattern.search(text)
+  if not match:
+      print("the ma-famille API location was not found — nothing changed", file=sys.stderr)
+      raise SystemExit(1)
+
+  added = (
+      "\n        proxy_http_version 1.1;"
+      "\n        proxy_set_header Upgrade $http_upgrade;"
+      "\n        proxy_set_header Connection $maf_connection_upgrade;"
+      "\n        proxy_read_timeout 3600s;"
+      "\n        proxy_send_timeout 3600s;"
+  )
+  text = text[: match.end()] + added + text[match.end() :]
+
+  with open(path, "w", encoding="utf-8") as handle:
+      handle.write(text)
+  print("==> the ma-famille API location now passes websockets through")
+  PY
+
+  echo "==> edge config written"
 fi
 
 # The running container has the file mounted, so it only needs the reload.
