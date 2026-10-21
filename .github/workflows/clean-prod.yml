@@ -1,0 +1,133 @@
+name: clean-prod
+
+# One-off: remove the rows the feature checks and the walkthrough left on the
+# production database. The demo bookings that the seed writes stay.
+on:
+  workflow_dispatch:
+
+env:
+  DEPLOY_HOST: ${{ secrets.DEPLOY_HOST || 'be-ssh.rzidinc.com' }}
+  DEPLOY_USER: ${{ vars.DEPLOY_USER || 'deploy' }}
+
+jobs:
+  clean:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install cloudflared
+        run: |
+          curl -fsSL https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb -o /tmp/cloudflared.deb
+          sudo dpkg -i /tmp/cloudflared.deb
+
+      - name: Write SSH config
+        run: |
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy
+          chmod 600 ~/.ssh/deploy
+          printf '#!/bin/sh\nexec cloudflared access ssh --hostname "$1" --service-token-id "$TUNNEL_SERVICE_TOKEN_ID" --service-token-secret "$TUNNEL_SERVICE_TOKEN_SECRET"\n' > ~/cfssh
+          chmod +x ~/cfssh
+          printf 'Host prod\n  HostName %s\n  User %s\n  IdentityFile ~/.ssh/deploy\n  StrictHostKeyChecking accept-new\n  ProxyCommand ~/cfssh %%h\n' "$DEPLOY_HOST" "$DEPLOY_USER" > ~/.ssh/config
+
+      - name: Remove the test rows
+        env:
+          TUNNEL_SERVICE_TOKEN_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
+          TUNNEL_SERVICE_TOKEN_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
+        run: |
+          ssh prod "sh -s" <<'EOF'
+          cd /home/deploy/ma-famille
+          if podman compose version >/dev/null 2>&1; then COMPOSE="podman compose"; else COMPOSE="podman-compose"; fi
+          $COMPOSE -f docker-compose.yml -f compose.prod.yml exec -T api python - <<'PY'
+          import os
+          import psycopg
+
+          url = os.environ["DATABASE_URL"].replace("postgresql+psycopg://", "postgresql://")
+
+          # The rows the checks and the walkthrough left. The seed's own demo
+          # bookings are not in this list and stay.
+          CONTACTS = [
+              "0812000077",
+              "08146462",
+              "08129999001",
+              "08129999002",
+              "08129999003",
+              "08129999004",
+              "08129999005",
+              "08129999006",
+              "08129999007",
+              "08129999008",
+          ]
+          EMAILS = [
+              "prodcheck-%",
+              "range-%",
+              "range2-%",
+              "range3-%",
+              "fast-%",
+              "uitest-%",
+              "audit-%",
+              "slow-%",
+              "grp-%",
+          ]
+
+          with psycopg.connect(url) as connection:
+              with connection.cursor() as cursor:
+                  cursor.execute(
+                      "SELECT id FROM bookings WHERE customer_contact = ANY(%s)",
+                      (CONTACTS,),
+                  )
+                  booking_ids = [row[0] for row in cursor.fetchall()]
+
+                  if booking_ids:
+                      cursor.execute(
+                          "DELETE FROM payments WHERE booking_id = ANY(%s)", (booking_ids,)
+                      )
+                      print("payments removed:", cursor.rowcount)
+                      cursor.execute(
+                          "DELETE FROM notifications WHERE booking_id = ANY(%s)",
+                          (booking_ids,),
+                      )
+                      print("notifications removed:", cursor.rowcount)
+                      cursor.execute(
+                          "DELETE FROM bookings WHERE id = ANY(%s)", (booking_ids,)
+                      )
+                      print("bookings removed:", cursor.rowcount)
+
+                  cursor.execute(
+                      "DELETE FROM reviews WHERE customer_contact = ANY(%s)", (CONTACTS,)
+                  )
+                  print("reviews removed:", cursor.rowcount)
+
+                  cursor.execute(
+                      "SELECT id FROM customers WHERE " + " OR ".join(
+                          ["email LIKE %s"] * len(EMAILS)
+                      ),
+                      tuple(like for like in EMAILS),
+                  )
+                  customer_ids = [row[0] for row in cursor.fetchall()]
+                  if customer_ids:
+                      cursor.execute(
+                          "DELETE FROM customer_sessions WHERE customer_id = ANY(%s)",
+                          (customer_ids,),
+                      )
+                      cursor.execute(
+                          "DELETE FROM customers WHERE id = ANY(%s)", (customer_ids,)
+                      )
+                      print("customers removed:", cursor.rowcount)
+
+              connection.commit()
+
+          # What is left.
+          with psycopg.connect(url) as connection:
+              with connection.cursor() as cursor:
+                  for table in ("venues", "courts", "slots", "bookings", "payments",
+                                "reviews", "customers", "notifications"):
+                      cursor.execute(f"SELECT count(*) FROM {table}")
+                      print(table, cursor.fetchone()[0])
+                  cursor.execute(
+                      "SELECT customer_contact, status, count(*) FROM bookings "
+                      "GROUP BY 1, 2 ORDER BY 1"
+                  )
+                  for row in cursor.fetchall():
+                      print("  ", row)
+          PY
+          EOF
