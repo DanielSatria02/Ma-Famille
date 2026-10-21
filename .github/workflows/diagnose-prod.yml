@@ -34,39 +34,46 @@ jobs:
           TUNNEL_SERVICE_TOKEN_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
         run: |
           ssh prod "sh -s" <<'EOF'
-          echo "=== the host resolv.conf ==="
-          cat /etc/resolv.conf
+          echo "=== the container names ==="
+          podman ps --format '{{.Names}}'
           echo
-          echo "=== the host resolves doku? ==="
-          getent hosts api-sandbox.doku.com || echo "HOST_CANNOT_RESOLVE_DOKU"
+          echo "=== can the host use a public resolver? ==="
+          for dns in 1.1.1.1 8.8.8.8 10.10.0.1; do
+            printf '%-12s ' "$dns"
+            nslookup api-sandbox.doku.com "$dns" 2>&1 | grep -A2 '^Name:' | tr '\n' ' ' | cut -c1-90
+            echo
+          done
           echo
-          echo "=== the host reaches doku? ==="
-          curl -s -m 15 -o /dev/null -w 'host https -> %{http_code}\n' https://api-sandbox.doku.com/ || echo "HOST_CURL_FAILED"
+          echo "=== is the egress blocked, or only the name? ==="
+          curl -s -m 12 -o /dev/null -w 'by ip -> %{http_code}\n' \
+            --resolve api-sandbox.doku.com:443:147.139.176.73 https://api-sandbox.doku.com/ || echo "BY_IP_FAILED"
+          curl -s -m 12 -o /dev/null -w 'github -> %{http_code}\n' https://github.com/ || echo "GITHUB_FAILED"
+          curl -s -m 12 -o /dev/null -w 'google -> %{http_code}\n' https://www.google.com/ || echo "GOOGLE_FAILED"
           echo
-          echo "=== the api container's resolv.conf ==="
-          podman exec ma-famille-api-1 cat /etc/resolv.conf 2>/dev/null || podman ps --format '{{.Names}}'
+          echo "=== the api container: what does it see? ==="
+          C=ma-famille_api_1
+          podman exec "$C" cat /etc/resolv.conf 2>&1
           echo
-          echo "=== the api container resolves doku? ==="
-          podman exec ma-famille-api-1 python -c "import socket; print(socket.gethostbyname('api-sandbox.doku.com'))" 2>&1 | tail -3
-          echo
-          echo "=== the api container reaches doku? ==="
-          podman exec ma-famille-api-1 python -c "
-          import httpx
+          podman exec "$C" python -c "
+          import socket, httpx
           try:
-              print('container https ->', httpx.get('https://api-sandbox.doku.com/', timeout=10).status_code)
+              print('default resolve ->', socket.gethostbyname('api-sandbox.doku.com'))
           except Exception as e:
-              print('container FAILED:', type(e).__name__, e)
-          " 2>&1 | tail -3
+              print('default resolve FAILED:', e)
+          for dns in ('1.1.1.1', '8.8.8.8'):
+              try:
+                  print('resolve via', dns, '->', socket.gethostbyname('api-sandbox.doku.com', dns))
+              except Exception as e:
+                  print('resolve via', dns, 'FAILED:', e)
+          try:
+              print('https ->', httpx.get('https://api-sandbox.doku.com/', timeout=10).status_code)
+          except Exception as e:
+              print('https FAILED:', type(e).__name__, e)
+          " 2>&1 | tail -12
           echo
-          echo "=== the api container reaches the database? ==="
-          podman exec ma-famille-api-1 python -c "
+          echo "=== the database still answers? ==="
+          podman exec "$C" python -c "
           import socket
-          print(socket.gethostbyname('10.10.0.10'))
+          print('db ip ->', socket.gethostbyname('10.10.0.10'))
           " 2>&1 | tail -2
-          echo
-          echo "=== does the host have pg_dump? ==="
-          command -v pg_dump || echo "no pg_dump on the host"
-          echo
-          echo "=== the DATABASE_URL shape (password hidden) ==="
-          grep '^DATABASE_URL=' /home/deploy/ma-famille/backend/.env | sed -E 's#://[^:]+:[^@]+@#://user:…@#'
           EOF
