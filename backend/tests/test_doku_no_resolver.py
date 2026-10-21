@@ -40,6 +40,7 @@ def test_a_refused_request_is_not_retried(monkeypatch):
         called.append(url)
         raise httpx.ConnectError("connection refused")
 
+    monkeypatch.setattr(doku, "_address_for", lambda host: None)
     monkeypatch.setattr(httpx, "post", fake_post)
     monkeypatch.setattr(doku, "resolve_over_https", lambda host: pytest.fail("must not resolve"))
     with pytest.raises(httpx.ConnectError):
@@ -86,6 +87,8 @@ def test_a_name_that_cannot_be_resolved_is_looked_up_over_https(monkeypatch):
         def send(self, request):
             return FakeResponse()
 
+    monkeypatch.setattr(doku, "_resolver_answers", lambda host: False)
+    monkeypatch.setattr(doku, "_ADDRESS_CACHE", {})
     monkeypatch.setattr(httpx, "post", fake_post)
     monkeypatch.setattr(httpx, "get", fake_get)
     monkeypatch.setattr(httpx, "Client", FakeClient)
@@ -118,6 +121,7 @@ def test_a_name_without_an_address_is_an_error(monkeypatch):
             request=httpx.Request("GET", url),
         )
 
+    monkeypatch.setattr(doku, "_address_for", lambda host: None)
     monkeypatch.setattr(httpx, "post", fake_post)
     monkeypatch.setattr(httpx, "get", fake_get)
     with pytest.raises(doku.DokuError, match="no address"):
@@ -141,3 +145,108 @@ def test_the_checkout_goes_through_the_helper(monkeypatch):
 
     doku.create_checkout(invoice_number="MAF-TEST", amount=10000, customer_name="Tester")
     assert seen == ["https://doku.test/checkout/v1/payment"]
+
+
+def test_the_machine_is_asked_whether_it_can_resolve(monkeypatch):
+    """A name the machine can look up is used as it is."""
+    asked = []
+
+    def fake_post(url, **kwargs):
+        asked.append(url)
+        return FakeResponse()
+
+    monkeypatch.setattr(doku, "_resolver_answers", lambda host: True)
+    monkeypatch.setattr(httpx, "post", fake_post)
+    doku.post_to_doku("https://doku.test/x", content=b"{}", headers={})
+    assert asked == ["https://doku.test/x"]
+
+
+def test_a_machine_without_a_resolver_asks_over_https(monkeypatch):
+    """A name the machine cannot look up is asked for over HTTPS first."""
+    asked = []
+    sent = {}
+
+    def fake_get(url, **kwargs):
+        asked.append((url, kwargs.get("params")))
+        return httpx.Response(
+            200,
+            json={"Answer": [{"type": 1, "data": "147.139.176.73"}]},
+            request=httpx.Request("GET", url),
+        )
+
+    class FakeClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def build_request(self, method, url, **kwargs):
+            sent["url"] = url
+            return httpx.Request(method, url)
+
+        def send(self, request):
+            return FakeResponse()
+
+    monkeypatch.setattr(doku, "_resolver_answers", lambda host: False)
+    monkeypatch.setattr(doku, "_ADDRESS_CACHE", {})
+    monkeypatch.setattr(httpx, "get", fake_get)
+    monkeypatch.setattr(httpx, "Client", FakeClient)
+
+    doku.post_to_doku("https://doku.test/x", content=b"{}", headers={})
+    assert asked[0][1] == {"name": "doku.test", "type": "A"}
+    assert sent["url"] == "https://147.139.176.73/x"
+
+
+def test_the_verdict_is_remembered(monkeypatch):
+    """The machine is asked once, not once per payment."""
+    checks = []
+
+    def fake_check(host):
+        checks.append(host)
+        return False
+
+    def fake_get(url, **kwargs):
+        return httpx.Response(
+            200,
+            json={"Answer": [{"type": 1, "data": "147.139.176.73"}]},
+            request=httpx.Request("GET", url),
+        )
+
+    class FakeClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def build_request(self, method, url, **kwargs):
+            return httpx.Request(method, url)
+
+        def send(self, request):
+            return FakeResponse()
+
+    monkeypatch.setattr(doku, "_resolver_answers", fake_check)
+    monkeypatch.setattr(doku, "_ADDRESS_CACHE", {})
+    monkeypatch.setattr(httpx, "get", fake_get)
+    monkeypatch.setattr(httpx, "Client", FakeClient)
+
+    doku.post_to_doku("https://doku.test/x", content=b"{}", headers={})
+    doku.post_to_doku("https://doku.test/x", content=b"{}", headers={})
+    assert len(checks) == 1
+
+
+def test_a_resolver_that_answers_is_taken_at_its_word(monkeypatch):
+    """A resolver that answers is used, and no lookup over HTTPS happens."""
+    monkeypatch.setattr(doku, "_resolver_answers", lambda host: True)
+    monkeypatch.setattr(doku, "_ADDRESS_CACHE", {})
+    monkeypatch.setattr(
+        doku, "resolve_over_https", lambda host: pytest.fail("must not look it up")
+    )
+    assert doku._address_for("doku.test") is None

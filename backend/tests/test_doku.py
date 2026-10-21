@@ -88,6 +88,9 @@ def test_checkout_sends_json_content_type(monkeypatch):
 
     import httpx
 
+    # The machine this runs on can look names up, so the request goes out as
+    # it is; no lookup over HTTPS is needed.
+    monkeypatch.setattr(doku, "_resolver_answers", lambda host: True)
     monkeypatch.setattr(httpx, "post", fake_post)
     result = doku.create_checkout(
         invoice_number="MAF-TEST", amount=10000, customer_name="Tester"

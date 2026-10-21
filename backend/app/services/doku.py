@@ -12,6 +12,8 @@ import hashlib
 import hmac
 import json
 import socket
+import struct
+import time
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from urllib.parse import urlsplit
@@ -122,6 +124,80 @@ def resolve_over_https(hostname: str) -> str:
     raise DokuError(f"the name {hostname} has no address")
 
 
+# Addresses looked up over HTTPS, with the time they were found. The gateway
+# sits behind a load balancer, so the address is not a fixed one, but it does
+# not change often either.
+_ADDRESS_CACHE: dict[str, tuple[str, float, bool]] = {}
+_ADDRESS_TTL_SECONDS = 300
+
+
+def _cached_address(hostname: str) -> str | None:
+    found = _ADDRESS_CACHE.get(hostname)
+    if found is None:
+        return None
+    address, when, _resolves = found
+    if time.monotonic() - when > _ADDRESS_TTL_SECONDS:
+        return None
+    return address or None
+
+
+def _remember_address(hostname: str, address: str) -> None:
+    _ADDRESS_CACHE[hostname] = (address, time.monotonic(), False)
+
+
+def _resolver_answers(hostname: str) -> bool:
+    """Does the machine's own resolver answer for this name?
+
+    The check is a DNS query of its own, sent to the nameserver in
+    /etc/resolv.conf, and it waits a second and a half at most. The usual
+    library call cannot be used for this: on a server whose nameserver
+    refuses the query, it hangs for the whole resolver timeout instead, so
+    the answer would come after the payment had already been given up on.
+    """
+    servers = _configured_nameservers()
+    if not servers:
+        return False
+    query = _dns_query(hostname)
+    for server in servers:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sock.settimeout(1.5)
+        try:
+            sock.sendto(query, (server, 53))
+            data, _ = sock.recvfrom(2048)
+        except (TimeoutError, OSError):
+            continue
+        finally:
+            sock.close()
+        if len(data) >= 4 and data[3] & 0x0F == 0:
+            return True
+    return False
+
+
+def _configured_nameservers() -> list[str]:
+    """The nameservers the machine is set to use."""
+    servers: list[str] = []
+    try:
+        with open("/etc/resolv.conf", encoding="utf-8") as handle:
+            for line in handle:
+                if line.startswith("nameserver"):
+                    parts = line.split()
+                    if len(parts) > 1:
+                        servers.append(parts[1])
+    except OSError:
+        pass
+    return servers
+
+
+def _dns_query(hostname: str) -> bytes:
+    """An A query for a name, built by hand."""
+    header = struct.pack("!HHHHHH", 0x4D41, 0x0100, 1, 0, 0, 0)
+    body = b""
+    for part in hostname.split("."):
+        body += bytes([len(part)]) + part.encode()
+    body += b"\x00" + struct.pack("!HH", 1, 1)
+    return header + body
+
+
 def post_to_doku(
     url: str, *, content: bytes, headers: dict[str, str], timeout: int = 15
 ) -> httpx.Response:
@@ -132,28 +208,58 @@ def post_to_doku(
     and the Host header, because the certificate belongs to the name and
     not to the address.
     """
-    try:
+    parts = urlsplit(url)
+    hostname = parts.hostname
+    if not hostname:
         return httpx.post(url, content=content, headers=headers, timeout=timeout)
-    except httpx.ConnectError as exc:
-        if not _is_a_name_error(exc):
-            raise
-        parts = urlsplit(url)
-        hostname = parts.hostname
-        if not hostname:
-            raise
+
+    address = _address_for(hostname)
+    if address is None:
+        try:
+            return httpx.post(url, content=content, headers=headers, timeout=timeout)
+        except httpx.ConnectError as exc:
+            if not _is_a_name_error(exc):
+                raise
+            address = resolve_over_https(hostname)
+            _remember_address(hostname, address)
+
+    target = f"https://{address}{parts.path}"
+    if parts.query:
+        target = f"{target}?{parts.query}"
+    with httpx.Client(timeout=timeout) as client:
+        request = client.build_request(
+            "POST",
+            target,
+            content=content,
+            headers={**headers, "Host": hostname},
+            extensions={"sni_hostname": hostname},
+        )
+        return client.send(request)
+
+
+def _address_for(hostname: str) -> str | None:
+    """The address to use for a name, or None when the machine can look it up.
+
+    The verdict is remembered for a while, because a machine that cannot
+    resolve names will not start doing so between two payments — and asking
+    again costs a second of waiting on a nameserver that never answers.
+    """
+    cached = _ADDRESS_CACHE.get(hostname)
+    if cached is not None:
+        address, when, resolves = cached
+        if time.monotonic() - when <= _ADDRESS_TTL_SECONDS:
+            return None if resolves else address
+
+    if _resolver_answers(hostname):
+        _ADDRESS_CACHE[hostname] = ("", time.monotonic(), True)
+        return None
+
+    address = _cached_address(hostname)
+    if address is None:
         address = resolve_over_https(hostname)
-        target = f"https://{address}{parts.path}"
-        if parts.query:
-            target = f"{target}?{parts.query}"
-        with httpx.Client(timeout=timeout) as client:
-            request = client.build_request(
-                "POST",
-                target,
-                content=content,
-                headers={**headers, "Host": hostname},
-                extensions={"sni_hostname": hostname},
-            )
-            return client.send(request)
+        _remember_address(hostname, address)
+    _ADDRESS_CACHE[hostname] = (address, time.monotonic(), False)
+    return address
 
 
 def doku_error_detail(res: httpx.Response) -> str:

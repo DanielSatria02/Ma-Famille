@@ -357,11 +357,20 @@ export async function deletePromotion(publicId) {
 // --- Payments -----------------------------------------------------------
 
 export async function createPayment(bookingPublicId, { amount, kind = 'full' }) {
-  const res = await api.post('/v1/payments', {
-    booking_public_id: bookingPublicId,
-    amount,
-    kind,
-  })
+  // Opening a checkout reaches the payment gateway, which on a server with
+  // no resolver has to look the gateway up over HTTPS first. That takes
+  // longer than the default timeout, and a payment that times out on the
+  // client while the invoice is being raised looks to the customer like a
+  // broken button. So this one call waits longer.
+  const res = await api.post(
+    '/v1/payments',
+    {
+      booking_public_id: bookingPublicId,
+      amount,
+      kind,
+    },
+    { timeout: 30000 },
+  )
   return res.data
 }
 
