@@ -34,46 +34,128 @@ jobs:
           TUNNEL_SERVICE_TOKEN_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
         run: |
           ssh prod "sh -s" <<'EOF'
-          echo "=== the container names ==="
-          podman ps --format '{{.Names}}'
+          echo "=== the containers and their state ==="
+          podman ps -a --format '{{.Names}} {{.Status}}'
           echo
-          echo "=== can the host use a public resolver? ==="
-          for dns in 1.1.1.1 8.8.8.8 10.10.0.1; do
-            printf '%-12s ' "$dns"
-            nslookup api-sandbox.doku.com "$dns" 2>&1 | grep -A2 '^Name:' | tr '\n' ' ' | cut -c1-90
-            echo
-          done
+          echo "=== the host resolv.conf ==="
+          cat /etc/resolv.conf
           echo
-          echo "=== is the egress blocked, or only the name? ==="
-          curl -s -m 12 -o /dev/null -w 'by ip -> %{http_code}\n' \
-            --resolve api-sandbox.doku.com:443:147.139.176.73 https://api-sandbox.doku.com/ || echo "BY_IP_FAILED"
-          curl -s -m 12 -o /dev/null -w 'github -> %{http_code}\n' https://github.com/ || echo "GITHUB_FAILED"
-          curl -s -m 12 -o /dev/null -w 'google -> %{http_code}\n' https://www.google.com/ || echo "GOOGLE_FAILED"
-          echo
-          echo "=== the api container: what does it see? ==="
-          C=ma-famille_api_1
-          podman exec "$C" cat /etc/resolv.conf 2>&1
-          echo
-          podman exec "$C" python -c "
-          import socket, httpx
-          try:
-              print('default resolve ->', socket.gethostbyname('api-sandbox.doku.com'))
-          except Exception as e:
-              print('default resolve FAILED:', e)
-          for dns in ('1.1.1.1', '8.8.8.8'):
+          echo "=== a raw DNS query to each resolver (from the host) ==="
+          python3 - <<'PY' 2>&1 || echo "no python3 on the host"
+          import socket, struct
+
+          def query(server, name="api-sandbox.doku.com", timeout=4):
+              # A DNS A query, built by hand: no dnspython on a minimal image.
+              qid = 0x1234
+              header = struct.pack("!HHHHHH", qid, 0x0100, 1, 0, 0, 0)
+              body = b""
+              for part in name.split("."):
+                  body += bytes([len(part)]) + part.encode()
+              body += b"\x00" + struct.pack("!HH", 1, 1)
+              sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+              sock.settimeout(timeout)
               try:
-                  print('resolve via', dns, '->', socket.gethostbyname('api-sandbox.doku.com', dns))
-              except Exception as e:
-                  print('resolve via', dns, 'FAILED:', e)
+                  sock.sendto(header + body, (server, 53))
+                  data, _ = sock.recvfrom(2048)
+              except socket.timeout:
+                  return "TIMEOUT"
+              except OSError as err:
+                  return f"ERROR {err}"
+              finally:
+                  sock.close()
+              rcode = data[3] & 0x0F
+              ancount = struct.unpack("!H", data[6:8])[0]
+              if rcode == 0 and ancount:
+                  # Walk the answers for the first A record.
+                  pos = 12
+                  while data[pos] != 0:
+                      pos += 1 + data[pos]
+                  pos += 5
+                  for _ in range(ancount):
+                      if data[pos] & 0xC0 == 0xC0:
+                          pos += 2
+                      else:
+                          pos += 1 + data[pos]
+                      rtype, _cls, _ttl, rdlen = struct.unpack("!HHIH", data[pos:pos + 10])
+                      pos += 10
+                      rdata = data[pos:pos + rdlen]
+                      pos += rdlen
+                      if rtype == 1 and rdlen == 4:
+                          return ".".join(str(b) for b in rdata)
+                  return f"OK but no A (rcode {rcode})"
+              return f"rcode {rcode}"
+
+          for server in ("10.10.0.1", "10.89.0.1", "1.1.1.1", "8.8.8.8", "9.9.9.9", "208.67.222.222"):
+              print(f"{server:16} -> {query(server)}")
+          PY
+          echo
+          echo "=== the same query from inside the api container ==="
+          C=ma-famille_api_1
+          podman exec "$C" python - <<'PY' 2>&1 | tail -12
+          import socket, struct
+
+          def query(server, name="api-sandbox.doku.com", timeout=4):
+              qid = 0x1234
+              header = struct.pack("!HHHHHH", qid, 0x0100, 1, 0, 0, 0)
+              body = b""
+              for part in name.split("."):
+                  body += bytes([len(part)]) + part.encode()
+              body += b"\x00" + struct.pack("!HH", 1, 1)
+              sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+              sock.settimeout(timeout)
+              try:
+                  sock.sendto(header + body, (server, 53))
+                  data, _ = sock.recvfrom(2048)
+              except socket.timeout:
+                  return "TIMEOUT"
+              except OSError as err:
+                  return f"ERROR {err}"
+              finally:
+                  sock.close()
+              rcode = data[3] & 0x0F
+              ancount = struct.unpack("!H", data[6:8])[0]
+              if rcode == 0 and ancount:
+                  pos = 12
+                  while data[pos] != 0:
+                      pos += 1 + data[pos]
+                  pos += 5
+                  for _ in range(ancount):
+                      if data[pos] & 0xC0 == 0xC0:
+                          pos += 2
+                      else:
+                          pos += 1 + data[pos]
+                      rtype, _cls, _ttl, rdlen = struct.unpack("!HHIH", data[pos:pos + 10])
+                      pos += 10
+                      rdata = data[pos:pos + rdlen]
+                      pos += rdlen
+                      if rtype == 1 and rdlen == 4:
+                          return ".".join(str(b) for b in rdata)
+                  return f"OK but no A (rcode {rcode})"
+              return f"rcode {rcode}"
+
+          for server in ("10.89.0.1", "10.10.0.1", "1.1.1.1", "8.8.8.8"):
+              print(f"{server:16} -> {query(server)}")
+          PY
+          echo
+          echo "=== and from the container: plain httpx to doku ==="
+          podman exec "$C" python -c "
+          import httpx
           try:
               print('https ->', httpx.get('https://api-sandbox.doku.com/', timeout=10).status_code)
           except Exception as e:
               print('https FAILED:', type(e).__name__, e)
-          " 2>&1 | tail -12
+          " 2>&1 | tail -3
           echo
-          echo "=== the database still answers? ==="
-          podman exec "$C" python -c "
-          import socket
-          print('db ip ->', socket.gethostbyname('10.10.0.10'))
-          " 2>&1 | tail -2
+          echo "=== the host: egress by ip, and to the resolvers ==="
+          for target in 1.1.1.1:53 8.8.8.8:53 10.10.0.1:53 147.139.176.73:443 1.1.1.1:443; do
+            host=${target%:*}; port=${target#*:}
+            if nc -z -w 4 "$host" "$port" 2>/dev/null; then
+              echo "$target -> open"
+            else
+              echo "$target -> blocked"
+            fi
+          done
+          echo
+          echo "=== is the tunnel container the way out? ==="
+          podman inspect ma-famille_edge_1 --format '{{.Config.Image}} {{range .Config.Env}}{{println .}}{{end}}' 2>&1 | head -12
           EOF
